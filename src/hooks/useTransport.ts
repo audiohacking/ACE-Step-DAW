@@ -3,7 +3,6 @@ import { useTransportStore } from '../store/transportStore';
 import { useProjectStore } from '../store/projectStore';
 import { getAudioEngine } from './useAudioEngine';
 import { loadAudioBlobByKey } from '../services/audioFileManager';
-import { isolateTrackAudio } from '../engine/waveSubtraction';
 
 /**
  * Trim an AudioBuffer to a specific project-time region.
@@ -58,26 +57,7 @@ export function useTransport() {
     }
     const clipBuffers: ScheduleEntry[] = [];
 
-    // -----------------------------------------------------------------------
-    // On-the-fly isolation in DESC generation order
-    //
-    // Sort tracks by order DESC (mirrors the batch-generation order: the
-    // highest-order track was generated FIRST from silence; each subsequent
-    // lower-order track was generated with the previous cumulative as context).
-    //
-    // Chain:
-    //   Track N (order=2, generated 1st): isolated = cumulative_N - null        = track N audio
-    //   Track N-1 (order=1, generated 2nd): isolated = cumulative_N-1 - cumulative_N = track N-1 audio
-    //
-    // Example: guitar(order=2) + drums(order=1), generated in context mode:
-    //   guitar cumulative = guitar only     → isolated = guitar - null = guitar  ✓
-    //   drums  cumulative = guitar + drums  → isolated = (guitar+drums) - guitar = drums  ✓
-    // -----------------------------------------------------------------------
-    const tracksDesc = [...proj.tracks].sort((a, b) => b.order - a.order);
-    let previousCumBuffer: AudioBuffer | null = null;
-
-    for (const track of tracksDesc) {
-      // Sync channel-strip params to the TrackNode
+    for (const track of proj.tracks) {
       const trackNode = engine.getOrCreateTrackNode(track.id);
       trackNode.volume = track.volume;
       trackNode.muted = track.muted;
@@ -94,42 +74,35 @@ export function useTransport() {
       trackNode.setReverb(track.reverbMix ?? 0, track.reverbRoomSize ?? 0.5);
 
       for (const clip of track.clips) {
-        if (clip.generationStatus !== 'ready' || !clip.cumulativeMixKey) continue;
+        if (clip.generationStatus !== 'ready') continue;
 
-        const cumBlob = await loadAudioBlobByKey(clip.cumulativeMixKey);
-        if (!cumBlob) continue;
+        // Try isolated audio first (pre-trimmed to clip region at generation),
+        // fall back to cumulative mix (full project-length, needs trimming).
+        let blob: Blob | undefined;
+        let alreadyTrimmed = false;
 
-        const cumBuffer = await engine.decodeAudioData(cumBlob);
+        if (clip.isolatedAudioKey) {
+          blob = await loadAudioBlobByKey(clip.isolatedAudioKey);
+          if (blob) alreadyTrimmed = true;
+        }
+        if (!blob && clip.cumulativeMixKey) {
+          blob = await loadAudioBlobByKey(clip.cumulativeMixKey);
+        }
+        if (!blob) continue;
 
-        // Compute isolated audio on the fly.
-        //
-        // If the clip was generated FROM CONTEXT, its cumulativeMixKey is a
-        // cumulative mix (this track + all previously generated tracks), so we
-        // must subtract the previous cumulative to isolate just this track.
-        //
-        // If the clip was generated FROM SILENCE, its cumulativeMixKey contains
-        // ONLY this track's own audio.  Subtracting the previous buffer would
-        // corrupt it (adds inverted audio from another track), so use it directly.
-        const fullIsolated = (clip.generatedFromContext && previousCumBuffer !== null)
-          ? isolateTrackAudio(engine.ctx, cumBuffer, previousCumBuffer)
-          : cumBuffer;
-
-        // Trim the full-project-length isolated buffer to just the clip region.
-        const clipStart = clip.startTime;
-        const clipDur = clip.duration;
-        const trimmed = trimBuffer(engine.ctx, fullIsolated, clipStart, clipDur);
+        const rawBuffer = await engine.decodeAudioData(blob);
+        const buffer = alreadyTrimmed
+          ? rawBuffer
+          : trimBuffer(engine.ctx, rawBuffer, clip.startTime, clip.duration);
 
         clipBuffers.push({
           clipId: clip.id,
           trackId: track.id,
-          startTime: clipStart,
-          buffer: trimmed,
+          startTime: clip.startTime,
+          buffer,
           audioOffset: 0,
-          clipDuration: clipDur,
+          clipDuration: clip.duration,
         });
-
-        // This track's cumulative becomes the "previous" for the next (lower-order) track
-        previousCumBuffer = cumBuffer;
       }
     }
 

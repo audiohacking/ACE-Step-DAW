@@ -551,6 +551,12 @@ export async function generateFromAddLayer(opts: AddLayerOptions): Promise<void>
       lyrics: opts.lyrics,
     });
 
+    // Sync local description to the track-level localCaption so the
+    // TrackInspector reflects it
+    if (opts.localDescription) {
+      store.setTrackLocalCaption(opts.trackId, opts.localDescription);
+    }
+
     let contextBlob: Blob | null = null;
 
     if (opts.contextWindow) {
@@ -620,6 +626,9 @@ export async function generateFromMultiTrack(opts: MultiTrackGenerateOptions): P
         globalCaption: opts.globalCaption,
         lyrics: entry.lyrics,
       });
+      if (entry.localDescription) {
+        store.setTrackLocalCaption(entry.trackId, entry.localDescription);
+      }
       batchTracks.push({
         clipId: clip.id,
         localDescription: entry.localDescription,
