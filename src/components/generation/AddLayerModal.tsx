@@ -250,7 +250,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
           {/* Timeline diagram */}
-          <div className="bg-zinc-900/60 rounded px-3 pt-2 pb-4 border border-zinc-800">
+          <div className="bg-[#222]/60 rounded px-3 pt-2 pb-4 border border-[#3a3a3a]">
             <p className="text-[10px] text-zinc-400 mb-2">
               {hasContext
                 ? 'The model generates audio for the Select Window, conditioned on the Context Window.'
@@ -266,7 +266,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                 Select
               </span>
               <div className="absolute right-0" style={{ left: '44px', top: '0', bottom: '12px' }}>
-                <div className="absolute inset-x-0 bg-zinc-700 rounded" style={{ top: '50%', height: '2px', transform: 'translateY(-50%)' }} />
+                <div className="absolute inset-x-0 bg-[#444] rounded" style={{ top: '50%', height: '2px', transform: 'translateY(-50%)' }} />
                 {hasContext && (
                   <div
                     className="absolute rounded bg-blue-600/50 border border-blue-500/70"
@@ -333,7 +333,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
           )}
 
           {/* Select window — adjustable range slider */}
-          <div className="bg-zinc-900/60 rounded px-3 pt-2 pb-3 border border-zinc-800">
+          <div className="bg-[#222]/60 rounded px-3 pt-2 pb-3 border border-[#3a3a3a]">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-[10px] font-medium text-zinc-300">{track.displayName}</span>
               <span className="text-[10px] text-zinc-600">Select window</span>
@@ -361,7 +361,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                 onChange={(e) => setLocalCaption(e.target.value)}
                 placeholder={`Describe the ${track.displayName} sound…`}
                 rows={3}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-daw-accent"
+                className="w-full bg-[#222] border border-[#444] rounded px-2.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-daw-accent"
               />
             </div>
           )}
@@ -376,7 +376,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                 onChange={(e) => setLocalCaption(e.target.value)}
                 placeholder="Describe the sample you want…"
                 rows={3}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-daw-accent"
+                className="w-full bg-[#222] border border-[#444] rounded px-2.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-daw-accent"
               />
             </div>
           )}
@@ -393,7 +393,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                 onChange={(e) => setGlobalCaption(e.target.value)}
                 placeholder="e.g. upbeat pop song with energetic drums…"
                 rows={2}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-daw-accent"
+                className="w-full bg-[#222] border border-[#444] rounded px-2.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-daw-accent"
               />
             </div>
           )}
@@ -409,7 +409,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                 onChange={(e) => setLyrics(e.target.value)}
                 placeholder="Song lyrics…"
                 rows={4}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-daw-accent font-mono"
+                className="w-full bg-[#222] border border-[#444] rounded px-2.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-daw-accent font-mono"
               />
             </div>
           )}
@@ -422,7 +422,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
               className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
                 chunkMaskMode === 'auto'
                   ? 'bg-teal-900/50 border-teal-700/50 text-teal-300'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+                  : 'bg-[#333] border-[#444] text-zinc-400'
               }`}
             >
               {chunkMaskMode === 'auto' ? 'Auto (model decides)' : 'Explicit (select window only)'}
@@ -430,7 +430,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
           </div>
 
           {/* Advanced options (collapsed) */}
-          <div className="border-t border-zinc-800 pt-2">
+          <div className="border-t border-[#3a3a3a] pt-2">
             <button
               type="button"
               onClick={() => setShowAdvanced((v) => !v)}
@@ -446,7 +446,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                       type="checkbox"
                       checked={sampleMode}
                       onChange={(e) => setSampleMode(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-zinc-700 bg-zinc-900 accent-daw-accent"
+                      className="w-3.5 h-3.5 rounded border-[#444] bg-[#222] accent-daw-accent"
                     />
                     <span className="text-[10px] text-zinc-400">Sample Mode</span>
                   </label>
@@ -455,7 +455,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                       type="checkbox"
                       checked={autoExpandPrompt}
                       onChange={(e) => setAutoExpandPrompt(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-zinc-700 bg-zinc-900 accent-daw-accent"
+                      className="w-3.5 h-3.5 rounded border-[#444] bg-[#222] accent-daw-accent"
                     />
                     <span className="text-[10px] text-zinc-400">Auto-expand prompt</span>
                   </label>
@@ -467,7 +467,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                     value={seedValue}
                     onChange={(e) => setSeedValue(e.target.value)}
                     placeholder="Leave empty for random"
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-daw-accent"
+                    className="w-full bg-[#222] border border-[#444] rounded px-2.5 py-1.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-daw-accent"
                   />
                   <p className="mt-1 text-[9px] text-zinc-600">
                     Project: {project.bpm} BPM · {project.keyScale} · {project.timeSignature}/4
@@ -479,7 +479,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
 
           {/* Inferred metadata (edit mode only, when clip has been generated) */}
           {isEditMode && existingClip?.generationStatus === 'ready' && existingClip.inferredMetas && (
-            <div className="border-t border-zinc-800 pt-2">
+            <div className="border-t border-[#3a3a3a] pt-2">
               <p className="text-[9px] text-zinc-500 mb-1.5">Inferred by ACE-Step</p>
               <div className="grid grid-cols-3 gap-x-3 gap-y-1">
                 {existingClip.inferredMetas.bpm != null && (
@@ -530,7 +530,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleSave}
-                  className="px-4 py-1.5 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors"
+                  className="px-4 py-1.5 text-xs font-medium bg-[#333] hover:bg-[#444] text-zinc-300 rounded transition-colors"
                 >
                   Save
                 </button>
@@ -539,7 +539,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                   disabled={isGenerating}
                   className={`px-4 py-1.5 rounded text-xs font-medium transition-colors ${
                     isGenerating
-                      ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                      ? 'bg-[#444] text-zinc-500 cursor-not-allowed'
                       : hasContext
                         ? 'bg-teal-600 hover:bg-teal-500 text-white'
                         : 'bg-violet-600 hover:bg-violet-500 text-white'
@@ -553,7 +553,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
             <>
               <button
                 onClick={() => { stopPreview(); onClose(); }}
-                className="px-3 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+                className="px-3 py-1.5 rounded text-xs font-medium bg-[#333] hover:bg-[#444] text-zinc-300 transition-colors"
               >
                 Cancel
               </button>
@@ -562,7 +562,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                 disabled={isGenerating}
                 className={`px-4 py-1.5 rounded text-xs font-medium transition-colors ${
                   isGenerating
-                    ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                    ? 'bg-[#444] text-zinc-500 cursor-not-allowed'
                     : hasContext
                       ? 'bg-teal-600 hover:bg-teal-500 text-white'
                       : 'bg-violet-600 hover:bg-violet-500 text-white'

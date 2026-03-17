@@ -79,7 +79,7 @@ export function ExportDialog() {
         <div className="flex justify-end px-4 py-3 border-t border-daw-border gap-2">
           <button
             onClick={() => setShow(false)}
-            className="px-4 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors"
+            className="px-4 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-[#484848] rounded transition-colors"
           >
             Cancel
           </button>

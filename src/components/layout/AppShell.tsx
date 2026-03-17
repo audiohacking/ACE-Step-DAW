@@ -13,6 +13,7 @@ import { KeyboardShortcutsDialog } from '../dialogs/KeyboardShortcutsDialog';
 import { MixerPanel } from '../mixer/MixerPanel';
 import { AssetsPanel } from '../assets/AssetsPanel';
 import { SequencerEditor } from '../sequencer/SequencerEditor';
+import { SmartControlsPanel } from '../controls/SmartControlsPanel';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
@@ -36,7 +37,7 @@ export function AppShell() {
   useKeyboardShortcuts();
 
   return (
-    <div className="flex flex-col h-screen" onClick={handleClick}>
+    <div className="flex flex-col h-screen bg-daw-bg text-zinc-300" onClick={handleClick}>
       <Toolbar />
 
       <div className="flex flex-1 min-h-0">
@@ -45,6 +46,7 @@ export function AppShell() {
         {project && <AssetsPanel />}
       </div>
 
+      {project && <SmartControlsPanel />}
       {project && <SequencerEditor />}
       {project && <MixerPanel />}
       {project && <GenerationPanel />}

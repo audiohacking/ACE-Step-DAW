@@ -45,7 +45,6 @@ export function TrackList() {
     setDragOverId(null);
   }, []);
 
-  // Width resize handle
   const resizeDragRef = useRef<{ startX: number; startW: number } | null>(null);
 
   const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
@@ -71,7 +70,7 @@ export function TrackList() {
 
   return (
     <div
-      className="flex flex-col bg-daw-surface border-r border-daw-border relative shrink-0"
+      className="flex flex-col bg-[#2a2a2a] border-r border-[#1a1a1a] relative shrink-0"
       style={{ width: trackListWidth }}
       onDragLeave={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
@@ -80,7 +79,9 @@ export function TrackList() {
       }}
     >
       {/* Header spacer aligned with TimeRuler */}
-      <div className="h-6 border-b border-daw-border shrink-0" />
+      <div className="h-6 border-b border-[#3a3a3a] shrink-0 bg-[#333] flex items-center px-2">
+        <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Tracks</span>
+      </div>
 
       <div className="flex-1 overflow-y-auto">
         {sortedTracks.map((track) => (
@@ -100,7 +101,7 @@ export function TrackList() {
 
       {/* Right-edge resize handle */}
       <div
-        className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize bg-transparent hover:bg-indigo-500/40 transition-colors z-10"
+        className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize bg-transparent hover:bg-daw-accent/30 transition-colors z-10"
         onMouseDown={onResizeMouseDown}
       />
     </div>

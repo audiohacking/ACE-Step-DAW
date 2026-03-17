@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { Track } from '../../types/project';
 import { useProjectStore } from '../../store/projectStore';
-import { TRACK_CATALOG, TRACK_TYPE_CATALOG } from '../../constants/tracks';
+import { TRACK_CATALOG } from '../../constants/tracks';
 import { TrackEditModal } from './TrackEditModal';
 
 const MIN_LANE_HEIGHT = 40;
@@ -28,11 +28,9 @@ export function TrackHeader({
   const renameTrack = useProjectStore((s) => s.renameTrack);
   const removeTrack = useProjectStore((s) => s.removeTrack);
   const info = TRACK_CATALOG[track.trackName];
-  const typeInfo = TRACK_TYPE_CATALOG[track.trackType ?? 'stems'];
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
-
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(track.displayName);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +56,7 @@ export function TrackHeader({
 
   const laneHeight = track.laneHeight ?? 64;
   const resizeRef = useRef<{ startY: number; startH: number } | null>(null);
+  const isCompact = laneHeight < 52;
 
   const onHeightResizeDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -93,14 +92,13 @@ export function TrackHeader({
   return (
     <>
     <div
-      className={`relative flex flex-col justify-center gap-1 px-2 border-b border-daw-border group select-none ${
-        isDragOver ? 'bg-daw-surface-2' : ''
+      className={`relative flex items-center gap-1.5 px-1 border-b border-[#3a3a3a] group select-none ${
+        isDragOver ? 'bg-[#383838]' : 'bg-[#2d2d2d]'
       }`}
       style={{
-        height: track.laneHeight ?? 64,
-        borderLeft: `3px solid ${track.color}`,
-        borderTop: isDragOver && dragOverPosition === 'before' ? '2px solid #6366f1' : undefined,
-        borderBottom: isDragOver && dragOverPosition === 'after' ? '2px solid #6366f1' : undefined,
+        height: laneHeight,
+        borderTop: isDragOver && dragOverPosition === 'before' ? '2px solid var(--color-daw-accent)' : undefined,
+        borderBottom: isDragOver && dragOverPosition === 'after' ? '2px solid var(--color-daw-accent)' : undefined,
       }}
       draggable
       onDragStart={() => onDragStart(track.id)}
@@ -110,22 +108,32 @@ export function TrackHeader({
       onDoubleClick={handleHeaderDoubleClick}
       onContextMenu={handleHeaderContextMenu}
     >
-      {/* Top row: drag handle + type badge + emoji + name */}
-      <div className="flex items-center gap-1 min-w-0">
-        <div
-          className="flex-shrink-0 text-zinc-600 hover:text-zinc-400 cursor-grab active:cursor-grabbing text-sm leading-none select-none"
-          title="Drag to reorder"
-        >
-          ⠿
-        </div>
-        <span
-          className="flex-shrink-0 text-[8px] font-bold px-1 py-px rounded leading-tight"
-          style={{ backgroundColor: typeInfo.color + '25', color: typeInfo.color }}
-          title={typeInfo.label}
-        >
-          {typeInfo.abbr}
-        </span>
-        <span className="text-sm flex-shrink-0" title={info.displayName}>{info.emoji}</span>
+      {/* Color strip (left edge) */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[4px] rounded-r-sm"
+        style={{ backgroundColor: track.color }}
+      />
+
+      {/* Drag handle */}
+      <div
+        className="flex-shrink-0 ml-1.5 text-zinc-600 hover:text-zinc-400 cursor-grab active:cursor-grabbing text-[10px] leading-none select-none"
+        title="Drag to reorder"
+      >
+        ⠿
+      </div>
+
+      {/* Instrument icon */}
+      <div
+        className="flex-shrink-0 w-6 h-6 rounded flex items-center justify-center text-sm"
+        style={{ backgroundColor: track.color + '20' }}
+        title={info.displayName}
+      >
+        {info.emoji}
+      </div>
+
+      {/* Name + controls column */}
+      <div className="flex-1 min-w-0 flex flex-col gap-0.5 py-0.5">
+        {/* Name */}
         {isEditing ? (
           <input
             ref={inputRef}
@@ -136,74 +144,91 @@ export function TrackHeader({
               if (e.key === 'Enter') commitRename();
               if (e.key === 'Escape') cancelEditing();
             }}
-            className="text-xs font-medium text-zinc-200 bg-zinc-700 rounded px-1 py-0.5 min-w-0 outline-none border border-indigo-500/60"
+            className="text-[11px] font-medium text-zinc-100 bg-[#1a1a1a] rounded px-1 py-px min-w-0 outline-none border border-daw-accent/60"
             autoFocus
           />
         ) : (
           <span
-            className="text-xs font-medium text-zinc-200 truncate cursor-text"
-            title={`${track.displayName} (double-click to rename)`}
-            onDoubleClick={startEditing}
+            className="text-[11px] font-medium text-zinc-200 truncate cursor-text leading-tight"
+            title={track.displayName}
+            onDoubleClick={(e) => { e.stopPropagation(); startEditing(); }}
           >
             {track.displayName}
           </span>
         )}
+
+        {/* Volume slider + M/S buttons (only in non-compact mode) */}
+        {!isCompact && (
+          <div className="flex items-center gap-1 w-full">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={Math.round(track.volume * 100)}
+              onChange={(e) => updateTrack(track.id, { volume: parseInt(e.target.value) / 100 })}
+              className="flex-1 h-1 min-w-0"
+              title={`Volume: ${Math.round(track.volume * 100)}%`}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Bottom row: volume + buttons */}
-      <div className="flex items-center gap-1.5 w-full">
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={Math.round(track.volume * 100)}
-          onChange={(e) => updateTrack(track.id, { volume: parseInt(e.target.value) / 100 })}
-          className="flex-1 h-1 min-w-0"
-          title={`Volume: ${Math.round(track.volume * 100)}%`}
-        />
-        <div className="flex items-center gap-0.5 flex-shrink-0">
-          <button
-            onClick={() => updateTrack(track.id, { muted: !track.muted })}
-            className={`w-6 h-5 text-[10px] font-bold rounded transition-colors ${
-              track.muted
-                ? 'bg-amber-600 text-white'
-                : 'bg-daw-surface-2 text-zinc-500 hover:text-zinc-300'
-            }`}
-            title="Mute"
-          >
-            M
-          </button>
-          <button
-            onClick={() => updateTrack(track.id, { soloed: !track.soloed })}
-            className={`w-6 h-5 text-[10px] font-bold rounded transition-colors ${
-              track.soloed
-                ? 'bg-emerald-600 text-white'
-                : 'bg-daw-surface-2 text-zinc-500 hover:text-zinc-300'
-            }`}
-            title="Solo"
-          >
-            S
-          </button>
-          <button
-            onClick={() => setEditModalOpen(true)}
-            className="w-6 h-5 text-[10px] font-bold rounded transition-colors bg-daw-surface-2 text-zinc-600 hover:text-zinc-300"
-            title="Edit track"
-          >
-            ⚙
-          </button>
-          <button
-            onClick={() => removeTrack(track.id)}
-            className="w-6 h-5 text-[10px] font-bold rounded bg-daw-surface-2 text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-            title="Remove track"
-          >
-            ×
-          </button>
-        </div>
+      {/* M/S/Delete buttons */}
+      <div className="flex items-center gap-px flex-shrink-0">
+        {/* Mute - speaker icon */}
+        <button
+          onClick={() => updateTrack(track.id, { muted: !track.muted })}
+          className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
+            track.muted
+              ? 'bg-amber-600/90 text-white'
+              : 'text-zinc-500 hover:text-zinc-300 hover:bg-[#444]'
+          }`}
+          title="Mute (M)"
+        >
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            {track.muted ? (
+              <>
+                <path d="M1 4.5h2l3-3v9l-3-3H1z" fill="currentColor" stroke="none" />
+                <path d="M9 4l3 4M12 4L9 8" />
+              </>
+            ) : (
+              <>
+                <path d="M1 4.5h2l3-3v9l-3-3H1z" fill="currentColor" stroke="none" />
+                <path d="M9 3.5c1 .8 1 4.2 0 5" />
+              </>
+            )}
+          </svg>
+        </button>
+        {/* Solo - headphone icon */}
+        <button
+          onClick={() => updateTrack(track.id, { soloed: !track.soloed })}
+          className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
+            track.soloed
+              ? 'bg-emerald-600/90 text-white'
+              : 'text-zinc-500 hover:text-zinc-300 hover:bg-[#444]'
+          }`}
+          title="Solo (S)"
+        >
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+            <path d="M2 5.5a4 4 0 018 0" />
+            <path d="M2 5.5v2a1 1 0 001 1h1v-3H2zM10 5.5v2a1 1 0 01-1 1H8v-3h2z" fill={track.soloed ? 'currentColor' : 'none'} />
+          </svg>
+        </button>
+        {/* Delete - hidden by default, visible on hover */}
+        <button
+          onClick={() => removeTrack(track.id)}
+          className="w-5 h-5 flex items-center justify-center rounded text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+          title="Remove track"
+        >
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <path d="M1 1l6 6M7 1L1 7" />
+          </svg>
+        </button>
       </div>
 
       {/* Bottom-edge height resize handle */}
       <div
-        className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize bg-transparent hover:bg-indigo-500/40 transition-colors z-10"
+        className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize bg-transparent hover:bg-daw-accent/30 transition-colors z-10"
         onMouseDown={onHeightResizeDown}
       />
     </div>
@@ -213,19 +238,25 @@ export function TrackHeader({
       <>
         <div className="fixed inset-0 z-40" onClick={() => setCtxMenu(null)} onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null); }} />
         <div
-          className="fixed z-50 bg-daw-surface border border-daw-border rounded shadow-xl py-1 min-w-[160px]"
+          className="fixed z-50 bg-[#383838] border border-[#555] rounded-lg shadow-2xl py-1 min-w-[160px]"
           style={{ left: Math.min(ctxMenu.x, window.innerWidth - 180), top: Math.min(ctxMenu.y, window.innerHeight - 100) }}
         >
           <button
-            onClick={() => { setCtxMenu(null); setEditModalOpen(true); }}
-            className="w-full text-left px-3 py-1.5 text-xs text-zinc-200 hover:bg-daw-surface-2 transition-colors"
+            onClick={() => { setCtxMenu(null); startEditing(); }}
+            className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors"
           >
-            Edit Track...
+            Rename Track
           </button>
-          <div className="my-1 border-t border-daw-border" />
+          <button
+            onClick={() => { setCtxMenu(null); setEditModalOpen(true); }}
+            className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors"
+          >
+            Track Settings...
+          </button>
+          <div className="my-1 border-t border-[#555]" />
           <button
             onClick={() => { setCtxMenu(null); removeTrack(track.id); }}
-            className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-red-900/30 transition-colors"
+            className="w-full text-left px-3 py-1.5 text-[11px] text-red-400 hover:bg-red-600 hover:text-white transition-colors"
           >
             Delete Track
           </button>
@@ -233,7 +264,6 @@ export function TrackHeader({
       </>
     )}
 
-    {/* Edit modal */}
     {editModalOpen && (
       <TrackEditModal track={track} onClose={() => setEditModalOpen(false)} />
     )}

@@ -133,7 +133,7 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
               {isSilence ? 'Parallel' : 'Sequential'}
             </span>
             {initialRange && (
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-zinc-700 text-zinc-300">
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-[#444] text-zinc-300">
                 {initialRange.startTime.toFixed(1)}s — {(initialRange.startTime + initialRange.duration).toFixed(1)}s
               </span>
             )}
@@ -159,7 +159,7 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
               onChange={(e) => setGlobalCaption(e.target.value)}
               placeholder="e.g. upbeat pop song with energetic drums and warm bass…"
               rows={2}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-daw-accent"
+              className="w-full bg-[#222] border border-[#444] rounded px-2.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-daw-accent"
             />
             {!isSilence && (
               <p className="text-zinc-600 text-[10px]">
@@ -189,7 +189,7 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
                     className={`rounded border transition-colors ${
                       row.checked
                         ? 'border-daw-accent/40 bg-daw-accent/5'
-                        : 'border-zinc-800 bg-zinc-900/40'
+                        : 'border-[#3a3a3a] bg-[#222]/40'
                     }`}
                   >
                     {/* Track header row */}
@@ -217,8 +217,8 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
                         onChange={(e) => updateDescription(row.trackId, e.target.value)}
                         placeholder={`${row.displayName} track description (optional)…`}
                         rows={2}
-                        className={`w-full bg-zinc-900 border rounded px-2 py-1.5 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none ${
-                          row.checked ? 'border-zinc-700 focus:border-daw-accent' : 'border-zinc-800 opacity-50'
+                        className={`w-full bg-[#222] border rounded px-2 py-1.5 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none ${
+                          row.checked ? 'border-[#444] focus:border-daw-accent' : 'border-[#3a3a3a] opacity-50'
                         }`}
                       />
                     </div>
@@ -234,8 +234,8 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
                           onChange={(e) => updateLyrics(row.trackId, e.target.value)}
                           placeholder="Song lyrics…"
                           rows={3}
-                          className={`w-full bg-zinc-900 border rounded px-2 py-1.5 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none font-mono ${
-                            row.checked ? 'border-zinc-700 focus:border-daw-accent' : 'border-zinc-800 opacity-50'
+                          className={`w-full bg-[#222] border rounded px-2 py-1.5 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none font-mono ${
+                            row.checked ? 'border-[#444] focus:border-daw-accent' : 'border-[#3a3a3a] opacity-50'
                           }`}
                         />
                       </div>
@@ -255,7 +255,7 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
               <button
                 onClick={() => setSharedSeed(randomSeed())}
                 title="Randomize seed"
-                className="px-2 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors text-zinc-300 text-sm leading-none"
+                className="px-2 py-1.5 rounded bg-[#333] hover:bg-[#444] border border-[#444] transition-colors text-zinc-300 text-sm leading-none"
               >
                 🔀
               </button>
@@ -263,7 +263,7 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
                 type="number"
                 value={sharedSeed}
                 onChange={(e) => setSharedSeed(Number(e.target.value))}
-                className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-daw-accent font-mono"
+                className="flex-1 bg-[#222] border border-[#444] rounded px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-daw-accent font-mono"
                 min={0}
                 max={2147483647}
               />
@@ -278,7 +278,7 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
         <div className="flex items-center justify-between px-4 py-3 border-t border-daw-border">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+            className="px-3 py-1.5 rounded text-xs font-medium bg-[#333] hover:bg-[#444] text-zinc-300 transition-colors"
           >
             Cancel
           </button>
@@ -290,7 +290,7 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
                 ? isSilence
                   ? 'bg-violet-600 hover:bg-violet-500 text-white'
                   : 'bg-teal-600 hover:bg-teal-500 text-white'
-                : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                : 'bg-[#444] text-zinc-500 cursor-not-allowed'
             }`}
           >
             {isSilence ? '⬜' : '🎵'}

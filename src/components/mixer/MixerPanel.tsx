@@ -30,7 +30,7 @@ function ChannelStrip({ track, faderHeight }: ChannelStripProps) {
   const compRatio = track.compressorRatio ?? 4;
 
   return (
-    <div className="flex flex-col items-center gap-1.5 px-3 py-2 bg-daw-surface border-r border-daw-border min-w-[120px]">
+    <div className="flex flex-col items-center gap-1.5 px-3 py-2 bg-[#2a2a2a] border-r border-[#3a3a3a] min-w-[120px]">
       <div className="w-full h-1.5 rounded-full mb-0.5" style={{ backgroundColor: track.color }} />
       <span className="text-xs text-zinc-300 font-medium leading-none truncate w-full text-center uppercase tracking-wide" title={track.displayName}>
         {track.displayName}
@@ -40,7 +40,7 @@ function ChannelStrip({ track, faderHeight }: ChannelStripProps) {
         <button
           onClick={() => updateTrack(track.id, { muted: !track.muted })}
           className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
-            track.muted ? 'bg-amber-500 text-black' : 'bg-zinc-700 text-zinc-400 hover:bg-zinc-600'
+            track.muted ? 'bg-amber-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
           }`}
         >
           M
@@ -48,7 +48,7 @@ function ChannelStrip({ track, faderHeight }: ChannelStripProps) {
         <button
           onClick={() => updateTrack(track.id, { soloed: !track.soloed })}
           className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
-            track.soloed ? 'bg-emerald-500 text-black' : 'bg-zinc-700 text-zinc-400 hover:bg-zinc-600'
+            track.soloed ? 'bg-emerald-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
           }`}
         >
           S
@@ -68,7 +68,7 @@ function ChannelStrip({ track, faderHeight }: ChannelStripProps) {
       <button
         onClick={() => updateTrackMixer(track.id, { compressorEnabled: !compEnabled })}
         className={`text-xs font-semibold px-2 py-1 rounded w-full transition-colors ${
-          compEnabled ? 'bg-indigo-600 text-white' : 'bg-zinc-700 text-zinc-400 hover:bg-zinc-600'
+          compEnabled ? 'bg-daw-accent text-white' : 'bg-[#444] text-zinc-400 hover:bg-[#555]'
         }`}
       >
         {compEnabled ? 'ON' : 'OFF'}
@@ -103,7 +103,7 @@ function MasterStrip({ faderHeight }: MasterStripProps) {
   const handleChange = (v: number) => { updateProject({ masterVolume: v }); getAudioEngine().masterVolume = v; };
 
   return (
-    <div className="flex flex-col items-center gap-1.5 px-4 py-2 bg-zinc-900 border-l-2 border-zinc-600 min-w-[120px]">
+    <div className="flex flex-col items-center gap-1.5 px-4 py-2 bg-[#252525] border-l-2 border-[#555] min-w-[120px]">
       <span className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Master</span>
       <div className="flex-1 flex flex-col items-center justify-end gap-1 w-full">
         <div className="relative flex justify-center" style={{ height: faderHeight }}>
@@ -111,7 +111,7 @@ function MasterStrip({ faderHeight }: MasterStripProps) {
             type="range" min={0} max={1.5} step={0.01} value={masterVol}
             onChange={(e) => handleChange(parseFloat(e.target.value))}
             className="appearance-none bg-transparent cursor-pointer"
-            style={{ writingMode: 'vertical-lr', direction: 'rtl', width: 32, height: faderHeight, accentColor: '#6366f1' }}
+            style={{ writingMode: 'vertical-lr', direction: 'rtl', width: 32, height: faderHeight, accentColor: '#4a90d9' }}
           />
         </div>
         <span className="text-xs font-mono text-zinc-400">{volumeToDb(masterVol)}</span>
@@ -153,9 +153,9 @@ export function MixerPanel() {
   const faderHeight = Math.max(60, mixerHeight - 300);
 
   return (
-    <div className="border-t border-daw-border bg-daw-surface flex flex-col select-none shrink-0" style={{ height: mixerHeight }}>
+    <div className="border-t border-[#1a1a1a] bg-[#2a2a2a] flex flex-col select-none shrink-0" style={{ height: mixerHeight }}>
       <div
-        className="h-1.5 w-full cursor-ns-resize bg-zinc-700 hover:bg-indigo-500 transition-colors flex-shrink-0"
+        className="h-1.5 w-full cursor-ns-resize bg-[#444] hover:bg-daw-accent transition-colors flex-shrink-0"
         onMouseDown={onResizeMouseDown}
         title="Drag to resize mixer"
       />

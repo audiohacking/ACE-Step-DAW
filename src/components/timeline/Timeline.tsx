@@ -299,7 +299,7 @@ export function Timeline() {
     <>
       <div
         ref={scrollRef}
-        className="flex-1 overflow-auto bg-daw-bg relative"
+        className="flex-1 overflow-auto bg-[#242424] relative"
         onWheel={handleWheel}
         onMouseDownCapture={handleMouseDownCapture}
         onDragOver={handleDragOver}

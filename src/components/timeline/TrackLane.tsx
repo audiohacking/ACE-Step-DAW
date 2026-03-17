@@ -31,20 +31,20 @@ function LaneContextMenu({ x, y, onAddLayer, onOpenSequencer, onClose }: LaneCon
         onContextMenu={(e) => { e.preventDefault(); onClose(); }}
       />
       <div
-        className="fixed z-50 bg-daw-surface border border-daw-border rounded shadow-xl py-1 min-w-[160px]"
+        className="fixed z-50 bg-[#383838] border border-[#555] rounded-lg shadow-2xl py-1 min-w-[160px]"
         style={{ left: clampedX, top: clampedY }}
       >
         {onOpenSequencer && (
           <button
             onClick={() => { onClose(); onOpenSequencer(); }}
-            className="w-full text-left px-3 py-1.5 text-xs text-emerald-300 hover:bg-daw-surface-2 transition-colors"
+            className="w-full text-left px-3 py-1.5 text-[11px] text-emerald-300 hover:bg-daw-accent hover:text-white transition-colors"
           >
             Open Sequencer Editor...
           </button>
         )}
         <button
           onClick={() => { onClose(); onAddLayer(); }}
-          className="w-full text-left px-3 py-1.5 text-xs text-zinc-200 hover:bg-daw-surface-2 transition-colors"
+          className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors"
         >
           Add Layer...
         </button>
@@ -192,7 +192,7 @@ export function TrackLane({ track }: TrackLaneProps) {
     <>
       <div
         data-track-id={track.id}
-        className={`relative border-b border-daw-border ${fileDragOver ? 'bg-blue-900/20' : ''}`}
+        className={`relative border-b border-[#333] ${fileDragOver ? 'bg-blue-900/20' : ''}`}
         style={{ width: totalWidth, height: laneHeight }}
         onContextMenu={handleContextMenu}
         onDoubleClick={handleDoubleClick}
@@ -208,7 +208,7 @@ export function TrackLane({ track }: TrackLaneProps) {
 
         {isComingSoon ? (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <div className="flex items-center gap-2 bg-daw-surface/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-daw-border">
+            <div className="flex items-center gap-2 bg-[#2d2d2d]/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-[#444]">
               <span className="text-lg">{TRACK_TYPE_CATALOG[trackType].emoji}</span>
               <span className="text-xs font-medium text-zinc-400">{TRACK_TYPE_CATALOG[trackType].label}</span>
               <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">Coming Soon</span>
@@ -227,7 +227,7 @@ export function TrackLane({ track }: TrackLaneProps) {
                 className="absolute inset-0 flex items-center justify-center cursor-pointer"
                 onClick={() => setOpenSequencerTrackId(track.id)}
               >
-                <div className="flex items-center gap-2 bg-daw-surface/60 backdrop-blur-sm px-4 py-2 rounded-lg border border-daw-border border-dashed">
+                <div className="flex items-center gap-2 bg-[#2d2d2d]/60 backdrop-blur-sm px-4 py-2 rounded-lg border border-[#444] border-dashed">
                   <span className="text-emerald-400 text-sm">SEQ</span>
                   <span className="text-xs text-zinc-400">Double-click to open sequencer editor</span>
                 </div>
@@ -248,7 +248,7 @@ export function TrackLane({ track }: TrackLaneProps) {
 
         {/* Bottom-edge resize handle */}
         <div
-          className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize bg-transparent hover:bg-indigo-500/40 transition-colors z-20"
+          className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize bg-transparent hover:bg-daw-accent/30 transition-colors z-20"
           onMouseDown={onResizeMouseDown}
         />
       </div>

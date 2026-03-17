@@ -73,7 +73,7 @@ export function DualRangeSlider({
       {/* Track */}
       <div
         ref={trackRef}
-        className="relative h-2 bg-zinc-700 rounded-full mx-2 mt-2"
+        className="relative h-2 bg-[#444] rounded-full mx-2 mt-2"
         style={{ userSelect: 'none' }}
       >
         {/* Filled region */}

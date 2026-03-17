@@ -2,16 +2,58 @@ import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { useTransportStore } from '../../store/transportStore';
 import { useAudioImport } from '../../hooks/useAudioImport';
-import { TransportBar } from '../transport/TransportBar';
+import { useTransport } from '../../hooks/useTransport';
+import { formatTime, formatBarsBeats } from '../../utils/time';
+
+function LCDDisplay() {
+  const currentTime = useTransportStore((s) => s.currentTime);
+  const project = useProjectStore((s) => s.project);
+  const barsBeats = project
+    ? formatBarsBeats(currentTime, project.bpm, project.timeSignature)
+    : '1.1.00';
+
+  return (
+    <div className="gb-lcd flex items-center gap-3 px-3 py-1 min-w-[200px] justify-center">
+      <span className="text-[13px] font-mono text-green-400 tracking-wider">{barsBeats}</span>
+      <span className="text-[11px] font-mono text-zinc-400">{formatTime(currentTime)}</span>
+      {project && (
+        <span className="text-[11px] font-mono text-zinc-500">{project.bpm} bpm</span>
+      )}
+    </div>
+  );
+}
+
+function ControlBarButton({
+  active,
+  onClick,
+  title,
+  disabled,
+  children,
+}: {
+  active?: boolean;
+  onClick: () => void;
+  title: string;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`w-8 h-7 flex items-center justify-center rounded transition-colors ${
+        active
+          ? 'bg-daw-accent text-white shadow-sm'
+          : 'text-zinc-400 hover:text-zinc-200 hover:bg-daw-surface-2 disabled:opacity-30 disabled:hover:bg-transparent'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function Toolbar() {
   const project = useProjectStore((s) => s.project);
-  const splitClip = useProjectStore((s) => s.splitClip);
-  const removeClip = useProjectStore((s) => s.removeClip);
-  const duplicateClip = useProjectStore((s) => s.duplicateClip);
-  const selectedClipIds = useUIStore((s) => s.selectedClipIds);
-  const deselectAll = useUIStore((s) => s.deselectAll);
-  const currentTime = useTransportStore((s) => s.currentTime);
   const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
   const setShowSettingsDialog = useUIStore((s) => s.setShowSettingsDialog);
   const setShowExportDialog = useUIStore((s) => s.setShowExportDialog);
@@ -21,139 +63,200 @@ export function Toolbar() {
   const setShowMixer = useUIStore((s) => s.setShowMixer);
   const showAssetsPanel = useUIStore((s) => s.showAssetsPanel);
   const setShowAssetsPanel = useUIStore((s) => s.setShowAssetsPanel);
+  const showLibrary = useUIStore((s) => s.showLibrary);
+  const setShowLibrary = useUIStore((s) => s.setShowLibrary);
+  const showSmartControls = useUIStore((s) => s.showSmartControls);
+  const setShowSmartControls = useUIStore((s) => s.setShowSmartControls);
   const { openFilePicker } = useAudioImport();
 
-  const hasSelection = selectedClipIds.size > 0;
-  const singleSelected = selectedClipIds.size === 1 ? [...selectedClipIds][0] : null;
+  const { isPlaying, play, pause, stop } = useTransport();
+  const loopEnabled = useTransportStore((s) => s.loopEnabled);
+  const toggleLoop = useTransportStore((s) => s.toggleLoop);
+  const metronomeEnabled = useTransportStore((s) => s.metronomeEnabled);
+  const toggleMetronome = useTransportStore((s) => s.toggleMetronome);
+  const zoomIn = useUIStore((s) => s.zoomIn);
+  const zoomOut = useUIStore((s) => s.zoomOut);
 
   return (
-    <div className="flex items-center h-10 px-3 gap-2 bg-daw-surface border-b border-daw-border shrink-0">
-      {/* App logo */}
-      <img src="/logo.png" alt="ACE-Step" width={22} height={22} className="rounded-sm shrink-0" />
-      <div className="w-px h-5 bg-daw-border" />
-
-      {/* Left section */}
-      <button
-        onClick={() => setShowProjectListDialog(true)}
-        className="px-3 py-1 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors"
-      >
-        Projects
-      </button>
-      <button
-        onClick={() => setShowNewProjectDialog(true)}
-        className="px-3 py-1 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors"
-      >
-        New
-      </button>
-      <button
-        onClick={() => setShowExportDialog(true)}
-        className="px-3 py-1 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors"
-        disabled={!project}
-      >
-        Export
-      </button>
-
-      <div className="w-px h-5 bg-daw-border" />
-
-      <button
-        onClick={openFilePicker}
-        disabled={!project}
-        className="px-3 py-1 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors disabled:opacity-40"
-        title="Import audio file"
-      >
-        Import
-      </button>
-
-      <div className="w-px h-5 bg-daw-border" />
-
-      {/* Editing tools */}
-      <button
-        onClick={() => singleSelected && splitClip(singleSelected, currentTime)}
-        disabled={!singleSelected}
-        className="px-2.5 py-1 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors disabled:opacity-30"
-        title="Split clip at playhead (S)"
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="inline -mt-px mr-1">
-          <path d="M7 1v12M3 4l4 3-4 3M11 4l-4 3 4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        Split
-      </button>
-      <button
-        onClick={() => {
-          if (hasSelection) {
-            const ids = [...selectedClipIds];
-            deselectAll();
-            ids.forEach((id) => removeClip(id));
-          }
-        }}
-        disabled={!hasSelection}
-        className="px-2.5 py-1 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors disabled:opacity-30"
-        title="Delete selected clips (Del)"
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="inline -mt-px mr-1">
-          <path d="M2.5 4h9M5 4V2.5h4V4M3.5 4v7.5a1 1 0 001 1h5a1 1 0 001-1V4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        Delete
-      </button>
-      <button
-        onClick={() => singleSelected && duplicateClip(singleSelected)}
-        disabled={!singleSelected}
-        className="px-2.5 py-1 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors disabled:opacity-30"
-        title="Duplicate clip (Cmd+D)"
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="inline -mt-px mr-1">
-          <rect x="1.5" y="3.5" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-          <path d="M5.5 3.5V2.5a1 1 0 011-1h5a1 1 0 011 1v5a1 1 0 01-1 1h-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-        </svg>
-        Duplicate
-      </button>
-
-      {/* Center section: Transport controls */}
-      <div className="flex-1 flex items-center justify-center">
-        <TransportBar />
+    <div className="flex items-center h-11 px-2 gap-1 bg-gradient-to-b from-[#3a3a3a] to-[#2d2d2d] border-b border-[#1a1a1a] shrink-0 select-none">
+      {/* Left: Panel toggle buttons */}
+      <div className="flex items-center gap-0.5">
+        <ControlBarButton
+          active={showLibrary}
+          onClick={() => setShowLibrary(!showLibrary)}
+          title="Library (Y)"
+          disabled={!project}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <rect x="1" y="2" width="12" height="10" rx="1.5" />
+            <line x1="5" y1="2" x2="5" y2="12" />
+          </svg>
+        </ControlBarButton>
+        <ControlBarButton
+          active={showSmartControls}
+          onClick={() => setShowSmartControls(!showSmartControls)}
+          title="Smart Controls (B)"
+          disabled={!project}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <circle cx="4" cy="7" r="2.5" />
+            <circle cx="10" cy="7" r="2.5" />
+            <line x1="4" y1="4.5" x2="4" y2="2" />
+            <line x1="10" y1="4.5" x2="10" y2="2" />
+          </svg>
+        </ControlBarButton>
       </div>
 
-      {/* Right section: panel toggles + settings */}
-      <button
-        onClick={() => setShowMixer(!showMixer)}
-        disabled={!project}
-        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-          showMixer
-            ? 'bg-indigo-600 text-white hover:bg-indigo-500'
-            : 'bg-daw-surface-2 hover:bg-zinc-600 text-zinc-300 disabled:opacity-40'
-        }`}
-        title="Toggle Mixer (M)"
-      >
-        Mixer
-      </button>
-      <button
-        onClick={() => setShowAssetsPanel(!showAssetsPanel)}
-        disabled={!project}
-        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-          showAssetsPanel
-            ? 'bg-indigo-600 text-white hover:bg-indigo-500'
-            : 'bg-daw-surface-2 hover:bg-zinc-600 text-zinc-300 disabled:opacity-40'
-        }`}
-        title="Toggle Assets Panel"
-      >
-        Assets
-      </button>
+      <div className="w-px h-6 bg-[#555]" />
 
-      <div className="w-px h-5 bg-daw-border" />
+      {/* Left-center: Project actions */}
+      <div className="flex items-center gap-0.5">
+        <button onClick={() => setShowProjectListDialog(true)} className="px-2 py-1 text-[11px] text-zinc-300 hover:text-white hover:bg-daw-surface-2 rounded transition-colors" title="Projects">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" className="inline -mt-px mr-1">
+            <path d="M1.5 4.5L7 1.5l5.5 3M1.5 7l5.5 3 5.5-3M1.5 9.5l5.5 3 5.5-3" />
+          </svg>
+          Projects
+        </button>
+        <button onClick={() => setShowNewProjectDialog(true)} className="px-2 py-1 text-[11px] text-zinc-300 hover:text-white hover:bg-daw-surface-2 rounded transition-colors" title="New Project">
+          New
+        </button>
+        <button onClick={() => setShowExportDialog(true)} disabled={!project} className="px-2 py-1 text-[11px] text-zinc-300 hover:text-white hover:bg-daw-surface-2 rounded transition-colors disabled:opacity-30" title="Export">
+          Export
+        </button>
+        <button onClick={openFilePicker} disabled={!project} className="px-2 py-1 text-[11px] text-zinc-300 hover:text-white hover:bg-daw-surface-2 rounded transition-colors disabled:opacity-30" title="Import Audio">
+          Import
+        </button>
+      </div>
 
-      <button
-        onClick={() => setShowSettingsDialog(true)}
-        className="px-3 py-1 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors"
-      >
-        Settings
-      </button>
-      <button
-        onClick={() => setShowKeyboardShortcutsDialog(true)}
-        title="Keyboard shortcuts (?)"
-        className="w-6 h-6 text-xs font-bold bg-daw-surface-2 hover:bg-zinc-600 text-zinc-400 hover:text-zinc-200 rounded transition-colors flex items-center justify-center"
-      >
-        ?
-      </button>
+      <div className="flex-1" />
+
+      {/* Center: Transport controls */}
+      <div className="flex items-center gap-0.5">
+        {/* Rewind */}
+        <ControlBarButton onClick={stop} title="Go to Beginning (Enter)">
+          <svg width="14" height="12" viewBox="0 0 14 12" fill="currentColor">
+            <rect x="0" y="1" width="2" height="10" rx="0.5" />
+            <path d="M13 1L5 6l8 5V1z" />
+          </svg>
+        </ControlBarButton>
+        {/* Play/Pause */}
+        <button
+          onClick={() => (isPlaying ? pause() : play())}
+          className={`w-9 h-8 flex items-center justify-center rounded transition-colors ${
+            isPlaying
+              ? 'bg-daw-accent text-white'
+              : 'text-zinc-300 hover:text-white hover:bg-daw-surface-2'
+          }`}
+          title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+        >
+          {isPlaying ? (
+            <svg width="12" height="14" viewBox="0 0 12 14" fill="currentColor">
+              <rect width="4" height="14" rx="1" />
+              <rect x="8" width="4" height="14" rx="1" />
+            </svg>
+          ) : (
+            <svg width="12" height="14" viewBox="0 0 12 14" fill="currentColor">
+              <path d="M0 0L12 7L0 14V0Z" />
+            </svg>
+          )}
+        </button>
+        {/* Record placeholder */}
+        <ControlBarButton onClick={() => {}} title="Record (R)" disabled>
+          <div className="w-3.5 h-3.5 rounded-full bg-red-500 opacity-60" />
+        </ControlBarButton>
+      </div>
+
+      <div className="w-px h-6 bg-[#555] mx-1" />
+
+      {/* LCD Display */}
+      <LCDDisplay />
+
+      <div className="w-px h-6 bg-[#555] mx-1" />
+
+      {/* Cycle + Metronome */}
+      <div className="flex items-center gap-0.5">
+        <ControlBarButton active={loopEnabled} onClick={toggleLoop} title="Cycle (C)">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 1l2 2-2 2" />
+            <path d="M4 13l-2-2 2-2" />
+            <path d="M12 3H5a3 3 0 0 0 0 6" />
+            <path d="M2 11h7a3 3 0 0 0 0-6" />
+          </svg>
+        </ControlBarButton>
+        <ControlBarButton active={metronomeEnabled} onClick={toggleMetronome} title="Metronome (K)">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 13L7 1l3 12" />
+            <path d="M3 13h8" />
+            <path d="M7 5l4-2" />
+          </svg>
+        </ControlBarButton>
+      </div>
+
+      <div className="flex-1" />
+
+      {/* Right: Panel toggles */}
+      <div className="flex items-center gap-0.5">
+        <ControlBarButton
+          active={showMixer}
+          onClick={() => setShowMixer(!showMixer)}
+          title="Mixer (X)"
+          disabled={!project}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <line x1="3" y1="2" x2="3" y2="12" />
+            <line x1="7" y1="2" x2="7" y2="12" />
+            <line x1="11" y1="2" x2="11" y2="12" />
+            <circle cx="3" cy="8" r="1.5" fill="currentColor" />
+            <circle cx="7" cy="5" r="1.5" fill="currentColor" />
+            <circle cx="11" cy="9" r="1.5" fill="currentColor" />
+          </svg>
+        </ControlBarButton>
+        <ControlBarButton
+          active={showAssetsPanel}
+          onClick={() => setShowAssetsPanel(!showAssetsPanel)}
+          title="Loop Browser (O)"
+          disabled={!project}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <circle cx="6" cy="6" r="4" />
+            <path d="M9 9l3.5 3.5" strokeLinecap="round" />
+          </svg>
+        </ControlBarButton>
+      </div>
+
+      <div className="w-px h-6 bg-[#555]" />
+
+      {/* Settings + Shortcuts */}
+      <div className="flex items-center gap-0.5">
+        <button
+          onClick={() => setShowSettingsDialog(true)}
+          className="px-2 py-1 text-[11px] text-zinc-400 hover:text-white hover:bg-daw-surface-2 rounded transition-colors"
+          title="Settings"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3">
+            <circle cx="7" cy="7" r="2" />
+            <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.8 2.8l1 1M10.2 10.2l1 1M11.2 2.8l-1 1M3.8 10.2l-1 1" />
+          </svg>
+        </button>
+        <button
+          onClick={() => setShowKeyboardShortcutsDialog(true)}
+          title="Keyboard Shortcuts (?)"
+          className="w-6 h-6 text-[11px] font-bold text-zinc-500 hover:text-white hover:bg-daw-surface-2 rounded transition-colors flex items-center justify-center"
+        >
+          ?
+        </button>
+      </div>
+
+      {/* Zoom controls */}
+      <div className="w-px h-6 bg-[#555] ml-1" />
+      <div className="flex items-center gap-0.5">
+        <button onClick={zoomOut} className="w-6 h-6 text-zinc-400 hover:text-white flex items-center justify-center rounded hover:bg-daw-surface-2 transition-colors text-sm" title="Zoom Out">
+          −
+        </button>
+        <button onClick={zoomIn} className="w-6 h-6 text-zinc-400 hover:text-white flex items-center justify-center rounded hover:bg-daw-surface-2 transition-colors text-sm" title="Zoom In">
+          +
+        </button>
+      </div>
     </div>
   );
 }
