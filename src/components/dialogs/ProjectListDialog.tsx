@@ -133,7 +133,7 @@ export function ProjectListDialog() {
                     ) : (
                       <button
                         onClick={() => handleOpen(p.id)}
-                        className="px-2 py-1 text-[10px] font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors"
+                        className="px-2 py-1 text-[10px] font-medium bg-daw-surface-2 hover:bg-[#484848] rounded transition-colors"
                       >
                         Open
                       </button>
@@ -155,21 +155,21 @@ export function ProjectListDialog() {
           <div className="flex gap-2">
             <button
               onClick={handleImport}
-              className="px-3 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors"
+              className="px-3 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-[#484848] rounded transition-colors"
             >
               Import .acedaw
             </button>
             <button
               onClick={handleExport}
               disabled={!currentProject || exporting}
-              className="px-3 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors disabled:opacity-50"
+              className="px-3 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-[#484848] rounded transition-colors disabled:opacity-50"
             >
               {exporting ? 'Packing...' : 'Export .acedaw'}
             </button>
           </div>
           <button
             onClick={() => setShow(false)}
-            className="px-3 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors"
+            className="px-3 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-[#484848] rounded transition-colors"
           >
             Close
           </button>

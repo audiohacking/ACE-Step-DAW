@@ -292,16 +292,17 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
     <>
       <div
         ref={clipBlockRef}
-        className={`absolute top-1 bottom-1 rounded-sm select-none overflow-hidden
+        className={`absolute top-1 bottom-1 rounded-md select-none overflow-hidden
           ${statusStyles[clip.generationStatus] ?? ''}
-          ${isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}
+          ${isSelected ? 'ring-2 ring-white/80 ring-offset-1 ring-offset-transparent' : ''}
           ${dragGhost && dragGhost.targetTrackId && !dragGhost.isShiftCopy ? 'opacity-0' : ''}
         `}
         style={{
           left,
           width: Math.max(width, 4),
-          backgroundColor: hexToRgba(track.color, 0.3),
-          borderLeft: `2px solid ${track.color}`,
+          background: `linear-gradient(180deg, ${hexToRgba(track.color, 0.45)} 0%, ${hexToRgba(track.color, 0.28)} 100%)`,
+          borderLeft: `3px solid ${track.color}`,
+          boxShadow: isSelected ? `0 0 8px ${hexToRgba(track.color, 0.3)}` : 'none',
         }}
         data-clip-block
         onMouseDown={handleMouseDown}
@@ -558,50 +559,30 @@ function ClipContextMenu({
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }} />
       <div
-        className="fixed z-50 bg-daw-surface border border-daw-border rounded shadow-xl py-1 min-w-[180px]"
+        className="fixed z-50 bg-[#383838] border border-[#555] rounded-lg shadow-2xl py-1 min-w-[180px] backdrop-blur-sm"
         style={{ left: clampedX, top: clampedY }}
       >
-        <button
-          onClick={onEdit}
-          className="w-full text-left px-3 py-1.5 text-xs text-zinc-200 hover:bg-daw-surface-2 transition-colors"
-        >
+        <button onClick={onEdit} className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors">
           Edit Clip
         </button>
         {isReady ? (
-          <button
-            onClick={onRegenerate}
-            disabled={!hasPrompt}
-            className="w-full text-left px-3 py-1.5 text-xs text-zinc-200 hover:bg-daw-surface-2 transition-colors disabled:text-zinc-600 disabled:cursor-not-allowed"
-          >
+          <button onClick={onRegenerate} disabled={!hasPrompt} className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors disabled:text-zinc-600 disabled:cursor-not-allowed">
             Re-generate
           </button>
         ) : (
-          <button
-            onClick={onGenerate}
-            disabled={!hasPrompt}
-            className="w-full text-left px-3 py-1.5 text-xs text-zinc-200 hover:bg-daw-surface-2 transition-colors disabled:text-zinc-600 disabled:cursor-not-allowed"
-          >
+          <button onClick={onGenerate} disabled={!hasPrompt} className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors disabled:text-zinc-600 disabled:cursor-not-allowed">
             Generate
           </button>
         )}
-        <button
-          onClick={onDuplicate}
-          className="w-full text-left px-3 py-1.5 text-xs text-zinc-200 hover:bg-daw-surface-2 transition-colors"
-        >
+        <button onClick={onDuplicate} className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors">
           Duplicate
         </button>
-        <div className="my-1 border-t border-daw-border" />
-        <button
-          onClick={onAddLayer}
-          className="w-full text-left px-3 py-1.5 text-xs text-zinc-200 hover:bg-daw-surface-2 transition-colors"
-        >
-          Add Layer here…
+        <div className="my-1 border-t border-[#555]" />
+        <button onClick={onAddLayer} className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors">
+          Add Layer here...
         </button>
-        <div className="my-1 border-t border-daw-border" />
-        <button
-          onClick={onDelete}
-          className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-red-900/30 transition-colors"
-        >
+        <div className="my-1 border-t border-[#555]" />
+        <button onClick={onDelete} className="w-full text-left px-3 py-1.5 text-[11px] text-red-400 hover:bg-red-600 hover:text-white transition-colors">
           Delete
         </button>
       </div>

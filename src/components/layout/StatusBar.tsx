@@ -21,26 +21,24 @@ export function StatusBar() {
   }, []);
 
   return (
-    <div className="flex items-center h-6 px-3 gap-4 bg-daw-surface border-t border-daw-border text-[11px] text-zinc-500">
+    <div className="flex items-center h-5 px-3 gap-4 bg-gradient-to-b from-[#2a2a2a] to-[#232323] border-t border-[#1a1a1a] text-[10px] text-zinc-500">
       <div className="flex items-center gap-1.5">
-        <div
-          className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-500'}`}
-        />
-        <span>{connected ? 'Connected' : 'Disconnected'}</span>
+        <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
+        <span>{connected ? 'Connected' : 'Offline'}</span>
       </div>
-      <span>{model || 'Server Default'}</span>
+      {model && <span className="text-zinc-600">{model}</span>}
       {activeJobs.length > 0 && (
-        <span>Queue: {activeJobs.length}</span>
+        <span className="text-daw-accent">Generating: {activeJobs.length}</span>
       )}
       <span className="flex-1" />
       <a
         href="http://acestudio.ai/"
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-1 text-zinc-500 hover:text-violet-400 transition-colors"
+        className="flex items-center gap-1 text-zinc-600 hover:text-daw-accent transition-colors"
       >
-        <img src="/logo.png" alt="" width={14} height={14} className="rounded-sm opacity-60" />
-        ACE Studio ↗
+        <img src="/logo.png" alt="" width={12} height={12} className="rounded-sm opacity-50" />
+        ACE Studio
       </a>
     </div>
   );

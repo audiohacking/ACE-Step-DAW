@@ -3,15 +3,15 @@ import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import type { AssetClip } from '../../types/project';
 
-type Tab = 'starred' | 'generated' | 'uploaded';
+type Filter = 'all' | 'starred' | 'generated' | 'uploaded';
 
 function MiniWaveform({ peaks, color }: { peaks: number[] | null; color: string }) {
-  if (!peaks || peaks.length === 0) return <div className="w-full h-full bg-zinc-800 rounded-sm" />;
+  if (!peaks || peaks.length === 0) return <div className="w-full h-full bg-[#333] rounded" />;
   const w = 60;
   const h = 20;
   const step = w / peaks.length;
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="rounded-sm bg-zinc-800/60">
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="rounded bg-[#252525]">
       {peaks.map((p, i) => {
         const barH = Math.max(p * (h - 2), 0.5);
         return (
@@ -46,7 +46,8 @@ export function AssetsPanel() {
   const toggleAssetStar = useProjectStore((s) => s.toggleAssetStar);
   const getClipById = useProjectStore((s) => s.getClipById);
 
-  const [activeTab, setActiveTab] = useState<Tab>('starred');
+  const [activeFilter, setActiveFilter] = useState<Filter>('all');
+  const [searchText, setSearchText] = useState('');
 
   const resizeDragRef = useRef<{ startX: number; startW: number } | null>(null);
   const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
@@ -66,23 +67,27 @@ export function AssetsPanel() {
     window.addEventListener('mouseup', onMouseUp);
   }, [assetsPanelWidth, setAssetsPanelWidth]);
 
-  const allAssets = useMemo<AssetClip[]>(() => {
-    return project?.assets ?? [];
-  }, [project?.assets]);
+  const allAssets = useMemo<AssetClip[]>(() => project?.assets ?? [], [project?.assets]);
 
-  const starredAssets = useMemo(() => allAssets.filter((a) => a.starred), [allAssets]);
-  const generatedAssets = useMemo(() => allAssets.filter((a) => a.source !== 'uploaded'), [allAssets]);
-  const uploadedAssets = useMemo(() => allAssets.filter((a) => a.source === 'uploaded'), [allAssets]);
+  const filteredAssets = useMemo(() => {
+    let list = allAssets;
+    if (activeFilter === 'starred') list = list.filter((a) => a.starred);
+    else if (activeFilter === 'generated') list = list.filter((a) => a.source !== 'uploaded');
+    else if (activeFilter === 'uploaded') list = list.filter((a) => a.source === 'uploaded');
 
-  const activeAssets = activeTab === 'starred' ? starredAssets
-    : activeTab === 'generated' ? generatedAssets
-    : uploadedAssets;
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase();
+      list = list.filter((a) =>
+        (a.prompt ?? '').toLowerCase().includes(q) ||
+        (a.trackDisplayName ?? '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [allAssets, activeFilter, searchText]);
 
   const handleClick = useCallback((asset: AssetClip) => {
     const clip = getClipById(asset.clipId);
-    if (clip) {
-      selectClip(asset.clipId, false);
-    }
+    if (clip) selectClip(asset.clipId, false);
   }, [selectClip, getClipById]);
 
   const handleStar = useCallback((e: React.MouseEvent, assetId: string) => {
@@ -97,73 +102,87 @@ export function AssetsPanel() {
 
   if (!showAssetsPanel || !project) return null;
 
-  const tabs: { id: Tab; label: string; count: number }[] = [
-    { id: 'starred', label: 'Starred', count: starredAssets.length },
-    { id: 'generated', label: 'Generated', count: generatedAssets.length },
-    { id: 'uploaded', label: 'Uploaded', count: uploadedAssets.length },
+  const filters: { id: Filter; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'starred', label: '★' },
+    { id: 'generated', label: 'AI' },
+    { id: 'uploaded', label: 'Imported' },
   ];
 
   return (
-    <div className="bg-daw-surface border-l border-daw-border flex flex-col shrink-0 relative" style={{ width: assetsPanelWidth }}>
+    <div className="bg-[#2a2a2a] border-l border-[#1a1a1a] flex flex-col shrink-0 relative" style={{ width: assetsPanelWidth }}>
       {/* Left-edge resize handle */}
       <div
-        className="absolute top-0 left-0 w-1.5 h-full cursor-col-resize bg-transparent hover:bg-indigo-500/40 transition-colors z-10"
+        className="absolute top-0 left-0 w-1.5 h-full cursor-col-resize bg-transparent hover:bg-daw-accent/30 transition-colors z-10"
         onMouseDown={onResizeMouseDown}
       />
+
       {/* Header */}
-      <div className="flex items-center justify-between h-6 px-3 border-b border-daw-border shrink-0">
-        <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider">Assets</span>
-      </div>
-      {/* Tabs */}
-      <div className="flex border-b border-daw-border shrink-0">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 px-1 py-1.5 text-[10px] font-medium transition-colors ${
-              activeTab === tab.id
-                ? 'text-white border-b-2 border-indigo-500'
-                : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            {tab.label}
-            {tab.count > 0 && (
-              <span className="ml-1 text-[9px] text-zinc-600">{tab.count}</span>
-            )}
-          </button>
-        ))}
+      <div className="flex items-center h-6 px-3 border-b border-[#3a3a3a] bg-[#333] shrink-0">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" className="text-zinc-500 mr-1.5">
+          <circle cx="5" cy="5" r="3.5" />
+          <path d="M8 8l2.5 2.5" strokeLinecap="round" />
+        </svg>
+        <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Loop Browser</span>
       </div>
 
-      {/* List */}
+      {/* Search */}
+      <div className="px-2 py-1.5 border-b border-[#3a3a3a]">
+        <input
+          type="text"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Search loops..."
+          className="w-full text-[11px] text-zinc-300 bg-[#222] border border-[#444] rounded px-2 py-1 outline-none placeholder:text-zinc-600 focus:border-daw-accent/50"
+        />
+      </div>
+
+      {/* Filter keyword buttons */}
+      <div className="flex gap-1 px-2 py-1.5 border-b border-[#3a3a3a] flex-wrap">
+        {filters.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setActiveFilter(f.id)}
+            className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
+              activeFilter === f.id
+                ? 'bg-daw-accent text-white'
+                : 'bg-[#3a3a3a] text-zinc-400 hover:bg-[#444] hover:text-zinc-200'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+        <span className="text-[9px] text-zinc-600 self-center ml-auto">{filteredAssets.length} items</span>
+      </div>
+
+      {/* Results list */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {activeAssets.length === 0 ? (
+        {filteredAssets.length === 0 ? (
           <div className="flex items-center justify-center h-24 text-[10px] text-zinc-600">
-            {activeTab === 'starred' ? 'No starred clips yet' :
-             activeTab === 'uploaded' ? 'No uploaded audio yet' :
-             'No generated clips yet'}
+            No matching loops
           </div>
         ) : (
-          <div className="py-1">
-            {activeAssets.map((asset) => {
+          <div className="py-0.5">
+            {filteredAssets.map((asset) => {
               const clipStillOnTrack = !!getClipById(asset.clipId);
               return (
                 <div
                   key={asset.id}
                   onClick={() => handleClick(asset)}
-                  className={`w-full flex items-start gap-2 px-3 py-1.5 hover:bg-zinc-800/60 transition-colors text-left group cursor-pointer ${
-                    !clipStillOnTrack ? 'opacity-60' : ''
+                  className={`w-full flex items-start gap-2 px-3 py-1.5 hover:bg-[#363636] transition-colors text-left group cursor-pointer border-b border-[#333] ${
+                    !clipStillOnTrack ? 'opacity-50' : ''
                   }`}
                 >
                   <div className="shrink-0 mt-0.5">
-                    <MiniWaveform peaks={asset.waveformPeaks} color="#71717a" />
+                    <MiniWaveform peaks={asset.waveformPeaks} color="#6b7280" />
                   </div>
 
                   <div className="flex-1 min-w-0 overflow-hidden">
                     <div className="flex items-center gap-1">
-                      <span className={`shrink-0 text-[8px] px-1 py-px rounded ${
+                      <span className={`shrink-0 text-[8px] px-1 py-px rounded font-medium ${
                         asset.source === 'uploaded'
-                          ? 'bg-amber-900/40 text-amber-400'
-                          : 'bg-violet-900/40 text-violet-400'
+                          ? 'bg-amber-900/30 text-amber-400'
+                          : 'bg-daw-accent/20 text-daw-accent'
                       }`}>
                         {asset.source === 'uploaded' ? '↑' : 'AI'}
                       </span>
@@ -172,12 +191,9 @@ export function AssetsPanel() {
                       </span>
                     </div>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <span className="text-[9px] text-zinc-600 truncate">{asset.trackDisplayName}</span>
-                      <span className="text-[9px] text-zinc-700">·</span>
-                      <span className="text-[9px] text-zinc-600">{fmtDuration(asset.duration)}</span>
-                      {!clipStillOnTrack && (
-                        <span className="text-[8px] text-zinc-700 italic ml-1">removed</span>
-                      )}
+                      <span className="text-[9px] text-zinc-500 truncate">{asset.trackDisplayName}</span>
+                      <span className="text-[9px] text-zinc-600">·</span>
+                      <span className="text-[9px] text-zinc-500">{fmtDuration(asset.duration)}</span>
                     </div>
                   </div>
 
@@ -187,16 +203,16 @@ export function AssetsPanel() {
                       className={`w-5 h-5 flex items-center justify-center rounded text-[10px] transition-colors ${
                         asset.starred
                           ? 'text-yellow-400 hover:text-yellow-300'
-                          : 'text-zinc-700 hover:text-zinc-500 opacity-0 group-hover:opacity-100'
+                          : 'text-zinc-600 hover:text-zinc-400 opacity-0 group-hover:opacity-100'
                       }`}
-                      title={asset.starred ? 'Remove star' : 'Star this clip'}
+                      title={asset.starred ? 'Remove star' : 'Star'}
                     >
                       {asset.starred ? '★' : '☆'}
                     </button>
                     <button
                       onClick={(e) => handleDelete(e, asset.id)}
-                      className="w-5 h-5 flex items-center justify-center rounded text-[10px] text-zinc-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                      title="Remove from assets"
+                      className="w-5 h-5 flex items-center justify-center rounded text-[10px] text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                      title="Remove"
                     >
                       ×
                     </button>

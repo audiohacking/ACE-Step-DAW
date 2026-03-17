@@ -80,7 +80,7 @@ export function InstrumentPicker() {
                   className={`flex flex-col gap-1.5 p-3 rounded-lg text-left transition-colors relative ${
                     comingSoon
                       ? 'bg-daw-surface-2/60 opacity-70 hover:opacity-90'
-                      : 'bg-daw-surface-2 hover:bg-zinc-600'
+                      : 'bg-daw-surface-2 hover:bg-[#484848]'
                   }`}
                   style={{ borderLeft: `3px solid ${info.color}` }}
                 >
@@ -115,7 +115,7 @@ export function InstrumentPicker() {
                 <button
                   key={name}
                   onClick={() => handleInstrumentSelect(name)}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded text-left bg-daw-surface-2 hover:bg-zinc-600 cursor-pointer transition-colors relative"
+                  className="flex items-center gap-2 px-3 py-2.5 rounded text-left bg-daw-surface-2 hover:bg-[#484848] cursor-pointer transition-colors relative"
                   style={{ borderLeft: `3px solid ${info.color}` }}
                 >
                   <span className="text-lg">{info.emoji}</span>
@@ -135,7 +135,7 @@ export function InstrumentPicker() {
           <div className="p-5 flex flex-col gap-3">
             <button
               onClick={() => { addTrack('custom', 'sample'); close(); }}
-              className="flex items-center gap-3 p-3 rounded-lg bg-daw-surface-2 hover:bg-zinc-600 transition-colors text-left"
+              className="flex items-center gap-3 p-3 rounded-lg bg-daw-surface-2 hover:bg-[#484848] transition-colors text-left"
               style={{ borderLeft: `3px solid ${TRACK_TYPE_CATALOG.sample.color}` }}
             >
               <span className="text-xl">📂</span>
@@ -146,7 +146,7 @@ export function InstrumentPicker() {
             </button>
             <button
               onClick={() => { close(); openFilePicker(); }}
-              className="flex items-center gap-3 p-3 rounded-lg bg-daw-surface-2 hover:bg-zinc-600 transition-colors text-left"
+              className="flex items-center gap-3 p-3 rounded-lg bg-daw-surface-2 hover:bg-[#484848] transition-colors text-left"
               style={{ borderLeft: `3px solid ${TRACK_TYPE_CATALOG.sample.color}` }}
             >
               <span className="text-xl">📁</span>
@@ -169,7 +169,7 @@ export function InstrumentPicker() {
                 addTrack('percussion', 'sequencer');
                 close();
               }}
-              className="flex items-center gap-3 p-3 rounded-lg bg-daw-surface-2 hover:bg-zinc-600 transition-colors text-left"
+              className="flex items-center gap-3 p-3 rounded-lg bg-daw-surface-2 hover:bg-[#484848] transition-colors text-left"
               style={{ borderLeft: `3px solid ${TRACK_TYPE_CATALOG.sequencer.color}` }}
             >
               <span className="text-xl">🎹</span>

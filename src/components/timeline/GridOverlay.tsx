@@ -23,10 +23,11 @@ export function GridOverlay() {
       {lines.map((line, i) => (
         <div
           key={i}
-          className={`absolute top-0 bottom-0 w-px ${
-            line.isBar ? 'bg-daw-grid-bar' : 'bg-daw-grid-beat'
-          }`}
-          style={{ left: line.x }}
+          className="absolute top-0 bottom-0 w-px"
+          style={{
+            left: line.x,
+            backgroundColor: line.isBar ? '#4a4a4a' : '#333333',
+          }}
         />
       ))}
     </div>

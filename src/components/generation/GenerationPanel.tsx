@@ -19,7 +19,7 @@ export function GenerationPanel() {
         />
       )}
 
-      <div className="border-t border-daw-border bg-daw-surface">
+      <div className="border-t border-[#1a1a1a] bg-[#2a2a2a]">
         <div className="flex items-center h-9 px-3 gap-3">
           {jobs.length > 0 && (
             <>
@@ -34,7 +34,7 @@ export function GenerationPanel() {
                           ? 'bg-red-900/50 text-red-300'
                           : job.status === 'generating'
                             ? 'bg-indigo-900/50 text-indigo-300'
-                            : 'bg-zinc-800 text-zinc-400'
+                            : 'bg-[#333] text-zinc-400'
                     }`}
                   >
                     {job.status === 'generating' && (

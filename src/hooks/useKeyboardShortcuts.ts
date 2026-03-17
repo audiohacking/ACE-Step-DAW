@@ -261,10 +261,22 @@ export function useKeyboardShortcuts() {
           break;
         }
 
-        // Mixer toggle
-        case 'KeyM':
+        // Mixer toggle (X like GarageBand)
+        case 'KeyX':
           e.preventDefault();
           ui.setShowMixer(!ui.showMixer);
+          break;
+
+        // Smart Controls toggle (B like GarageBand)
+        case 'KeyB':
+          e.preventDefault();
+          ui.setShowSmartControls(!ui.showSmartControls);
+          break;
+
+        // Loop Browser / Assets toggle (O)
+        case 'KeyO':
+          e.preventDefault();
+          ui.setShowAssetsPanel(!ui.showAssetsPanel);
           break;
 
         // Help

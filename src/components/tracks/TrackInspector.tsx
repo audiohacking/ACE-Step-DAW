@@ -26,7 +26,7 @@ export function TrackInspector({ track }: TrackInspectorProps) {
   }, [track.id, setTrackReverb]);
 
   return (
-    <div className="bg-zinc-950 border-b border-daw-border text-[10px] text-zinc-400 select-none overflow-y-auto" style={{ height: 220 }}>
+    <div className="bg-[#1e1e1e] border-b border-daw-border text-[10px] text-zinc-400 select-none overflow-y-auto" style={{ height: 220 }}>
       <div className="px-3 py-2 space-y-3">
       {/* Local caption */}
       <div>
@@ -38,7 +38,7 @@ export function TrackInspector({ track }: TrackInspectorProps) {
           value={track.localCaption ?? ''}
           onChange={(e) => setTrackLocalCaption(track.id, e.target.value)}
           placeholder={track.displayName}
-          className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-[10px] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-daw-accent"
+          className="w-full bg-[#222] border border-[#444] rounded px-2 py-1 text-[10px] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-daw-accent"
         />
         <p className="text-[9px] text-zinc-600 mt-0.5">Defaults to track name if empty</p>
       </div>
@@ -98,7 +98,7 @@ export function TrackInspector({ track }: TrackInspectorProps) {
             className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors ${
               compEnabled
                 ? 'bg-orange-600 text-white'
-                : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+                : 'bg-[#333] text-zinc-500 hover:text-zinc-300'
             }`}
           >
             {compEnabled ? 'ON' : 'OFF'}

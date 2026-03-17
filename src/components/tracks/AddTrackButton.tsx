@@ -9,16 +9,19 @@ export function AddTrackButton() {
     <div className="flex gap-1 mx-2 my-2">
       <button
         onClick={() => setShowInstrumentPicker(true)}
-        className="flex-1 flex items-center justify-center gap-1 h-8 text-xs font-medium text-zinc-400 hover:text-zinc-200 bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors"
+        className="flex-1 flex items-center justify-center gap-1 h-7 text-[11px] font-medium text-zinc-400 hover:text-white bg-[#3a3a3a] hover:bg-[#484848] rounded transition-colors"
       >
         <span className="text-sm">+</span> Track
       </button>
       <button
         onClick={openFilePicker}
-        className="flex items-center justify-center gap-1 h-8 px-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors"
+        className="flex items-center justify-center gap-1 h-7 px-2 text-[11px] font-medium text-zinc-400 hover:text-white bg-[#3a3a3a] hover:bg-[#484848] rounded transition-colors"
         title="Import audio file"
       >
-        <span className="text-sm">📁</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+          <path d="M6 1v7M3 5l3 3 3-3" />
+          <path d="M1 9v1.5a.5.5 0 00.5.5h9a.5.5 0 00.5-.5V9" />
+        </svg>
       </button>
     </div>
   );

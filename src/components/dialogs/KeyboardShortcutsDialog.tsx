@@ -63,6 +63,14 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    title: 'Panels',
+    rows: [
+      { keys: ['X'],                    description: 'Toggle Mixer' },
+      { keys: ['B'],                    description: 'Toggle Smart Controls' },
+      { keys: ['O'],                    description: 'Toggle Loop Browser' },
+    ],
+  },
+  {
     title: 'Project',
     rows: [
       { keys: [`${mod}`, 'N'],         description: 'New project' },
@@ -70,7 +78,6 @@ const SECTIONS: Section[] = [
       { keys: [`${mod}`, ','],         description: 'Settings' },
       { keys: [`${mod}`, '⇧', 'E'],    description: 'Export' },
       { keys: [`${mod}`, '⇧', 'I'],    description: 'Add Track' },
-      { keys: ['M'],                    description: 'Toggle Mixer panel' },
       { keys: ['?'],                    description: 'This help overlay' },
     ],
   },
@@ -78,7 +85,7 @@ const SECTIONS: Section[] = [
 
 function Key({ label }: { label: string }) {
   return (
-    <kbd className="inline-flex items-center justify-center min-w-[1.5rem] px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-700 border border-zinc-600 text-zinc-200 shadow-sm">
+    <kbd className="inline-flex items-center justify-center min-w-[1.5rem] px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#444] border border-zinc-600 text-zinc-200 shadow-sm">
       {label}
     </kbd>
   );

@@ -30,6 +30,10 @@ interface UIState {
   /** Track whose sequencer editor is currently open (bottom panel). */
   openSequencerTrackId: string | null;
   sequencerEditorHeight: number;
+  showSmartControls: boolean;
+  showLibrary: boolean;
+  /** Which bottom editor is visible: null = none, 'smart' = smart controls, 'editor' = region editor */
+  activeBottomPanel: 'smart' | 'editor' | null;
 
   setPixelsPerSecond: (pps: number) => void;
   zoomIn: () => void;
@@ -58,6 +62,9 @@ interface UIState {
   setExpandedTrackId: (id: string | null) => void;
   setOpenSequencerTrackId: (id: string | null) => void;
   setSequencerEditorHeight: (v: number) => void;
+  setShowSmartControls: (v: boolean) => void;
+  setShowLibrary: (v: boolean) => void;
+  setActiveBottomPanel: (v: 'smart' | 'editor' | null) => void;
 }
 
 const ZOOM_LEVELS = [10, 25, 50, 100, 200, 500];
@@ -86,6 +93,9 @@ export const useUIStore = create<UIState>((set) => ({
   expandedTrackId: null,
   openSequencerTrackId: null,
   sequencerEditorHeight: 320,
+  showSmartControls: false,
+  showLibrary: false,
+  activeBottomPanel: null,
 
   setPixelsPerSecond: (pps) => set({ pixelsPerSecond: pps }),
 
@@ -142,4 +152,7 @@ export const useUIStore = create<UIState>((set) => ({
   setExpandedTrackId: (id) => set({ expandedTrackId: id }),
   setOpenSequencerTrackId: (id) => set({ openSequencerTrackId: id }),
   setSequencerEditorHeight: (v) => set({ sequencerEditorHeight: Math.min(600, Math.max(200, v)) }),
+  setShowSmartControls: (v) => set({ showSmartControls: v }),
+  setShowLibrary: (v) => set({ showLibrary: v }),
+  setActiveBottomPanel: (v) => set({ activeBottomPanel: v }),
 }));

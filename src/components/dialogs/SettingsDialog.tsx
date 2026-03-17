@@ -342,7 +342,7 @@ export function SettingsDialog() {
                 type="button"
                 onClick={handleInitSelectedModel}
                 disabled={initLoading || !model}
-                className="px-2.5 py-1 text-[10px] font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-2.5 py-1 text-[10px] font-medium bg-daw-surface-2 hover:bg-[#484848] rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {initLoading ? 'Initializing...' : (selectedModelEntry?.is_loaded ? 'Reinitialize' : 'Initialize')}
               </button>
@@ -372,7 +372,7 @@ export function SettingsDialog() {
                   type="button"
                   onClick={handleInitSelectedLm}
                   disabled={initLoading || !selectedLmModel}
-                  className="px-2.5 py-1 text-[10px] font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2.5 py-1 text-[10px] font-medium bg-daw-surface-2 hover:bg-[#484848] rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {initLoading ? 'Initializing...' : (selectedLmEntry?.is_loaded ? 'Reinitialize LLM' : 'Initialize LLM')}
                 </button>
@@ -403,7 +403,7 @@ export function SettingsDialog() {
         <div className="flex justify-end px-4 py-3 border-t border-daw-border gap-2">
           <button
             onClick={() => setShow(false)}
-            className="px-4 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors"
+            className="px-4 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-[#484848] rounded transition-colors"
           >
             Cancel
           </button>

@@ -137,7 +137,7 @@ export function Knob({
           <path
             d={trackPath}
             fill="none"
-            stroke="#3f3f46"
+            stroke="#4a4a4a"
             strokeWidth={strokeWidth}
             strokeLinecap="round"
           />
@@ -145,7 +145,7 @@ export function Knob({
           <path
             d={fillPath}
             fill="none"
-            stroke="#6366f1"
+            stroke="#4a90d9"
             strokeWidth={strokeWidth}
             strokeLinecap="round"
           />
@@ -154,8 +154,8 @@ export function Knob({
             cx={radius}
             cy={radius}
             r={radius * 0.52}
-            fill="#27272a"
-            stroke="#52525b"
+            fill="#3c3c3c"
+            stroke="#5a5a5a"
             strokeWidth={1}
           />
           {/* Pointer tick */}

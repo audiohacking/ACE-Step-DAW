@@ -200,11 +200,11 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl flex flex-col"
+        className="bg-[#222] border border-[#444] rounded-lg shadow-xl flex flex-col"
         style={{ width: 580, maxHeight: '90vh' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#444]">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-zinc-100">Generate Tracks</span>
             <span
@@ -228,7 +228,7 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-xs text-zinc-300">
           {/* Timeline diagram */}
-          <div className="bg-zinc-900/60 rounded px-3 pt-2 pb-4 border border-zinc-800">
+          <div className="bg-[#222]/60 rounded px-3 pt-2 pb-4 border border-[#3a3a3a]">
             <p className="text-[10px] text-zinc-400 mb-2">
               {hasContext
                 ? 'The model generates audio for the Select Window, conditioned on the Context Window.'
@@ -338,7 +338,7 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
               className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
                 chunkMaskMode === 'auto'
                   ? 'bg-teal-900/50 border-teal-700/50 text-teal-300'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+                  : 'bg-[#333] border-[#444] text-zinc-400'
               }`}
             >
               {chunkMaskMode === 'auto' ? 'Auto (model decides)' : 'Explicit (select window only)'}
@@ -357,8 +357,8 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
                 key={row.trackId}
                 className={`rounded border p-2 space-y-1 transition-colors ${
                   row.checked
-                    ? 'bg-zinc-800/60 border-zinc-700'
-                    : 'bg-zinc-900/40 border-zinc-800 opacity-60'
+                    ? 'bg-[#333]/60 border-[#444]'
+                    : 'bg-[#222]/40 border-[#3a3a3a] opacity-60'
                 }`}
               >
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -378,7 +378,7 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
                       onChange={(e) => updateRowField(idx, 'localDescription', e.target.value)}
                       placeholder="Local description for this track…"
                       rows={2}
-                      className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-[11px] text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-teal-600"
+                      className="w-full bg-[#222] border border-[#444] rounded px-2 py-1 text-[11px] text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-teal-600"
                     />
                     {row.isVocal && (
                       <textarea
@@ -386,7 +386,7 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
                         onChange={(e) => updateRowField(idx, 'lyrics', e.target.value)}
                         placeholder="Lyrics…"
                         rows={2}
-                        className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-[11px] text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-teal-600"
+                        className="w-full bg-[#222] border border-[#444] rounded px-2 py-1 text-[11px] text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-teal-600"
                       />
                     )}
                   </div>
@@ -405,7 +405,7 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
               onChange={(e) => setGlobalCaption(e.target.value)}
               placeholder="Describe the overall song (genre, mood, tempo…)"
               rows={2}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-[11px] text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-teal-600"
+              className="w-full bg-[#222] border border-[#444] rounded px-2 py-1.5 text-[11px] text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-teal-600"
             />
           </div>
 
@@ -416,11 +416,11 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
               type="number"
               value={sharedSeed}
               onChange={(e) => setSharedSeed(parseInt(e.target.value) || 0)}
-              className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-[11px] text-zinc-200 focus:outline-none focus:ring-1 focus:ring-teal-600 w-28"
+              className="flex-1 bg-[#222] border border-[#444] rounded px-2 py-1 text-[11px] text-zinc-200 focus:outline-none focus:ring-1 focus:ring-teal-600 w-28"
             />
             <button
               onClick={() => setSharedSeed(Math.floor(Math.random() * 2 ** 31))}
-              className="text-[10px] px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700 transition-colors"
+              className="text-[10px] px-2 py-1 rounded bg-[#333] border border-[#444] text-zinc-400 hover:text-zinc-200 hover:bg-[#444] transition-colors"
             >
               🎲
             </button>
@@ -428,10 +428,10 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-zinc-700">
+        <div className="flex justify-end gap-2 px-4 py-3 border-t border-[#444]">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 rounded text-xs text-zinc-400 border border-zinc-700 hover:bg-zinc-800 transition-colors"
+            className="px-3 py-1.5 rounded text-xs text-zinc-400 border border-[#444] hover:bg-[#333] transition-colors"
           >
             Cancel
           </button>

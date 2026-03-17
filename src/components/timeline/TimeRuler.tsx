@@ -1,12 +1,16 @@
 import { useCallback } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
+import { useTransportStore } from '../../store/transportStore';
 import { useTransport } from '../../hooks/useTransport';
 import { getBarDuration } from '../../utils/time';
 
 export function TimeRuler() {
   const project = useProjectStore((s) => s.project);
   const pixelsPerSecond = useUIStore((s) => s.pixelsPerSecond);
+  const loopEnabled = useTransportStore((s) => s.loopEnabled);
+  const loopStart = useTransportStore((s) => s.loopStart);
+  const loopEnd = useTransportStore((s) => s.loopEnd);
   const { seek } = useTransport();
 
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -17,7 +21,7 @@ export function TimeRuler() {
     seek(time);
   }, [project, pixelsPerSecond, seek]);
 
-  if (!project) return <div className="h-6 bg-daw-surface border-b border-daw-border" />;
+  if (!project) return <div className="h-6 bg-[#333] border-b border-[#2a2a2a]" />;
 
   const barDuration = getBarDuration(project.bpm, project.timeSignature);
   const totalBars = Math.ceil(project.totalDuration / barDuration);
@@ -31,18 +35,33 @@ export function TimeRuler() {
 
   return (
     <div
-      className="relative h-6 bg-daw-surface border-b border-daw-border overflow-hidden select-none cursor-pointer"
+      className="relative h-6 bg-[#353535] border-b border-[#2a2a2a] overflow-hidden select-none cursor-pointer"
       style={{ width: totalWidth }}
       onClick={handleClick}
     >
+      {/* Cycle/loop region (yellow strip, GarageBand style) */}
+      {loopEnabled && loopEnd > loopStart && (
+        <div
+          className="absolute top-0 h-full"
+          style={{
+            left: loopStart * pixelsPerSecond,
+            width: (loopEnd - loopStart) * pixelsPerSecond,
+            background: 'linear-gradient(180deg, rgba(234,179,8,0.35) 0%, rgba(234,179,8,0.15) 100%)',
+            borderLeft: '1px solid rgba(234,179,8,0.5)',
+            borderRight: '1px solid rgba(234,179,8,0.5)',
+          }}
+        />
+      )}
+
+      {/* Bar markers */}
       {markers.map(({ bar, x }) => (
         <div
           key={bar}
-          className="absolute top-0 h-full flex items-end pb-0.5 text-[10px] text-zinc-500 pointer-events-none"
+          className="absolute top-0 h-full flex items-end pb-0.5 pointer-events-none"
           style={{ left: x }}
         >
-          <div className="w-px h-2 bg-daw-grid-bar mr-1" />
-          <span>{bar}</span>
+          <div className="w-px h-3 bg-[#666] mr-1" />
+          <span className="text-[10px] text-zinc-400 font-medium">{bar}</span>
         </div>
       ))}
     </div>

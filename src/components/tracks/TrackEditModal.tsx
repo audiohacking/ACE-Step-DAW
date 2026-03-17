@@ -82,7 +82,7 @@ export function TrackEditModal({ track, onClose }: TrackEditModalProps) {
               onChange={(e) => setName(e.target.value)}
               onBlur={commitName}
               onKeyDown={(e) => { if (e.key === 'Enter') { commitName(); (e.target as HTMLInputElement).blur(); } }}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500/60"
+              className="w-full bg-[#222] border border-[#444] rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-daw-accent/60"
             />
           </div>
 
@@ -105,7 +105,7 @@ export function TrackEditModal({ track, onClose }: TrackEditModalProps) {
                         ? 'ring-1 ring-offset-1 ring-offset-transparent'
                         : comingSoon
                           ? 'opacity-40 cursor-not-allowed'
-                          : 'hover:bg-zinc-700'
+                          : 'hover:bg-[#444]'
                     }`}
                     style={{
                       backgroundColor: isActive ? tti.color + '25' : undefined,
@@ -156,7 +156,7 @@ export function TrackEditModal({ track, onClose }: TrackEditModalProps) {
                 <button
                   onClick={() => updateTrack(track.id, { muted: !track.muted })}
                   className={`w-7 h-6 text-[10px] font-bold rounded transition-colors ${
-                    track.muted ? 'bg-amber-600 text-white' : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+                    track.muted ? 'bg-amber-600 text-white' : 'bg-[#333] text-zinc-500 hover:text-zinc-300'
                   }`}
                 >
                   M
@@ -164,7 +164,7 @@ export function TrackEditModal({ track, onClose }: TrackEditModalProps) {
                 <button
                   onClick={() => updateTrack(track.id, { soloed: !track.soloed })}
                   className={`w-7 h-6 text-[10px] font-bold rounded transition-colors ${
-                    track.soloed ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+                    track.soloed ? 'bg-emerald-600 text-white' : 'bg-[#333] text-zinc-500 hover:text-zinc-300'
                   }`}
                 >
                   S
@@ -181,7 +181,7 @@ export function TrackEditModal({ track, onClose }: TrackEditModalProps) {
               value={track.localCaption ?? ''}
               onChange={(e) => setTrackLocalCaption(track.id, e.target.value)}
               placeholder={track.displayName}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/60"
+              className="w-full bg-[#222] border border-[#444] rounded px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-daw-accent/60"
             />
             <p className="text-[9px] text-zinc-600 mt-0.5">Defaults to track name if empty</p>
           </div>
@@ -215,7 +215,7 @@ export function TrackEditModal({ track, onClose }: TrackEditModalProps) {
               <button
                 onClick={() => updateTrackMixer(track.id, { compressorEnabled: !compEnabled })}
                 className={`px-2 py-0.5 rounded text-[9px] font-bold transition-colors ${
-                  compEnabled ? 'bg-orange-600 text-white' : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+                  compEnabled ? 'bg-orange-600 text-white' : 'bg-[#333] text-zinc-500 hover:text-zinc-300'
                 }`}
               >
                 {compEnabled ? 'ON' : 'OFF'}
@@ -263,7 +263,7 @@ export function TrackEditModal({ track, onClose }: TrackEditModalProps) {
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
+            className="px-4 py-1.5 text-xs bg-daw-accent hover:bg-daw-accent-hover text-white rounded transition-colors"
           >
             Done
           </button>
