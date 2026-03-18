@@ -1,6 +1,7 @@
 import * as Tone from 'tone';
 import type {
   TrackEffect,
+  TrackEffectType,
   EQ3Params,
   CompressorParams,
   ReverbParams,
@@ -11,6 +12,7 @@ import type {
 
 type EffectNode = {
   id: string;
+  type: TrackEffectType;
   node: Tone.ToneAudioNode;
   lfo?: Tone.LFO;
 };
@@ -22,12 +24,13 @@ function createNode(effect: TrackEffect): EffectNode {
       const node = new Tone.EQ3(p.low, p.mid, p.high);
       node.lowFrequency.value = p.lowFrequency;
       node.highFrequency.value = p.highFrequency;
-      return { id: effect.id, node };
+      return { id: effect.id, type: effect.type, node };
     }
     case 'compressor': {
       const p = effect.params as CompressorParams;
       return {
         id: effect.id,
+        type: effect.type,
         node: new Tone.Compressor({
           threshold: p.threshold,
           ratio: p.ratio,
@@ -39,29 +42,46 @@ function createNode(effect: TrackEffect): EffectNode {
     }
     case 'reverb': {
       const p = effect.params as ReverbParams;
-      return { id: effect.id, node: new Tone.Reverb({ decay: p.decay, preDelay: p.preDelay, wet: p.wet }) };
+      return {
+        id: effect.id,
+        type: effect.type,
+        node: new Tone.Reverb({ decay: p.decay, preDelay: p.preDelay, wet: p.wet }),
+      };
     }
     case 'delay': {
       const p = effect.params as DelayParams;
-      return { id: effect.id, node: new Tone.FeedbackDelay({ delayTime: p.time, feedback: p.feedback, wet: p.wet }) };
+      return {
+        id: effect.id,
+        type: effect.type,
+        node: new Tone.FeedbackDelay({ delayTime: p.time, feedback: p.feedback, wet: p.wet }),
+      };
     }
     case 'distortion': {
       const p = effect.params as DistortionParams;
-      const amount = p.distortionType === 'overdrive' ? p.amount * 0.5 : p.distortionType === 'fuzz' ? Math.min(1, p.amount * 1.5) : p.amount;
-      return { id: effect.id, node: new Tone.Distortion({ distortion: amount, wet: p.wet }) };
+      const amount =
+        p.distortionType === 'overdrive' ? p.amount * 0.5 :
+        p.distortionType === 'fuzz' ? Math.min(1, p.amount * 1.5) :
+        p.amount;
+      return {
+        id: effect.id,
+        type: effect.type,
+        node: new Tone.Distortion({ distortion: amount, wet: p.wet }),
+      };
     }
     case 'filter': {
       const p = effect.params as FilterParams;
       const node = new Tone.Filter({ frequency: p.frequency, type: p.filterType, Q: p.resonance });
-      const lfo = p.lfoEnabled
-        ? new Tone.LFO({
-            frequency: p.lfoRate,
-            min: Math.max(20, p.frequency * (1 - p.lfoDepth)),
-            max: Math.min(20000, p.frequency * (1 + p.lfoDepth)),
-          }).start()
-        : undefined;
-      lfo?.connect(node.frequency);
-      return { id: effect.id, node, lfo };
+      let lfo: Tone.LFO | undefined;
+      if (p.lfoEnabled) {
+        lfo = new Tone.LFO({
+          frequency: p.lfoRate,
+          min: Math.max(20, p.frequency * (1 - p.lfoDepth)),
+          max: Math.min(20000, p.frequency * (1 + p.lfoDepth)),
+        });
+        lfo.connect(node.frequency);
+        lfo.start();
+      }
+      return { id: effect.id, type: effect.type, node, lfo };
     }
   }
 }
@@ -71,7 +91,7 @@ class EffectsEngine {
 
   rebuildChain(trackId: string, effects: TrackEffect[]) {
     this.disposeChain(trackId);
-    const activeEffects = effects.filter((effect) => effect.enabled);
+    const activeEffects = effects.filter((e) => e.enabled);
     const nodes = activeEffects.map(createNode);
     for (let i = 0; i < nodes.length - 1; i++) {
       nodes[i].node.connect(nodes[i + 1].node);
@@ -79,8 +99,103 @@ class EffectsEngine {
     this.chains.set(trackId, nodes);
   }
 
-  updateParams(trackId: string, effects: TrackEffect[]) {
-    this.rebuildChain(trackId, effects);
+  /**
+   * Update a single effect's parameters in real-time (no full rebuild needed for most effects).
+   */
+  updateEffectParams(
+    trackId: string,
+    effectId: string,
+    params: TrackEffect['params'],
+    effectType: TrackEffectType,
+  ) {
+    const nodes = this.chains.get(trackId);
+    if (!nodes) return;
+    const effectNode = nodes.find((n) => n.id === effectId);
+    if (!effectNode) return;
+
+    switch (effectType) {
+      case 'eq3': {
+        const p = params as EQ3Params;
+        const eq = effectNode.node as Tone.EQ3;
+        eq.low.value = p.low;
+        eq.mid.value = p.mid;
+        eq.high.value = p.high;
+        eq.lowFrequency.value = p.lowFrequency;
+        eq.highFrequency.value = p.highFrequency;
+        break;
+      }
+      case 'compressor': {
+        const p = params as CompressorParams;
+        const comp = effectNode.node as Tone.Compressor;
+        comp.threshold.value = p.threshold;
+        comp.ratio.value = p.ratio;
+        comp.attack.value = p.attack;
+        comp.release.value = p.release;
+        comp.knee.value = p.knee;
+        break;
+      }
+      case 'reverb': {
+        const p = params as ReverbParams;
+        const rev = effectNode.node as Tone.Reverb;
+        rev.decay = p.decay;
+        rev.wet.value = p.wet;
+        break;
+      }
+      case 'delay': {
+        const p = params as DelayParams;
+        const del = effectNode.node as Tone.FeedbackDelay;
+        del.delayTime.value = p.time;
+        del.feedback.value = p.feedback;
+        del.wet.value = p.wet;
+        break;
+      }
+      case 'distortion': {
+        const p = params as DistortionParams;
+        const dist = effectNode.node as Tone.Distortion;
+        dist.distortion =
+          p.distortionType === 'overdrive' ? p.amount * 0.5 :
+          p.distortionType === 'fuzz' ? Math.min(1, p.amount * 1.5) :
+          p.amount;
+        dist.wet.value = p.wet;
+        break;
+      }
+      case 'filter': {
+        const p = params as FilterParams;
+        const filt = effectNode.node as Tone.Filter;
+        filt.frequency.value = p.frequency;
+        filt.Q.value = p.resonance;
+        filt.type = p.filterType;
+
+        if (p.lfoEnabled && !effectNode.lfo) {
+          const lfo = new Tone.LFO({
+            frequency: p.lfoRate,
+            min: Math.max(20, p.frequency * (1 - p.lfoDepth)),
+            max: Math.min(20000, p.frequency * (1 + p.lfoDepth)),
+          });
+          lfo.connect(filt.frequency);
+          lfo.start();
+          effectNode.lfo = lfo;
+        } else if (!p.lfoEnabled && effectNode.lfo) {
+          effectNode.lfo.stop();
+          effectNode.lfo.dispose();
+          effectNode.lfo = undefined;
+        } else if (p.lfoEnabled && effectNode.lfo) {
+          effectNode.lfo.frequency.value = p.lfoRate;
+          effectNode.lfo.min = Math.max(20, p.frequency * (1 - p.lfoDepth));
+          effectNode.lfo.max = Math.min(20000, p.frequency * (1 + p.lfoDepth));
+        }
+        break;
+      }
+    }
+  }
+
+  /** Get compressor gain reduction for metering (0 = no reduction). */
+  getCompressorReduction(trackId: string, effectId: string): number {
+    const nodes = this.chains.get(trackId);
+    if (!nodes) return 0;
+    const effectNode = nodes.find((n) => n.id === effectId);
+    if (!effectNode || effectNode.type !== 'compressor') return 0;
+    return (effectNode.node as Tone.Compressor).reduction;
   }
 
   getChain(trackId: string): EffectNode[] {
@@ -91,7 +206,7 @@ class EffectsEngine {
     const nodes = this.chains.get(trackId);
     if (!nodes) return;
     for (const node of nodes) {
-      node.lfo?.dispose();
+      if (node.lfo) { node.lfo.stop(); node.lfo.dispose(); }
       node.node.dispose();
     }
     this.chains.delete(trackId);

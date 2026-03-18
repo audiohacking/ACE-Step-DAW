@@ -63,7 +63,7 @@ class SynthEngine {
     }
   }
 
-  ensureTrackSynth(trackId: string, preset: SynthPreset): Tone.PolySynth {
+  ensureTrackSynth(trackId: string, preset: SynthPreset, connectTo?: Tone.InputNode): Tone.PolySynth {
     const existing = this.synths.get(trackId);
     if (existing && existing.preset === preset) return existing.synth;
 
@@ -74,10 +74,19 @@ class SynthEngine {
     }
 
     const synth = createSynthForPreset(preset);
-    const gain = new Tone.Gain(0.55).toDestination();
+    const gain = new Tone.Gain(0.55);
     synth.connect(gain);
+    if (connectTo) {
+      gain.connect(connectTo);
+    } else {
+      gain.toDestination();
+    }
     this.synths.set(trackId, { synth, preset, gain });
     return synth;
+  }
+
+  getSynth(trackId: string): Tone.PolySynth | null {
+    return this.synths.get(trackId)?.synth ?? null;
   }
 
   async previewNote(pitch: number, velocity = 100, duration = 0.3, preset: SynthPreset = 'piano') {
@@ -87,7 +96,6 @@ class SynthEngine {
       this.previewGain = new Tone.Gain(0.3).toDestination();
       this.previewSynth.connect(this.previewGain);
     }
-
     const freq = Tone.Frequency(pitch, 'midi').toFrequency();
     this.previewSynth.triggerAttackRelease(freq, duration, undefined, velocity / 127);
   }
@@ -97,6 +105,22 @@ class SynthEngine {
     const synth = this.ensureTrackSynth(trackId, preset);
     const freq = Tone.Frequency(pitch, 'midi').toFrequency();
     synth.triggerAttackRelease(freq, duration, undefined, velocity / 127);
+  }
+
+  /** Trigger note on for a track synth (for live playing / recording). */
+  noteOn(trackId: string, pitch: number, velocity = 100) {
+    const instance = this.synths.get(trackId);
+    if (!instance) return;
+    const freq = Tone.Frequency(pitch, 'midi').toFrequency();
+    instance.synth.triggerAttack(freq, undefined, velocity / 127);
+  }
+
+  /** Trigger note off for a track synth. */
+  noteOff(trackId: string, pitch: number) {
+    const instance = this.synths.get(trackId);
+    if (!instance) return;
+    const freq = Tone.Frequency(pitch, 'midi').toFrequency();
+    instance.synth.triggerRelease(freq);
   }
 
   removeTrackSynth(trackId: string) {
