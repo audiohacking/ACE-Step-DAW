@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface UIState {
   pixelsPerSecond: number;
+  snapEnabled: boolean;
   scrollX: number;
   scrollY: number;
   selectedClipIds: Set<string>;
@@ -57,6 +58,7 @@ interface UIState {
   analysisClipId: string | null;
 
   setPixelsPerSecond: (pps: number) => void;
+  toggleSnap: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
   setScrollX: (x: number) => void;
@@ -112,6 +114,7 @@ export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
   pixelsPerSecond: 50,
+  snapEnabled: true,
   scrollX: 0,
   scrollY: 0,
   selectedClipIds: new Set(),
@@ -156,6 +159,7 @@ export const useUIStore = create<UIState>()(
   analysisClipId: null,
 
   setPixelsPerSecond: (pps) => set({ pixelsPerSecond: pps }),
+  toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
 
   zoomIn: () =>
     set((s) => {
@@ -254,6 +258,8 @@ export const useUIStore = create<UIState>()(
         trackListWidth: state.trackListWidth,
         // Zoom level
         pixelsPerSecond: state.pixelsPerSecond,
+        // Snap
+        snapEnabled: state.snapEnabled,
         // Loop Browser preference
         loopBrowserCategory: state.loopBrowserCategory,
       }),

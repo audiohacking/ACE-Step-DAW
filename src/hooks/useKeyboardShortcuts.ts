@@ -283,6 +283,25 @@ export function useKeyboardShortcuts() {
           break;
         }
 
+        // Zoom to fit project (Z)
+        case 'KeyZ':
+          if (!e.shiftKey) {
+            e.preventDefault();
+            if (project.project && project.project.totalDuration > 0) {
+              // Calculate pixels per second to fit the entire project in the viewport
+              const viewportWidth = window.innerWidth - 200; // approximate sidebar width
+              const fitPps = Math.max(10, Math.min(500, viewportWidth / project.project.totalDuration));
+              ui.setPixelsPerSecond(fitPps);
+            }
+          }
+          break;
+
+        // Snap toggle (N for snap oN/off)
+        case 'KeyN':
+          e.preventDefault();
+          ui.toggleSnap();
+          break;
+
         // Mixer toggle (X like GarageBand)
         case 'KeyX':
           e.preventDefault();
