@@ -41,7 +41,6 @@ export function InstrumentPicker() {
   };
 
   const typeOrder: TrackType[] = ['stems', 'sample', 'sequencer', 'pianoRoll'];
-  const isComingSoon = selectedType === 'pianoRoll';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
@@ -72,16 +71,11 @@ export function InstrumentPicker() {
           <div className="p-4 grid grid-cols-2 gap-3">
             {typeOrder.map((type) => {
               const info = TRACK_TYPE_CATALOG[type];
-              const comingSoon = type === 'pianoRoll';
               return (
                 <button
                   key={type}
                   onClick={() => handleTypeSelect(type)}
-                  className={`flex flex-col gap-1.5 p-3 rounded-lg text-left transition-colors relative ${
-                    comingSoon
-                      ? 'bg-daw-surface-2/60 opacity-70 hover:opacity-90'
-                      : 'bg-daw-surface-2 hover:bg-[#484848]'
-                  }`}
+                  className="flex flex-col gap-1.5 p-3 rounded-lg text-left transition-colors relative bg-daw-surface-2 hover:bg-[#484848]"
                   style={{ borderLeft: `3px solid ${info.color}` }}
                 >
                   <div className="flex items-center gap-2">
@@ -95,11 +89,6 @@ export function InstrumentPicker() {
                     </span>
                   </div>
                   <span className="text-[11px] text-zinc-400 leading-tight">{info.description}</span>
-                  {comingSoon && (
-                    <span className="absolute top-2 right-2 text-[9px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">
-                      SOON
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -181,16 +170,26 @@ export function InstrumentPicker() {
           </div>
         )}
 
-        {step === 'instrument' && isComingSoon && (
-          <div className="p-8 flex flex-col items-center gap-4 text-center">
-            <span className="text-4xl">{TRACK_TYPE_CATALOG[selectedType].emoji}</span>
-            <h3 className="text-base font-medium">{TRACK_TYPE_CATALOG[selectedType].label}</h3>
-            <p className="text-sm text-zinc-400 max-w-xs">
-              {TRACK_TYPE_CATALOG[selectedType].description}
-            </p>
-            <span className="text-xs font-bold text-amber-400 bg-amber-400/10 px-3 py-1.5 rounded-full">
-              Coming Soon
-            </span>
+        {step === 'instrument' && selectedType === 'pianoRoll' && (
+          <div className="p-5 flex flex-col gap-3">
+            <div className="text-center mb-2">
+              <span className="text-3xl">🎵</span>
+              <p className="text-xs text-zinc-400 mt-2">Creates a MIDI piano roll track with a default synth preset and editable note clips.</p>
+            </div>
+            <button
+              onClick={() => {
+                addTrack('keyboard', 'pianoRoll');
+                close();
+              }}
+              className="flex items-center gap-3 p-3 rounded-lg bg-daw-surface-2 hover:bg-[#484848] transition-colors text-left"
+              style={{ borderLeft: `3px solid ${TRACK_TYPE_CATALOG.pianoRoll.color}` }}
+            >
+              <span className="text-xl">🎵</span>
+              <div>
+                <div className="text-sm font-medium">Piano Roll Track</div>
+                <div className="text-[11px] text-zinc-400">MIDI clips with built-in synth presets and note editing.</div>
+              </div>
+            </button>
           </div>
         )}
       </div>

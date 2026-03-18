@@ -5,9 +5,85 @@ export type TrackName =
   | 'custom';
 
 export type TrackType = 'stems' | 'sample' | 'sequencer' | 'pianoRoll';
+export type SynthPreset = 'piano' | 'strings' | 'pad' | 'lead' | 'bass' | 'organ';
+export type DrumKitName = '808' | 'acoustic' | 'electronic' | 'lofi';
+export type PianoRollGrid = '1/4' | '1/8' | '1/16' | '1/32';
 
 export type ClipGenerationStatus =
   | 'empty' | 'queued' | 'generating' | 'processing' | 'ready' | 'error' | 'stale';
+
+export interface MidiNote {
+  id: string;
+  pitch: number;
+  startBeat: number;
+  durationBeats: number;
+  velocity: number;
+}
+
+export interface MidiClipData {
+  notes: MidiNote[];
+  grid: PianoRollGrid;
+}
+
+export interface EffectBase<T extends string, P> {
+  id: string;
+  type: T;
+  enabled: boolean;
+  params: P;
+}
+
+export interface EQ3Params {
+  low: number;
+  mid: number;
+  high: number;
+  lowFrequency: number;
+  highFrequency: number;
+}
+
+export interface CompressorParams {
+  threshold: number;
+  ratio: number;
+  attack: number;
+  release: number;
+  knee: number;
+}
+
+export interface ReverbParams {
+  decay: number;
+  preDelay: number;
+  wet: number;
+}
+
+export interface DelayParams {
+  time: number;
+  feedback: number;
+  wet: number;
+}
+
+export interface DistortionParams {
+  amount: number;
+  wet: number;
+  distortionType: 'soft' | 'overdrive' | 'fuzz';
+}
+
+export interface FilterParams {
+  frequency: number;
+  resonance: number;
+  filterType: 'lowpass' | 'highpass' | 'bandpass';
+  lfoEnabled: boolean;
+  lfoRate: number;
+  lfoDepth: number;
+}
+
+export type TrackEffect =
+  | EffectBase<'eq3', EQ3Params>
+  | EffectBase<'compressor', CompressorParams>
+  | EffectBase<'reverb', ReverbParams>
+  | EffectBase<'delay', DelayParams>
+  | EffectBase<'distortion', DistortionParams>
+  | EffectBase<'filter', FilterParams>;
+
+export type TrackEffectType = TrackEffect['type'];
 
 export interface InferredMetas {
   bpm?: number;
@@ -66,6 +142,8 @@ export interface Clip {
   source?: 'generated' | 'uploaded';
   /** User bookmark flag for quick access in the Assets panel. */
   starred?: boolean;
+  /** Optional MIDI region data for piano roll tracks. */
+  midiData?: MidiClipData;
 }
 
 export interface SequencerStep {
@@ -105,6 +183,9 @@ export interface Track {
   soloed: boolean;
   clips: Clip[];
   sequencerPattern?: SequencerPattern;
+  synthPreset?: SynthPreset;
+  effects?: TrackEffect[];
+  drumKit?: DrumKitName;
   // Mixer / channel-strip settings
   pan?: number;               // -1 (full left) to +1 (full right), default 0
   eqLowGain?: number;         // dB ±15, low shelf at 250 Hz, default 0

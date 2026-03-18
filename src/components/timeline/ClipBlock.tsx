@@ -34,6 +34,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const selectedClipIds = useUIStore((s) => s.selectedClipIds);
   const selectClip = useUIStore((s) => s.selectClip);
   const setEditingClip = useUIStore((s) => s.setEditingClip);
+  const setOpenPianoRoll = useUIStore((s) => s.setOpenPianoRoll);
   const contextWindow = useUIStore((s) => s.contextWindow);
   const updateClip = useProjectStore((s) => s.updateClip);
   const removeClip = useProjectStore((s) => s.removeClip);
@@ -43,6 +44,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const setActiveVersion = useProjectStore((s) => s.setActiveVersion);
   const project = useProjectStore((s) => s.project);
   const { generateClip } = useGeneration();
+  const isMidiClip = Boolean(clip.midiData);
 
   const [addLayerOpen, setAddLayerOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -254,8 +256,12 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (dragRef.current) return;
+    if (isMidiClip) {
+      setOpenPianoRoll(track.id, clip.id);
+      return;
+    }
     setCtxMenu({ x: e.clientX, y: e.clientY });
-  }, []);
+  }, [isMidiClip, setOpenPianoRoll, track.id, clip.id]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -371,7 +377,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
         <div className="absolute top-0 left-1.5 text-[9px] font-medium text-white truncate leading-4 z-10 drop-shadow-sm pointer-events-none"
           style={{ right: totalVersions >= 1 ? '52px' : '6px' }}
         >
-          {clip.prompt || '(no prompt)'}
+          {isMidiClip ? `${clip.midiData?.notes.length ?? 0} notes` : (clip.prompt || '(no prompt)')}
         </div>
 
         {/* Version navigation — visible whenever at least one version exists */}
@@ -431,6 +437,11 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
             ].filter(Boolean).join(' | ')}
           </div>
         )}
+        {isMidiClip && (
+          <div className="absolute bottom-0 left-1.5 right-1.5 text-[8px] text-zinc-300/80 truncate pointer-events-none">
+            MIDI clip • double-click to edit
+          </div>
+        )}
       </div>
 
       {/* Context menu */}
@@ -441,12 +452,14 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
           onEdit={() => { closeCtxMenu(); setEditModalOpen(true); }}
           onGenerate={() => { closeCtxMenu(); generateClip(clip.id); }}
           onRegenerate={() => { closeCtxMenu(); regenerateClip(clip.id); }}
+          onOpenMidi={() => { closeCtxMenu(); setOpenPianoRoll(track.id, clip.id); }}
           onDuplicate={() => { closeCtxMenu(); duplicateClip(clip.id); }}
           onDelete={() => { closeCtxMenu(); removeClip(clip.id); }}
           onAddLayer={() => { closeCtxMenu(); setAddLayerOpen(true); }}
           onClose={closeCtxMenu}
           hasPrompt={!!clip.prompt}
           isReady={clip.generationStatus === 'ready'}
+          isMidiClip={isMidiClip}
         />
       )}
 
@@ -570,19 +583,21 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
 }
 
 function ClipContextMenu({
-  x, y, onEdit, onGenerate, onRegenerate, onDuplicate, onDelete, onAddLayer, onClose, hasPrompt, isReady,
+  x, y, onEdit, onGenerate, onRegenerate, onOpenMidi, onDuplicate, onDelete, onAddLayer, onClose, hasPrompt, isReady, isMidiClip,
 }: {
   x: number;
   y: number;
   onEdit: () => void;
   onGenerate: () => void;
   onRegenerate: () => void;
+  onOpenMidi: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onAddLayer: () => void;
   onClose: () => void;
   hasPrompt: boolean;
   isReady: boolean;
+  isMidiClip: boolean;
 }) {
   const clampedX = Math.min(x, window.innerWidth - 200);
   const clampedY = Math.min(y, window.innerHeight - 240);
@@ -597,7 +612,11 @@ function ClipContextMenu({
         <button onClick={onEdit} className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors">
           Edit Clip
         </button>
-        {isReady ? (
+        {isMidiClip ? (
+          <button onClick={onOpenMidi} className="w-full text-left px-3 py-1.5 text-[11px] text-violet-200 hover:bg-daw-accent hover:text-white transition-colors">
+            Open Piano Roll
+          </button>
+        ) : isReady ? (
           <button onClick={onRegenerate} disabled={!hasPrompt} className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors disabled:text-zinc-600 disabled:cursor-not-allowed">
             Re-generate
           </button>
@@ -610,10 +629,14 @@ function ClipContextMenu({
           Duplicate
         </button>
         <div className="my-1 border-t border-[#555]" />
-        <button onClick={onAddLayer} className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors">
-          Add Layer here...
-        </button>
-        <div className="my-1 border-t border-[#555]" />
+        {!isMidiClip && (
+          <>
+            <button onClick={onAddLayer} className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors">
+              Add Layer here...
+            </button>
+            <div className="my-1 border-t border-[#555]" />
+          </>
+        )}
         <button onClick={onDelete} className="w-full text-left px-3 py-1.5 text-[11px] text-red-400 hover:bg-red-600 hover:text-white transition-colors">
           Delete
         </button>

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { Track } from '../../types/project';
 import { useProjectStore } from '../../store/projectStore';
+import { useUIStore } from '../../store/uiStore';
 import { TRACK_CATALOG } from '../../constants/tracks';
 import { TrackEditModal } from './TrackEditModal';
 
@@ -27,6 +28,8 @@ export function TrackHeader({
   const updateTrack = useProjectStore((s) => s.updateTrack);
   const renameTrack = useProjectStore((s) => s.renameTrack);
   const removeTrack = useProjectStore((s) => s.removeTrack);
+  const setOpenPianoRoll = useUIStore((s) => s.setOpenPianoRoll);
+  const setOpenEffectChainTrackId = useUIStore((s) => s.setOpenEffectChainTrackId);
   const info = TRACK_CATALOG[track.trackName];
 
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -241,6 +244,25 @@ export function TrackHeader({
           className="fixed z-50 bg-[#383838] border border-[#555] rounded-lg shadow-2xl py-1 min-w-[160px]"
           style={{ left: Math.min(ctxMenu.x, window.innerWidth - 180), top: Math.min(ctxMenu.y, window.innerHeight - 100) }}
         >
+          <button
+            onClick={() => {
+              setCtxMenu(null);
+              if (track.trackType === 'pianoRoll') {
+                const clip = track.clips.find((candidate) => candidate.midiData);
+                setOpenPianoRoll(track.id, clip?.id ?? null);
+              }
+            }}
+            disabled={track.trackType !== 'pianoRoll'}
+            className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors disabled:text-zinc-600 disabled:hover:bg-transparent disabled:hover:text-zinc-600"
+          >
+            Open Piano Roll...
+          </button>
+          <button
+            onClick={() => { setCtxMenu(null); setOpenEffectChainTrackId(track.id); }}
+            className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors"
+          >
+            Open Effect Chain...
+          </button>
           <button
             onClick={() => { setCtxMenu(null); startEditing(); }}
             className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors"

@@ -8,6 +8,10 @@ import { snapToGrid } from '../../utils/time';
 import { useAudioImport } from '../../hooks/useAudioImport';
 import { TRACK_TYPE_CATALOG } from '../../constants/tracks';
 
+function getBarDurationSec(bpm: number, timeSignature: number): number {
+  return (60 / bpm) * timeSignature;
+}
+
 interface TrackLaneProps {
   track: Track;
 }
@@ -17,10 +21,11 @@ interface LaneContextMenuProps {
   y: number;
   onAddLayer: () => void;
   onOpenSequencer?: () => void;
+  onOpenPianoRoll?: () => void;
   onClose: () => void;
 }
 
-function LaneContextMenu({ x, y, onAddLayer, onOpenSequencer, onClose }: LaneContextMenuProps) {
+function LaneContextMenu({ x, y, onAddLayer, onOpenSequencer, onOpenPianoRoll, onClose }: LaneContextMenuProps) {
   const clampedX = Math.min(x, window.innerWidth - 180);
   const clampedY = Math.min(y, window.innerHeight - 80);
   return (
@@ -42,6 +47,14 @@ function LaneContextMenu({ x, y, onAddLayer, onOpenSequencer, onClose }: LaneCon
             Open Sequencer Editor...
           </button>
         )}
+        {onOpenPianoRoll && (
+          <button
+            onClick={() => { onClose(); onOpenPianoRoll(); }}
+            className="w-full text-left px-3 py-1.5 text-[11px] text-violet-300 hover:bg-daw-accent hover:text-white transition-colors"
+          >
+            Open Piano Roll...
+          </button>
+        )}
         <button
           onClick={() => { onClose(); onAddLayer(); }}
           className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors"
@@ -60,8 +73,10 @@ export function TrackLane({ track }: TrackLaneProps) {
   const pixelsPerSecond = useUIStore((s) => s.pixelsPerSecond);
   const contextWindow = useUIStore((s) => s.contextWindow);
   const setOpenSequencerTrackId = useUIStore((s) => s.setOpenSequencerTrackId);
+  const setOpenPianoRoll = useUIStore((s) => s.setOpenPianoRoll);
   const project = useProjectStore((s) => s.project);
   const updateTrack = useProjectStore((s) => s.updateTrack);
+  const ensureMidiClip = useProjectStore((s) => s.ensureMidiClip);
 
   const [ctxMenu, setCtxMenu] = useState<{
     x: number; y: number; startTime: number; duration: number;
@@ -101,7 +116,7 @@ export function TrackLane({ track }: TrackLaneProps) {
 
   const trackType = track.trackType ?? 'stems';
   const isSequencer = trackType === 'sequencer';
-  const isComingSoon = trackType === 'pianoRoll';
+  const isPianoRoll = trackType === 'pianoRoll';
   const totalWidth = project.totalDuration * pixelsPerSecond;
 
   const hitsClip = useCallback((clickTime: number): boolean => {
@@ -113,7 +128,6 @@ export function TrackLane({ track }: TrackLaneProps) {
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
-    if (isComingSoon) return;
     e.preventDefault();
     e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
@@ -124,16 +138,25 @@ export function TrackLane({ track }: TrackLaneProps) {
     const duration = Math.max(10, Math.min(30, remaining));
     setCtxMenu({ x: e.clientX, y: e.clientY, startTime, duration });
     setAddLayerTarget(null);
-  }, [isComingSoon, pixelsPerSecond, project.bpm, project.totalDuration]);
+  }, [pixelsPerSecond, project.bpm, project.totalDuration]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
-    if (isComingSoon) return;
 
     // For sequencer tracks, double-click opens the editor
     if (isSequencer) {
       e.stopPropagation();
       setOpenSequencerTrackId(track.id);
+      return;
+    }
+    if (isPianoRoll) {
+      e.stopPropagation();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const laneX = e.clientX - rect.left;
+      const rawTime = laneX / pixelsPerSecond;
+      const startTime = Math.max(0, snapToGrid(rawTime, project.bpm, 1));
+      const clip = ensureMidiClip(track.id, startTime, Math.max(4, getBarDurationSec(project.bpm, project.timeSignature)));
+      setOpenPianoRoll(track.id, clip.id);
       return;
     }
 
@@ -148,7 +171,7 @@ export function TrackLane({ track }: TrackLaneProps) {
     const duration = Math.max(10, Math.min(30, remaining));
     setCtxMenu({ x: e.clientX, y: e.clientY, startTime, duration });
     setAddLayerTarget(null);
-  }, [isComingSoon, isSequencer, pixelsPerSecond, project.bpm, project.totalDuration, hitsClip, track.id, setOpenSequencerTrackId]);
+  }, [isSequencer, isPianoRoll, pixelsPerSecond, project.bpm, project.totalDuration, project.timeSignature, hitsClip, track.id, setOpenSequencerTrackId, ensureMidiClip, setOpenPianoRoll]);
 
   const clearSel = useCallback(() => {
     setAddLayerTarget(null);
@@ -206,35 +229,38 @@ export function TrackLane({ track }: TrackLaneProps) {
           </div>
         )}
 
-        {isComingSoon ? (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <div className="flex items-center gap-2 bg-[#2d2d2d]/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-[#444]">
-              <span className="text-lg">{TRACK_TYPE_CATALOG[trackType].emoji}</span>
-              <span className="text-xs font-medium text-zinc-400">{TRACK_TYPE_CATALOG[trackType].label}</span>
-              <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">Coming Soon</span>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Render clips (works for all track types including sequencer after bounce) */}
-            {track.clips.map((clip) => (
-              <ClipBlock key={clip.id} clip={clip} track={track} />
-            ))}
+        <>
+          {track.clips.map((clip) => (
+            <ClipBlock key={clip.id} clip={clip} track={track} />
+          ))}
 
-            {/* Sequencer track hint when no bounced clips */}
-            {isSequencer && !hasClips && (
-              <div
-                className="absolute inset-0 flex items-center justify-center cursor-pointer"
-                onClick={() => setOpenSequencerTrackId(track.id)}
-              >
-                <div className="flex items-center gap-2 bg-[#2d2d2d]/60 backdrop-blur-sm px-4 py-2 rounded-lg border border-[#444] border-dashed">
-                  <span className="text-emerald-400 text-sm">SEQ</span>
-                  <span className="text-xs text-zinc-400">Double-click to open sequencer editor</span>
-                </div>
+          {isSequencer && !hasClips && (
+            <div
+              className="absolute inset-0 flex items-center justify-center cursor-pointer"
+              onClick={() => setOpenSequencerTrackId(track.id)}
+            >
+              <div className="flex items-center gap-2 bg-[#2d2d2d]/60 backdrop-blur-sm px-4 py-2 rounded-lg border border-[#444] border-dashed">
+                <span className="text-emerald-400 text-sm">SEQ</span>
+                <span className="text-xs text-zinc-400">Double-click to open sequencer editor</span>
               </div>
-            )}
-          </>
-        )}
+            </div>
+          )}
+
+          {isPianoRoll && !hasClips && (
+            <div
+              className="absolute inset-0 flex items-center justify-center cursor-pointer"
+              onClick={() => {
+                const clip = ensureMidiClip(track.id, 0, Math.max(4, getBarDurationSec(project.bpm, project.timeSignature)));
+                setOpenPianoRoll(track.id, clip.id);
+              }}
+            >
+              <div className="flex items-center gap-2 bg-[#2d2d2d]/60 backdrop-blur-sm px-4 py-2 rounded-lg border border-[#444] border-dashed">
+                <span className="text-violet-300 text-sm">{TRACK_TYPE_CATALOG[trackType].abbr}</span>
+                <span className="text-xs text-zinc-400">Double-click to create or open a MIDI clip</span>
+              </div>
+            </div>
+          )}
+        </>
 
         {ctxMenu && (
           <LaneContextMenu
@@ -242,6 +268,10 @@ export function TrackLane({ track }: TrackLaneProps) {
             y={ctxMenu.y}
             onAddLayer={() => setAddLayerTarget({ startTime: ctxMenu.startTime, duration: ctxMenu.duration })}
             onOpenSequencer={isSequencer ? () => setOpenSequencerTrackId(track.id) : undefined}
+            onOpenPianoRoll={isPianoRoll ? () => {
+              const clip = ensureMidiClip(track.id, ctxMenu.startTime, ctxMenu.duration);
+              setOpenPianoRoll(track.id, clip.id);
+            } : undefined}
             onClose={() => setCtxMenu(null)}
           />
         )}
@@ -265,4 +295,3 @@ export function TrackLane({ track }: TrackLaneProps) {
     </>
   );
 }
-

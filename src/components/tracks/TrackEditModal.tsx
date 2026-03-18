@@ -93,26 +93,21 @@ export function TrackEditModal({ track, onClose }: TrackEditModalProps) {
               {(['stems', 'sample', 'sequencer', 'pianoRoll'] as TrackType[]).map((tt) => {
                 const tti = TRACK_TYPE_CATALOG[tt];
                 const isActive = (track.trackType ?? 'stems') === tt;
-                const comingSoon = tt === 'pianoRoll';
                 return (
                   <button
                     key={tt}
-                    onClick={() => {
-                      if (!comingSoon) updateTrack(track.id, { trackType: tt });
-                    }}
+                    onClick={() => updateTrack(track.id, { trackType: tt })}
                     className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
                       isActive
                         ? 'ring-1 ring-offset-1 ring-offset-transparent'
-                        : comingSoon
-                          ? 'opacity-40 cursor-not-allowed'
-                          : 'hover:bg-[#444]'
+                        : 'hover:bg-[#444]'
                     }`}
                     style={{
                       backgroundColor: isActive ? tti.color + '25' : undefined,
                       color: isActive ? tti.color : undefined,
                       ...(isActive ? { '--tw-ring-color': tti.color } as React.CSSProperties : {}),
                     }}
-                    title={comingSoon ? 'Coming soon' : tti.label}
+                    title={tti.label}
                   >
                     <span>{tti.emoji}</span>
                     <span>{tti.abbr}</span>

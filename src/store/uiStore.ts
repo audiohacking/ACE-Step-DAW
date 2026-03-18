@@ -29,11 +29,16 @@ interface UIState {
   expandedTrackId: string | null;
   /** Track whose sequencer editor is currently open (bottom panel). */
   openSequencerTrackId: string | null;
+  openPianoRollTrackId: string | null;
+  openPianoRollClipId: string | null;
+  openEffectChainTrackId: string | null;
   sequencerEditorHeight: number;
+  pianoRollHeight: number;
+  effectChainHeight: number;
   showSmartControls: boolean;
   showLibrary: boolean;
   /** Which bottom editor is visible: null = none, 'smart' = smart controls, 'editor' = region editor */
-  activeBottomPanel: 'smart' | 'editor' | null;
+  activeBottomPanel: 'smart' | 'editor' | 'pianoRoll' | 'effects' | null;
 
   setPixelsPerSecond: (pps: number) => void;
   zoomIn: () => void;
@@ -61,10 +66,14 @@ interface UIState {
   setSelectWindow: (v: { startTime: number; endTime: number; trackIds: string[] } | null) => void;
   setExpandedTrackId: (id: string | null) => void;
   setOpenSequencerTrackId: (id: string | null) => void;
+  setOpenPianoRoll: (trackId: string | null, clipId?: string | null) => void;
+  setOpenEffectChainTrackId: (id: string | null) => void;
   setSequencerEditorHeight: (v: number) => void;
+  setPianoRollHeight: (v: number) => void;
+  setEffectChainHeight: (v: number) => void;
   setShowSmartControls: (v: boolean) => void;
   setShowLibrary: (v: boolean) => void;
-  setActiveBottomPanel: (v: 'smart' | 'editor' | null) => void;
+  setActiveBottomPanel: (v: 'smart' | 'editor' | 'pianoRoll' | 'effects' | null) => void;
 }
 
 const ZOOM_LEVELS = [10, 25, 50, 100, 200, 500];
@@ -92,7 +101,12 @@ export const useUIStore = create<UIState>((set) => ({
   selectWindow: null,
   expandedTrackId: null,
   openSequencerTrackId: null,
+  openPianoRollTrackId: null,
+  openPianoRollClipId: null,
+  openEffectChainTrackId: null,
   sequencerEditorHeight: 320,
+  pianoRollHeight: 360,
+  effectChainHeight: 320,
   showSmartControls: false,
   showLibrary: false,
   activeBottomPanel: null,
@@ -150,8 +164,19 @@ export const useUIStore = create<UIState>((set) => ({
   setContextWindow: (v) => set({ contextWindow: v }),
   setSelectWindow: (v) => set({ selectWindow: v }),
   setExpandedTrackId: (id) => set({ expandedTrackId: id }),
-  setOpenSequencerTrackId: (id) => set({ openSequencerTrackId: id }),
+  setOpenSequencerTrackId: (id) => set({ openSequencerTrackId: id, activeBottomPanel: id ? 'editor' : null }),
+  setOpenPianoRoll: (trackId, clipId = null) => set({
+    openPianoRollTrackId: trackId,
+    openPianoRollClipId: clipId,
+    activeBottomPanel: trackId ? 'pianoRoll' : null,
+  }),
+  setOpenEffectChainTrackId: (id) => set({
+    openEffectChainTrackId: id,
+    activeBottomPanel: id ? 'effects' : null,
+  }),
   setSequencerEditorHeight: (v) => set({ sequencerEditorHeight: Math.min(600, Math.max(200, v)) }),
+  setPianoRollHeight: (v) => set({ pianoRollHeight: Math.min(700, Math.max(220, v)) }),
+  setEffectChainHeight: (v) => set({ effectChainHeight: Math.min(520, Math.max(180, v)) }),
   setShowSmartControls: (v) => set({ showSmartControls: v }),
   setShowLibrary: (v) => set({ showLibrary: v }),
   setActiveBottomPanel: (v) => set({ activeBottomPanel: v }),

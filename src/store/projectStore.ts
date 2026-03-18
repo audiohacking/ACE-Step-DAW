@@ -1,7 +1,23 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import type { Project, Track, Clip, ClipVersion, TrackName, TrackType, ClipGenerationStatus, AssetClip, SequencerPattern, SequencerRow, SequencerStep } from '../types/project';
+import type {
+  Project,
+  Track,
+  Clip,
+  ClipVersion,
+  TrackName,
+  TrackType,
+  ClipGenerationStatus,
+  AssetClip,
+  SequencerPattern,
+  SequencerRow,
+  SequencerStep,
+  MidiNote,
+  PianoRollGrid,
+  TrackEffect,
+  TrackEffectType,
+} from '../types/project';
 import { TRACK_CATALOG, DEFAULT_DRUM_KIT } from '../constants/tracks';
 import {
   DEFAULT_BPM,
@@ -52,11 +68,12 @@ interface ProjectState {
 
   addTrack: (trackName: TrackName, trackType?: TrackType) => Track;
   removeTrack: (trackId: string) => void;
-  updateTrack: (trackId: string, updates: Partial<Pick<Track, 'displayName' | 'volume' | 'muted' | 'soloed' | 'laneHeight' | 'trackType'>>) => void;
+  updateTrack: (trackId: string, updates: Partial<Pick<Track, 'displayName' | 'volume' | 'muted' | 'soloed' | 'laneHeight' | 'trackType' | 'synthPreset' | 'drumKit'>>) => void;
   renameTrack: (trackId: string, newName: string) => void;
   reorderTrack: (draggedId: string, targetId: string, position: 'before' | 'after') => void;
 
   addClip: (trackId: string, clip: Omit<Clip, 'id' | 'trackId' | 'generationStatus' | 'generationJobId' | 'cumulativeMixKey' | 'isolatedAudioKey' | 'waveformPeaks'>) => Clip;
+  ensureMidiClip: (trackId: string, startTime?: number, duration?: number) => Clip;
   updateClip: (clipId: string, updates: Partial<Clip>) => void;
   removeClip: (clipId: string) => void;
   duplicateClip: (clipId: string) => Clip | undefined;
@@ -96,6 +113,14 @@ interface ProjectState {
   setSequencerRowColor: (trackId: string, rowId: string, color: string) => void;
   fillSequencerRow: (trackId: string, rowId: string, every: number) => void;
   batchSetSequencerSteps: (trackId: string, ops: { rowId: string; stepIndex: number; active: boolean; velocity: number }[]) => void;
+  addMidiNote: (clipId: string, note: Omit<MidiNote, 'id'> & { id?: string }) => string | undefined;
+  updateMidiNote: (clipId: string, noteId: string, updates: Partial<MidiNote>) => void;
+  removeMidiNote: (clipId: string, noteId: string) => void;
+  setMidiGrid: (clipId: string, grid: PianoRollGrid) => void;
+  addTrackEffect: (trackId: string, type: TrackEffectType) => string | undefined;
+  updateTrackEffect: (trackId: string, effectId: string, updates: Partial<TrackEffect>) => void;
+  removeTrackEffect: (trackId: string, effectId: string) => void;
+  reorderTrackEffect: (trackId: string, fromIndex: number, toIndex: number) => void;
 
   getTrackById: (trackId: string) => Track | undefined;
   getClipById: (clipId: string) => Clip | undefined;
@@ -125,6 +150,86 @@ function computeTotalDuration(
   return Math.max(measuredDuration, maxEnd + TIMELINE_PADDING);
 }
 
+function createDefaultTrackEffect(type: TrackEffectType): TrackEffect {
+  const id = uuidv4();
+  switch (type) {
+    case 'eq3':
+      return {
+        id,
+        type,
+        enabled: true,
+        params: { low: 0, mid: 0, high: 0, lowFrequency: 250, highFrequency: 4000 },
+      };
+    case 'compressor':
+      return {
+        id,
+        type,
+        enabled: true,
+        params: { threshold: -24, ratio: 4, attack: 0.01, release: 0.2, knee: 12 },
+      };
+    case 'reverb':
+      return {
+        id,
+        type,
+        enabled: true,
+        params: { decay: 2.4, preDelay: 0.02, wet: 0.25 },
+      };
+    case 'delay':
+      return {
+        id,
+        type,
+        enabled: true,
+        params: { time: 0.25, feedback: 0.3, wet: 0.2 },
+      };
+    case 'distortion':
+      return {
+        id,
+        type,
+        enabled: true,
+        params: { amount: 0.2, wet: 0.35, distortionType: 'soft' },
+      };
+    case 'filter':
+      return {
+        id,
+        type,
+        enabled: true,
+        params: {
+          frequency: 1800,
+          resonance: 1,
+          filterType: 'lowpass',
+          lfoEnabled: false,
+          lfoRate: 0.5,
+          lfoDepth: 0.25,
+        },
+      };
+  }
+}
+
+function ensureTrackDefaults(track: Track): Track {
+  const defaultSynthPreset =
+    track.trackName === 'bass' ? 'bass'
+      : track.trackName === 'strings' ? 'strings'
+        : track.trackName === 'synth' ? 'lead'
+          : track.trackName === 'keyboard' ? 'organ'
+            : 'piano';
+
+  return {
+    ...track,
+    synthPreset: track.synthPreset ?? defaultSynthPreset,
+    effects: track.effects ?? [],
+    drumKit: track.drumKit ?? '808',
+    clips: track.clips.map((clip) => ({
+      ...clip,
+      midiData: clip.midiData
+        ? {
+            notes: clip.midiData.notes ?? [],
+            grid: clip.midiData.grid ?? '1/16',
+          }
+        : undefined,
+    })),
+  };
+}
+
 export const useProjectStore = create<ProjectState>()(
   persist(
     (set, get) => ({
@@ -145,7 +250,7 @@ export const useProjectStore = create<ProjectState>()(
               ? 'sample'
               : 'stems';
         return { ...t, trackType: inferred };
-      }),
+      }).map(ensureTrackDefaults),
     };
     set({ project: migrated });
   },
@@ -273,7 +378,15 @@ export const useProjectStore = create<ProjectState>()(
       muted: false,
       soloed: false,
       clips: [],
-      laneHeight: resolvedType === 'sequencer' ? 80 : undefined,
+      laneHeight: resolvedType === 'sequencer' ? 80 : resolvedType === 'pianoRoll' ? 88 : undefined,
+      synthPreset:
+        trackName === 'bass' ? 'bass'
+          : trackName === 'strings' ? 'strings'
+            : trackName === 'synth' ? 'lead'
+              : trackName === 'keyboard' ? 'organ'
+                : 'piano',
+      effects: [],
+      drumKit: trackName === 'drums' || resolvedType === 'sequencer' ? '808' : undefined,
     };
 
     // Auto-initialize sequencer pattern for sequencer tracks
@@ -408,6 +521,9 @@ export const useProjectStore = create<ProjectState>()(
       bpm: null,
       keyScale: null,
       timeSignature: null,
+      source: clipData.source,
+      starred: clipData.starred,
+      midiData: clipData.midiData,
     };
 
     const newTracks = state.project.tracks.map((t) =>
@@ -424,6 +540,27 @@ export const useProjectStore = create<ProjectState>()(
     });
 
     return clip;
+  },
+
+  ensureMidiClip: (trackId, startTime = 0, duration = getBarDurationSec(get().project?.bpm ?? DEFAULT_BPM, get().project?.timeSignature ?? DEFAULT_TIME_SIGNATURE)) => {
+    const state = get();
+    if (!state.project) throw new Error('No project');
+
+    const track = state.project.tracks.find((t) => t.id === trackId);
+    if (!track) throw new Error('Track not found');
+
+    const existing = track.clips.find((clip) => clip.midiData);
+    if (existing) return existing;
+
+    return get().addClip(trackId, {
+      startTime,
+      duration,
+      prompt: 'MIDI Clip',
+      globalCaption: '',
+      lyrics: '',
+      midiData: { notes: [], grid: '1/16' },
+      source: 'uploaded',
+    });
   },
 
   updateClip: (clipId, updates) => {
@@ -1383,6 +1520,193 @@ export const useProjectStore = create<ProjectState>()(
               }),
             },
           };
+        }),
+      },
+    });
+  },
+
+  addMidiNote: (clipId, note) => {
+    const state = get();
+    if (!state.project) return undefined;
+    const noteId = note.id ?? uuidv4();
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((track) => ({
+          ...track,
+          clips: track.clips.map((clip) =>
+            clip.id === clipId
+              ? {
+                  ...clip,
+                  midiData: {
+                    notes: [...(clip.midiData?.notes ?? []), { ...note, id: noteId }],
+                    grid: clip.midiData?.grid ?? '1/16',
+                  },
+                }
+              : clip,
+          ),
+        })),
+      },
+    });
+    return noteId;
+  },
+
+  updateMidiNote: (clipId, noteId, updates) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((track) => ({
+          ...track,
+          clips: track.clips.map((clip) =>
+            clip.id === clipId && clip.midiData
+              ? {
+                  ...clip,
+                  midiData: {
+                    ...clip.midiData,
+                    notes: clip.midiData.notes.map((note) =>
+                      note.id === noteId ? { ...note, ...updates } : note,
+                    ),
+                  },
+                }
+              : clip,
+          ),
+        })),
+      },
+    });
+  },
+
+  removeMidiNote: (clipId, noteId) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((track) => ({
+          ...track,
+          clips: track.clips.map((clip) =>
+            clip.id === clipId && clip.midiData
+              ? {
+                  ...clip,
+                  midiData: {
+                    ...clip.midiData,
+                    notes: clip.midiData.notes.filter((note) => note.id !== noteId),
+                  },
+                }
+              : clip,
+          ),
+        })),
+      },
+    });
+  },
+
+  setMidiGrid: (clipId, grid) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((track) => ({
+          ...track,
+          clips: track.clips.map((clip) =>
+            clip.id === clipId
+              ? {
+                  ...clip,
+                  midiData: {
+                    notes: clip.midiData?.notes ?? [],
+                    grid,
+                  },
+                }
+              : clip,
+          ),
+        })),
+      },
+    });
+  },
+
+  addTrackEffect: (trackId, type) => {
+    const state = get();
+    if (!state.project) return undefined;
+    const effect = createDefaultTrackEffect(type);
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((track) =>
+          track.id === trackId
+            ? { ...track, effects: [...(track.effects ?? []), effect] }
+            : track,
+        ),
+      },
+    });
+    return effect.id;
+  },
+
+  updateTrackEffect: (trackId, effectId, updates) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((track) => {
+          if (track.id !== trackId) return track;
+          return {
+            ...track,
+            effects: (track.effects ?? []).map((effect) =>
+              effect.id === effectId ? { ...effect, ...updates } as TrackEffect : effect,
+            ),
+          };
+        }),
+      },
+    });
+  },
+
+  removeTrackEffect: (trackId, effectId) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((track) =>
+          track.id === trackId
+            ? { ...track, effects: (track.effects ?? []).filter((effect) => effect.id !== effectId) }
+            : track,
+        ),
+      },
+    });
+  },
+
+  reorderTrackEffect: (trackId, fromIndex, toIndex) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((track) => {
+          if (track.id !== trackId) return track;
+          const effects = [...(track.effects ?? [])];
+          if (fromIndex < 0 || toIndex < 0 || fromIndex >= effects.length || toIndex >= effects.length) {
+            return track;
+          }
+          const [moved] = effects.splice(fromIndex, 1);
+          effects.splice(toIndex, 0, moved);
+          return { ...track, effects };
         }),
       },
     });

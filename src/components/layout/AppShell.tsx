@@ -14,6 +14,8 @@ import { MixerPanel } from '../mixer/MixerPanel';
 import { AssetsPanel } from '../assets/AssetsPanel';
 import { SequencerEditor } from '../sequencer/SequencerEditor';
 import { SmartControlsPanel } from '../controls/SmartControlsPanel';
+import { PianoRoll } from '../pianoroll/PianoRoll';
+import { EffectChain } from '../mixer/EffectChain';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
@@ -48,6 +50,8 @@ export function AppShell() {
 
       {project && <SmartControlsPanel />}
       {project && <SequencerEditor />}
+      {project && <PianoRoll />}
+      {project && <EffectChain />}
       {project && <MixerPanel />}
       {project && <GenerationPanel />}
       <StatusBar />

@@ -43,7 +43,7 @@ export const TRACK_TYPE_CATALOG: Record<TrackType, TrackTypeInfo> = {
   stems:     { type: 'stems',     label: 'Stems',      abbr: 'STM', emoji: '🎛️', color: '#3b82f6', description: 'AI-generated isolated instrument tracks' },
   sample:    { type: 'sample',    label: 'Sample',     abbr: 'SMP', emoji: '📁', color: '#f97316', description: 'User-imported audio clips' },
   sequencer: { type: 'sequencer', label: 'Sequencer',  abbr: 'SEQ', emoji: '🎹', color: '#22c55e', description: 'Step-based drum pattern editor' },
-  pianoRoll: { type: 'pianoRoll', label: 'Piano Roll', abbr: 'PNO', emoji: '🎵', color: '#a855f7', description: 'MIDI note editor with virtual instruments (coming soon)' },
+  pianoRoll: { type: 'pianoRoll', label: 'Piano Roll', abbr: 'PNO', emoji: '🎵', color: '#a855f7', description: 'MIDI note editor with built-in synth presets' },
 };
 
 export interface DrumKitSample {
