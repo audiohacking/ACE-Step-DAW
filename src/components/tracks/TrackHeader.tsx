@@ -29,6 +29,7 @@ export function TrackHeader({
   const updateTrack = useProjectStore((s) => s.updateTrack);
   const renameTrack = useProjectStore((s) => s.renameTrack);
   const removeTrack = useProjectStore((s) => s.removeTrack);
+  const duplicateTrack = useProjectStore((s) => s.duplicateTrack);
   const setOpenPianoRoll = useUIStore((s) => s.setOpenPianoRoll);
   const setOpenEffectChainTrackId = useUIStore((s) => s.setOpenEffectChainTrackId);
   const { armedTrackIds, toggleArmTrack } = useRecording();
@@ -342,6 +343,12 @@ export function TrackHeader({
             className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors"
           >
             Track Settings...
+          </button>
+          <button
+            onClick={() => { setCtxMenu(null); duplicateTrack(track.id); }}
+            className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors"
+          >
+            Duplicate Track
           </button>
           <div className="my-1 border-t border-[#555]" />
           <button

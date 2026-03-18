@@ -207,3 +207,33 @@ describe('projectStore', () => {
     });
   });
 });
+
+  describe('duplicateTrack', () => {
+    beforeEach(() => {
+      useProjectStore.getState().createProject();
+    });
+
+    it('duplicates a track with all clips', () => {
+      const original = useProjectStore.getState().addTrack('drums');
+      useProjectStore.getState().addClip(original.id, {
+        startTime: 0, duration: 30, prompt: 'test beat', lyrics: '',
+      });
+
+      const duplicate = useProjectStore.getState().duplicateTrack(original.id);
+
+      expect(duplicate).toBeDefined();
+      expect(duplicate!.id).not.toBe(original.id);
+      expect(duplicate!.displayName).toBe('Drums (copy)');
+      expect(duplicate!.clips).toHaveLength(1);
+      expect(duplicate!.clips[0].id).not.toBe(original.clips[0]?.id);
+      expect(duplicate!.clips[0].prompt).toBe('test beat');
+
+      const tracks = useProjectStore.getState().project!.tracks;
+      expect(tracks).toHaveLength(2);
+    });
+
+    it('returns undefined for non-existent track', () => {
+      const result = useProjectStore.getState().duplicateTrack('nonexistent');
+      expect(result).toBeUndefined();
+    });
+  });

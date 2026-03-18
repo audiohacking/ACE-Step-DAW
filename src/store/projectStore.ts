@@ -93,6 +93,7 @@ interface ProjectState {
 
   addTrack: (trackName: TrackName, trackType?: TrackType) => Track;
   removeTrack: (trackId: string) => void;
+  duplicateTrack: (trackId: string) => Track | undefined;
   updateTrack: (trackId: string, updates: Partial<Pick<Track, 'displayName' | 'volume' | 'muted' | 'soloed' | 'armed' | 'laneHeight' | 'trackType' | 'synthPreset' | 'drumKit' | 'color'>>) => void;
   renameTrack: (trackId: string, newName: string) => void;
   reorderTrack: (draggedId: string, targetId: string, position: 'before' | 'after') => void;
@@ -480,6 +481,34 @@ export const useProjectStore = create<ProjectState>()(
         tracks: newTracks,
       },
     });
+  },
+
+  duplicateTrack: (trackId) => {
+    const state = get();
+    if (!state.project) return undefined;
+    const source = state.project.tracks.find((t) => t.id === trackId);
+    if (!source) return undefined;
+    _pushHistory(state.project);
+    const newId = crypto.randomUUID();
+    const clonedTrack: Track = {
+      ...JSON.parse(JSON.stringify(source)),
+      id: newId,
+      displayName: `${source.displayName} (copy)`,
+      clips: source.clips.map((clip) => ({
+        ...JSON.parse(JSON.stringify(clip)),
+        id: crypto.randomUUID(),
+      })),
+    };
+    const newTracks = [...state.project.tracks, clonedTrack];
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature),
+        tracks: newTracks,
+      },
+    });
+    return clonedTrack;
   },
 
   updateTrack: (trackId, updates) => {
