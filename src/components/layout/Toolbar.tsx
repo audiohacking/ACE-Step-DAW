@@ -3,6 +3,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useTransportStore } from '../../store/transportStore';
 import { useAudioImport } from '../../hooks/useAudioImport';
 import { useTransport } from '../../hooks/useTransport';
+import { useRecording } from '../../hooks/useRecording';
 import { formatTime, formatBarsBeats } from '../../utils/time';
 
 function LCDDisplay() {
@@ -31,7 +32,7 @@ function ControlBarButton({
   children,
 }: {
   active?: boolean;
-  onClick: () => void;
+  onClick: () => void | Promise<void>;
   title: string;
   disabled?: boolean;
   children: React.ReactNode;
@@ -68,9 +69,11 @@ export function Toolbar() {
   const showSmartControls = useUIStore((s) => s.showSmartControls);
   const setShowSmartControls = useUIStore((s) => s.setShowSmartControls);
   const { openFilePicker } = useAudioImport();
+  const { toggleRecord } = useRecording();
 
   const { isPlaying, play, pause, stop } = useTransport();
   const loopEnabled = useTransportStore((s) => s.loopEnabled);
+  const isRecording = useTransportStore((s) => s.isRecording);
   const toggleLoop = useTransportStore((s) => s.toggleLoop);
   const metronomeEnabled = useTransportStore((s) => s.metronomeEnabled);
   const toggleMetronome = useTransportStore((s) => s.toggleMetronome);
@@ -133,7 +136,7 @@ export function Toolbar() {
       {/* Center: Transport controls */}
       <div className="flex items-center gap-0.5">
         {/* Rewind */}
-        <ControlBarButton onClick={stop} title="Go to Beginning (Enter)">
+        <ControlBarButton onClick={() => void stop()} title="Go to Beginning (Enter)">
           <svg width="14" height="12" viewBox="0 0 14 12" fill="currentColor">
             <rect x="0" y="1" width="2" height="10" rx="0.5" />
             <path d="M13 1L5 6l8 5V1z" />
@@ -141,7 +144,7 @@ export function Toolbar() {
         </ControlBarButton>
         {/* Play/Pause */}
         <button
-          onClick={() => (isPlaying ? pause() : play())}
+          onClick={() => void (isPlaying ? pause() : play())}
           className={`w-9 h-8 flex items-center justify-center rounded transition-colors ${
             isPlaying
               ? 'bg-daw-accent text-white'
@@ -160,9 +163,8 @@ export function Toolbar() {
             </svg>
           )}
         </button>
-        {/* Record placeholder */}
-        <ControlBarButton onClick={() => {}} title="Record (R)" disabled>
-          <div className="w-3.5 h-3.5 rounded-full bg-red-500 opacity-60" />
+        <ControlBarButton onClick={() => void toggleRecord()} title="Record (R)" active={isRecording}>
+          <div className={`w-3.5 h-3.5 rounded-full bg-red-500 ${isRecording ? 'animate-pulse' : 'opacity-60'}`} />
         </ControlBarButton>
       </div>
 

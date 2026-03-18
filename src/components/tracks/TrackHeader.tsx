@@ -4,6 +4,7 @@ import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { TRACK_CATALOG } from '../../constants/tracks';
 import { TrackEditModal } from './TrackEditModal';
+import { useRecording } from '../../hooks/useRecording';
 
 const MIN_LANE_HEIGHT = 40;
 const MAX_LANE_HEIGHT = 400;
@@ -30,6 +31,7 @@ export function TrackHeader({
   const removeTrack = useProjectStore((s) => s.removeTrack);
   const setOpenPianoRoll = useUIStore((s) => s.setOpenPianoRoll);
   const setOpenEffectChainTrackId = useUIStore((s) => s.setOpenEffectChainTrackId);
+  const { armedTrackIds, toggleArmTrack } = useRecording();
   const info = TRACK_CATALOG[track.trackName];
 
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -60,6 +62,7 @@ export function TrackHeader({
   const laneHeight = track.laneHeight ?? 64;
   const resizeRef = useRef<{ startY: number; startH: number } | null>(null);
   const isCompact = laneHeight < 52;
+  const isArmed = armedTrackIds.includes(track.id) || !!track.armed;
 
   const onHeightResizeDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -215,6 +218,20 @@ export function TrackHeader({
           <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
             <path d="M2 5.5a4 4 0 018 0" />
             <path d="M2 5.5v2a1 1 0 001 1h1v-3H2zM10 5.5v2a1 1 0 01-1 1H8v-3h2z" fill={track.soloed ? 'currentColor' : 'none'} />
+          </svg>
+        </button>
+        <button
+          onClick={() => toggleArmTrack(track.id)}
+          className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
+            isArmed
+              ? 'bg-red-600/90 text-white'
+              : 'text-red-400 hover:text-red-300 hover:bg-[#444]'
+          }`}
+          title="Record arm"
+          aria-label={`Record arm ${track.displayName}`}
+        >
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2">
+            <circle cx="6" cy="6" r="3.25" fill={isArmed ? 'currentColor' : 'none'} />
           </svg>
         </button>
         {/* Delete - hidden by default, visible on hover */}

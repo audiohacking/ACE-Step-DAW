@@ -89,7 +89,7 @@ interface ProjectState {
 
   addTrack: (trackName: TrackName, trackType?: TrackType) => Track;
   removeTrack: (trackId: string) => void;
-  updateTrack: (trackId: string, updates: Partial<Pick<Track, 'displayName' | 'volume' | 'muted' | 'soloed' | 'laneHeight' | 'trackType' | 'synthPreset' | 'drumKit'>>) => void;
+  updateTrack: (trackId: string, updates: Partial<Pick<Track, 'displayName' | 'volume' | 'muted' | 'soloed' | 'armed' | 'laneHeight' | 'trackType' | 'synthPreset' | 'drumKit'>>) => void;
   renameTrack: (trackId: string, newName: string) => void;
   reorderTrack: (draggedId: string, targetId: string, position: 'before' | 'after') => void;
 

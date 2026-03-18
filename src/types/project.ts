@@ -181,6 +181,7 @@ export interface Track {
   volume: number;
   muted: boolean;
   soloed: boolean;
+  armed?: boolean;
   clips: Clip[];
   sequencerPattern?: SequencerPattern;
   synthPreset?: SynthPreset;

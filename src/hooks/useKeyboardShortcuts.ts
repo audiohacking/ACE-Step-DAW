@@ -5,6 +5,7 @@ import { useProjectStore } from '../store/projectStore';
 import { useTransportStore } from '../store/transportStore';
 import { useGenerationStore } from '../store/generationStore';
 import { generateSingleClip } from '../services/generationPipeline';
+import { useRecording } from './useRecording';
 
 function isInputFocused(e: KeyboardEvent): boolean {
   return (
@@ -19,6 +20,7 @@ const DEFAULT_PIXELS_PER_SECOND = 50;
 
 export function useKeyboardShortcuts() {
   const { play, pause, stop, seek } = useTransport();
+  const { toggleRecord } = useRecording();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -218,6 +220,11 @@ export function useKeyboardShortcuts() {
         case 'KeyL':
           e.preventDefault();
           transport.toggleLoop();
+          break;
+
+        case 'KeyR':
+          e.preventDefault();
+          void toggleRecord();
           break;
 
         case 'ArrowLeft':

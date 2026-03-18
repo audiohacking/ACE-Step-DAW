@@ -6,6 +6,7 @@ import { getAudioEngine } from './useAudioEngine';
 import { loadAudioBlobByKey } from '../services/audioFileManager';
 import { synthEngine } from '../engine/SynthEngine';
 import { drumEngine } from '../engine/DrumEngine';
+import { useRecording } from './useRecording';
 
 const DRUM_PAD_INDEX_BY_SAMPLE_KEY: Record<string, number> = {
   kick: 0,
@@ -57,7 +58,9 @@ function trimBuffer(
 
 export function useTransport() {
   const { isPlaying, currentTime } = useTransportStore();
+  const isRecording = useTransportStore((s) => s.isRecording);
   const project = useProjectStore((s) => s.project);
+  const { stopRecording } = useRecording();
 
   const play = useCallback(async (fromTime?: number) => {
     const engine = getAudioEngine();
@@ -242,21 +245,27 @@ export function useTransport() {
     useTransportStore.getState().play();
   }, []);
 
-  const pause = useCallback(() => {
+  const pause = useCallback(async () => {
+    if (isRecording) {
+      await stopRecording();
+    }
     const engine = getAudioEngine();
     const time = engine.getCurrentTime();
     engine.stop();
     synthEngine.releaseAll();
     useTransportStore.getState().pause();
     useTransportStore.getState().seek(time);
-  }, []);
+  }, [isRecording, stopRecording]);
 
-  const stop = useCallback(() => {
+  const stop = useCallback(async () => {
+    if (isRecording) {
+      await stopRecording();
+    }
     const engine = getAudioEngine();
     engine.stop();
     synthEngine.releaseAll();
     useTransportStore.getState().stop();
-  }, []);
+  }, [isRecording, stopRecording]);
 
   const seek = useCallback((time: number) => {
     const engine = getAudioEngine();
