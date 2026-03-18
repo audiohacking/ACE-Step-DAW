@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { Toolbar } from './Toolbar';
 import { StatusBar } from './StatusBar';
 import { TrackList } from '../tracks/TrackList';
@@ -31,9 +31,11 @@ export function AppShell() {
   const { resumeOnGesture } = useAudioEngine();
   const project = useProjectStore((s) => s.project);
   const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
+  const [audioResumed, setAudioResumed] = useState(false);
 
-  const handleClick = useCallback(() => {
-    resumeOnGesture();
+  const handleClick = useCallback(async () => {
+    await resumeOnGesture();
+    setAudioResumed(true);
   }, [resumeOnGesture]);
 
   useEffect(() => {
@@ -58,6 +60,16 @@ export function AppShell() {
 
   return (
     <div className="flex flex-col h-screen bg-daw-bg text-zinc-300" onClick={handleClick}>
+      {/* Audio context overlay — shown until user's first click resumes audio */}
+      {!audioResumed && project && (
+        <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center backdrop-blur-sm cursor-pointer">
+          <div className="text-center">
+            <div className="text-4xl mb-3">🎵</div>
+            <div className="text-lg font-medium text-white mb-1">Click anywhere to enable audio</div>
+            <div className="text-xs text-zinc-400">Browser requires a user gesture to start the audio engine</div>
+          </div>
+        </div>
+      )}
       <Toolbar />
 
       <div className="flex flex-1 min-h-0">
