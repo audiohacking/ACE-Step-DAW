@@ -114,10 +114,26 @@ export function TrackHeader({
       onDoubleClick={handleHeaderDoubleClick}
       onContextMenu={handleHeaderContextMenu}
     >
-      {/* Color strip (left edge) */}
+      {/* Color strip (left edge) — click to change track color */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-[4px] rounded-r-sm"
+        className="absolute left-0 top-0 bottom-0 w-[4px] rounded-r-sm cursor-pointer hover:w-[7px] transition-all duration-100"
         style={{ backgroundColor: track.color }}
+        title="Click to change track color"
+        onClick={(e) => {
+          e.stopPropagation();
+          const input = document.createElement('input');
+          input.type = 'color';
+          input.value = track.color;
+          input.style.position = 'fixed';
+          input.style.opacity = '0';
+          input.style.pointerEvents = 'none';
+          document.body.appendChild(input);
+          input.addEventListener('input', (ev) => {
+            updateTrack(track.id, { color: (ev.target as HTMLInputElement).value });
+          });
+          input.addEventListener('change', () => { document.body.removeChild(input); });
+          input.click();
+        }}
       />
 
       {/* Drag handle */}
