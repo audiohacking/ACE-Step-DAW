@@ -39,5 +39,6 @@
     "vite": "^6.0.0",
     "vitepress": "^1.6.4",
     "vitest": "^4.1.0"
-  }
+  },
+  "license": "MIT"
 }
