@@ -143,7 +143,7 @@ export function Toolbar() {
       <div className="flex-1" />
 
       {/* Center: Transport controls */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-0.5" data-testid="transport-bar">
         {/* Rewind */}
         <ControlBarButton onClick={() => void stop()} title="Go to Beginning (Enter)">
           <svg width="14" height="12" viewBox="0 0 14 12" fill="currentColor">

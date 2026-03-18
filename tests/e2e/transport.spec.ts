@@ -12,9 +12,8 @@ test.describe('Transport Controls', () => {
   });
 
   test('transport bar is visible', async ({ page }) => {
-    // Wait for the DAW UI to render after createProject
-    // Use a Playwright locator with built-in auto-wait instead of raw evaluate
-    await expect(page.locator('[aria-label]').first()).toBeVisible({ timeout: 5000 });
+    // Wait for the transport bar using a stable data-testid selector
+    await expect(page.getByTestId('transport-bar')).toBeVisible({ timeout: 10000 });
   });
 
   test('play button exists and is clickable', async ({ page }) => {
