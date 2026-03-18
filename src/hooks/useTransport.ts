@@ -6,6 +6,7 @@ import { getAudioEngine } from './useAudioEngine';
 import { loadAudioBlobByKey } from '../services/audioFileManager';
 import { synthEngine } from '../engine/SynthEngine';
 import { drumEngine } from '../engine/DrumEngine';
+import { automationEngine } from '../engine/AutomationEngine';
 import { useRecording } from './useRecording';
 
 const DRUM_PAD_INDEX_BY_SAMPLE_KEY: Record<string, number> = {
@@ -247,6 +248,12 @@ export function useTransport() {
       }
     }
 
+    // Start automation playback
+    const allLanes = project?.automationLanes ?? [];
+    if (allLanes.length > 0) {
+      automationEngine.start(allLanes, () => getAudioEngine().getCurrentTime());
+    }
+
     useTransportStore.getState().play();
   }, []);
 
@@ -258,6 +265,7 @@ export function useTransport() {
     const time = engine.getCurrentTime();
     engine.stop();
     synthEngine.releaseAll();
+    automationEngine.stop();
     useTransportStore.getState().pause();
     useTransportStore.getState().seek(time);
   }, [isRecording, stopRecording]);
@@ -269,6 +277,7 @@ export function useTransport() {
     const engine = getAudioEngine();
     engine.stop();
     synthEngine.releaseAll();
+    automationEngine.stop();
     useTransportStore.getState().stop();
   }, [isRecording, stopRecording]);
 

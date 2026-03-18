@@ -17,7 +17,11 @@ import type {
   PianoRollGrid,
   TrackEffect,
   TrackEffectType,
+  AutomationParameter,
+  AutomationPoint,
+  AutomationLane,
 } from '../types/project';
+import { automationParamEquals } from '../types/project';
 import { TRACK_CATALOG, DEFAULT_DRUM_KIT } from '../constants/tracks';
 import {
   DEFAULT_BPM,
@@ -142,6 +146,12 @@ interface ProjectState {
   updateTrackEffect: (trackId: string, effectId: string, updates: Partial<TrackEffect>) => void;
   removeTrackEffect: (trackId: string, effectId: string) => void;
   reorderTrackEffect: (trackId: string, fromIndex: number, toIndex: number) => void;
+
+  // Automation
+  addAutomationPoint: (trackId: string, parameter: AutomationParameter, point: AutomationPoint) => void;
+  removeAutomationPoint: (trackId: string, parameter: AutomationParameter, pointIndex: number) => void;
+  updateAutomationPoint: (trackId: string, parameter: AutomationParameter, pointIndex: number, updates: Partial<AutomationPoint>) => void;
+  clearAutomationLane: (trackId: string, parameter: AutomationParameter) => void;
 
   getTrackById: (trackId: string) => Track | undefined;
   getClipById: (clipId: string) => Clip | undefined;
@@ -1747,6 +1757,60 @@ export const useProjectStore = create<ProjectState>()(
         }),
       },
     });
+  },
+
+  // ─── Automation ───────────────────────────────────────────────────────────
+
+  addAutomationPoint: (trackId, parameter, point) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    const lanes = [...(state.project.automationLanes ?? [])];
+    const matchLane = (l: AutomationLane) =>
+      l.trackId === trackId && automationParamEquals(l.parameter, parameter);
+    const existingLane = lanes.find(matchLane);
+    if (!existingLane) {
+      lanes.push({ id: uuidv4(), trackId, parameter, points: [point] });
+    } else {
+      const laneIdx = lanes.indexOf(existingLane);
+      lanes[laneIdx] = { ...existingLane, points: [...existingLane.points, point].sort((a, b) => a.time - b.time) };
+    }
+    set({ project: { ...state.project, updatedAt: Date.now(), automationLanes: lanes } });
+  },
+
+  removeAutomationPoint: (trackId, parameter, pointIndex) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    const lanes = (state.project.automationLanes ?? []).map((lane) => {
+      if (lane.trackId !== trackId || !automationParamEquals(lane.parameter, parameter)) return lane;
+      return { ...lane, points: lane.points.filter((_: AutomationPoint, i: number) => i !== pointIndex) };
+    });
+    set({ project: { ...state.project, updatedAt: Date.now(), automationLanes: lanes } });
+  },
+
+  updateAutomationPoint: (trackId, parameter, pointIndex, updates) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    const lanes = (state.project.automationLanes ?? []).map((lane) => {
+      if (lane.trackId !== trackId || !automationParamEquals(lane.parameter, parameter)) return lane;
+      const newPoints = lane.points.map((p: AutomationPoint, i: number) =>
+        i === pointIndex ? { ...p, ...updates } : p,
+      ).sort((a: AutomationPoint, b: AutomationPoint) => a.time - b.time);
+      return { ...lane, points: newPoints };
+    });
+    set({ project: { ...state.project, updatedAt: Date.now(), automationLanes: lanes } });
+  },
+
+  clearAutomationLane: (trackId, parameter) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    const lanes = (state.project.automationLanes ?? []).filter(
+      (l: AutomationLane) => !(l.trackId === trackId && automationParamEquals(l.parameter, parameter)),
+    );
+    set({ project: { ...state.project, updatedAt: Date.now(), automationLanes: lanes } });
   },
 
   getTrackById: (trackId) => {
