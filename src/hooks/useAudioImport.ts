@@ -1,10 +1,11 @@
 import { useCallback } from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { getAudioEngine } from './useAudioEngine';
-import { saveAudioBlob } from '../services/audioFileManager';
+import { saveAudioBlob, loadAudioBlobByKey } from '../services/audioFileManager';
 import { computeWaveformPeaks } from '../utils/waveformPeaks';
 import { audioBufferToWavBlob } from '../utils/wav';
 import { toastSuccess } from './useToast';
+import { LOOP_DEFINITIONS, loadLoop } from '../engine/LoopLibrary';
 
 function trimAudioBuffer(
   engine: ReturnType<typeof getAudioEngine>,
@@ -156,11 +157,87 @@ export function useAudioImport() {
     input.click();
   }, [importMultipleFiles]);
 
+  const importLoopToTrack = useCallback(async (loopId: string, trackId: string, startTime: number) => {
+    const project = useProjectStore.getState().project;
+    if (!project) return;
+
+    const def = LOOP_DEFINITIONS.find((d) => d.id === loopId);
+    if (!def) return;
+
+    const { audioBuffer, waveformData } = await loadLoop(def);
+    const duration = audioBuffer.duration;
+    const clipDuration = Math.min(duration, project.totalDuration - startTime);
+    if (clipDuration <= 0) return;
+
+    const clip = addClip(trackId, {
+      startTime,
+      duration: clipDuration,
+      prompt: `Loop: ${def.name}`,
+      lyrics: '',
+    });
+
+    const wavBlob = audioBufferToWavBlob(audioBuffer);
+    const isolatedKey = await saveAudioBlob(project.id, clip.id, 'isolated', wavBlob);
+    const peaks = computeWaveformPeaks(audioBuffer, 200);
+
+    updateClipStatus(clip.id, 'ready', {
+      isolatedAudioKey: isolatedKey,
+      waveformPeaks: peaks,
+      audioDuration: clipDuration,
+      audioOffset: 0,
+      source: 'uploaded',
+    });
+  }, [addClip, updateClipStatus]);
+
+  const importAssetToTrack = useCallback(async (assetId: string, trackId: string, startTime: number) => {
+    const project = useProjectStore.getState().project;
+    if (!project) return;
+
+    const asset = (project.assets ?? []).find((a) => a.id === assetId);
+    if (!asset) return;
+
+    const audioKey = asset.isolatedAudioKey ?? asset.cumulativeMixKey;
+    if (!audioKey) return;
+
+    const blob = await loadAudioBlobByKey(audioKey);
+    if (!blob) return;
+
+    const engine = getAudioEngine();
+    await engine.resume();
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioBuffer = await engine.ctx.decodeAudioData(arrayBuffer);
+
+    const duration = audioBuffer.duration;
+    const clipDuration = Math.min(duration, project.totalDuration - startTime);
+    if (clipDuration <= 0) return;
+
+    const clip = addClip(trackId, {
+      startTime,
+      duration: clipDuration,
+      prompt: asset.prompt || `From: ${asset.trackDisplayName}`,
+      lyrics: '',
+    });
+
+    const wavBlob = audioBufferToWavBlob(audioBuffer);
+    const isolatedKey = await saveAudioBlob(project.id, clip.id, 'isolated', wavBlob);
+    const peaks = asset.waveformPeaks ?? computeWaveformPeaks(audioBuffer, 200);
+
+    updateClipStatus(clip.id, 'ready', {
+      isolatedAudioKey: isolatedKey,
+      waveformPeaks: peaks,
+      audioDuration: clipDuration,
+      audioOffset: 0,
+      source: asset.source,
+    });
+  }, [addClip, updateClipStatus]);
+
   return {
     importAudioFile,
     importAudioBufferToTrack,
     importAudioToTrack,
     importMultipleFiles,
     openFilePicker,
+    importLoopToTrack,
+    importAssetToTrack,
   };
 }

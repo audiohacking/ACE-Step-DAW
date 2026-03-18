@@ -50,9 +50,8 @@ export function AppShell() {
 
       <div className="flex flex-1 min-h-0">
         {project && <TrackList />}
-        {project && <AssetsPanel />}
-        {project && <LoopBrowser />}
         <Timeline />
+        {project && <LoopBrowser />}
       </div>
 
       {project && <SmartControlsPanel />}

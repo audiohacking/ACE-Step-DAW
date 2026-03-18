@@ -64,23 +64,33 @@ function extractPeaks(buffer: AudioBuffer, numSamples = 256): number[] {
 
 // ─── Drum Loop Generators ───────────────────────────────────────────────────
 
+// Tiny offset so the first note is not at exactly t=0 in Tone.Offline
+const T0 = 0.005;
+
+// Helper: create a hi-hat–like NoiseSynth (replaces MetalSynth which
+// crashes in Tone.Offline due to "start time must be strictly greater")
+function makeHat(volume: number) {
+  const filter = new Tone.Filter({ frequency: 8000, type: 'highpass' }).toDestination();
+  return new Tone.NoiseSynth({
+    noise: { type: 'white' },
+    envelope: { attack: 0.001, decay: 0.04, sustain: 0, release: 0.01 },
+    volume,
+  }).connect(filter);
+}
+
 async function generate808Boom(duration: number): Promise<AudioBuffer> {
-  const buffer = await Tone.Offline(({ transport }) => {
-    transport.bpm.value = 90;
+  const buffer = await Tone.Offline(() => {
     const kick = new Tone.MembraneSynth({
       pitchDecay: 0.08,
       octaves: 6,
       oscillator: { type: 'sine' },
       envelope: { attack: 0.006, decay: 0.5, sustain: 0, release: 0.5 },
     }).toDestination();
-    const hat = new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
-      harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5, volume: -12,
-    }).toDestination();
+    const hat = makeHat(-12);
 
     const beatTime = 60 / 90;
     for (let bar = 0; bar < 4; bar++) {
-      const offset = bar * 4 * beatTime;
+      const offset = T0 + bar * 4 * beatTime;
       kick.triggerAttackRelease('C1', '8n', offset);
       kick.triggerAttackRelease('C1', '8n', offset + 2 * beatTime);
       kick.triggerAttackRelease('C1', '8n', offset + 2.75 * beatTime);
@@ -88,14 +98,12 @@ async function generate808Boom(duration: number): Promise<AudioBuffer> {
         hat.triggerAttackRelease('16n', offset + i * beatTime * 0.5);
       }
     }
-    transport.start(0);
   }, duration);
   return toAudioBuffer(buffer);
 }
 
 async function generateRockSteady(duration: number): Promise<AudioBuffer> {
-  const buffer = await Tone.Offline(({ transport }) => {
-    transport.bpm.value = 120;
+  const buffer = await Tone.Offline(() => {
     const kick = new Tone.MembraneSynth({
       pitchDecay: 0.05, octaves: 4,
       envelope: { attack: 0.005, decay: 0.3, sustain: 0, release: 0.3 },
@@ -105,14 +113,11 @@ async function generateRockSteady(duration: number): Promise<AudioBuffer> {
       envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.1 },
       volume: -6,
     }).toDestination();
-    const hat = new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.04, release: 0.01 },
-      harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5, volume: -14,
-    }).toDestination();
+    const hat = makeHat(-14);
 
     const beat = 60 / 120;
     for (let bar = 0; bar < 4; bar++) {
-      const o = bar * 4 * beat;
+      const o = T0 + bar * 4 * beat;
       kick.triggerAttackRelease('C1', '8n', o);
       kick.triggerAttackRelease('C1', '8n', o + 2 * beat);
       snare.triggerAttackRelease('8n', o + beat);
@@ -121,14 +126,12 @@ async function generateRockSteady(duration: number): Promise<AudioBuffer> {
         hat.triggerAttackRelease('16n', o + i * beat * 0.5);
       }
     }
-    transport.start(0);
   }, duration);
   return toAudioBuffer(buffer);
 }
 
 async function generateShuffleBlues(duration: number): Promise<AudioBuffer> {
-  const buffer = await Tone.Offline(({ transport }) => {
-    transport.bpm.value = 95;
+  const buffer = await Tone.Offline(() => {
     const kick = new Tone.MembraneSynth({
       pitchDecay: 0.05, octaves: 4,
       envelope: { attack: 0.005, decay: 0.3, sustain: 0, release: 0.3 },
@@ -138,15 +141,12 @@ async function generateShuffleBlues(duration: number): Promise<AudioBuffer> {
       envelope: { attack: 0.002, decay: 0.12, sustain: 0, release: 0.1 },
       volume: -8,
     }).toDestination();
-    const hat = new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.03, release: 0.01 },
-      harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5, volume: -14,
-    }).toDestination();
+    const hat = makeHat(-14);
 
     const beat = 60 / 95;
     const triplet = beat / 3;
     for (let bar = 0; bar < 4; bar++) {
-      const o = bar * 4 * beat;
+      const o = T0 + bar * 4 * beat;
       kick.triggerAttackRelease('C1', '8n', o);
       kick.triggerAttackRelease('C1', '8n', o + 2 * beat);
       snare.triggerAttackRelease('8n', o + beat);
@@ -156,22 +156,19 @@ async function generateShuffleBlues(duration: number): Promise<AudioBuffer> {
         hat.triggerAttackRelease('32n', o + i * beat + triplet * 2);
       }
     }
-    transport.start(0);
   }, duration);
   return toAudioBuffer(buffer);
 }
 
 async function generateTrapHiHats(duration: number): Promise<AudioBuffer> {
-  const buffer = await Tone.Offline(({ transport }) => {
-    transport.bpm.value = 140;
+  const buffer = await Tone.Offline(() => {
     const kick = new Tone.MembraneSynth({
       pitchDecay: 0.08, octaves: 6,
       envelope: { attack: 0.006, decay: 0.5, sustain: 0, release: 0.4 },
     }).toDestination();
-    const hat = new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.03, release: 0.005 },
-      harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5, volume: -10,
-    }).toDestination();
+    // Two hat voices for overlapping rapid-fire patterns
+    const hat1 = makeHat(-10);
+    const hat2 = makeHat(-10);
     const snare = new Tone.NoiseSynth({
       noise: { type: 'white' },
       envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.05 },
@@ -180,26 +177,26 @@ async function generateTrapHiHats(duration: number): Promise<AudioBuffer> {
 
     const beat = 60 / 140;
     for (let bar = 0; bar < 4; bar++) {
-      const o = bar * 4 * beat;
+      const o = T0 + bar * 4 * beat;
       kick.triggerAttackRelease('C1', '8n', o);
       kick.triggerAttackRelease('C1', '8n', o + 2.5 * beat);
       snare.triggerAttackRelease('8n', o + beat);
       snare.triggerAttackRelease('8n', o + 3 * beat);
+      // Main 16th-note hi-hats
       for (let i = 0; i < 16; i++) {
-        hat.triggerAttackRelease('32n', o + i * beat * 0.25);
+        hat1.triggerAttackRelease('32n', o + i * beat * 0.25);
       }
+      // Rapid rolls on beat 4 (use second voice to avoid overlap)
       for (let i = 0; i < 4; i++) {
-        hat.triggerAttackRelease('32n', o + 3 * beat + i * beat * 0.125);
+        hat2.triggerAttackRelease('32n', o + 3 * beat + i * beat * 0.125);
       }
     }
-    transport.start(0);
   }, duration);
   return toAudioBuffer(buffer);
 }
 
 async function generateLoFiDrums(duration: number): Promise<AudioBuffer> {
-  const buffer = await Tone.Offline(({ transport }) => {
-    transport.bpm.value = 85;
+  const buffer = await Tone.Offline(() => {
     const kick = new Tone.MembraneSynth({
       pitchDecay: 0.05, octaves: 4,
       envelope: { attack: 0.01, decay: 0.3, sustain: 0, release: 0.3 },
@@ -210,14 +207,11 @@ async function generateLoFiDrums(duration: number): Promise<AudioBuffer> {
       envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 },
       volume: -8,
     }).toDestination();
-    const hat = new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.04, release: 0.01 },
-      harmonicity: 5.1, modulationIndex: 32, resonance: 3000, octaves: 1, volume: -16,
-    }).toDestination();
+    const hat = makeHat(-16);
 
     const beat = 60 / 85;
     for (let bar = 0; bar < 4; bar++) {
-      const o = bar * 4 * beat;
+      const o = T0 + bar * 4 * beat;
       kick.triggerAttackRelease('C1', '8n', o);
       kick.triggerAttackRelease('C1', '8n', o + 1.75 * beat);
       kick.triggerAttackRelease('C1', '8n', o + 2.5 * beat);
@@ -227,7 +221,6 @@ async function generateLoFiDrums(duration: number): Promise<AudioBuffer> {
         hat.triggerAttackRelease('32n', o + i * beat * 0.5);
       }
     }
-    transport.start(0);
   }, duration);
   return toAudioBuffer(buffer);
 }

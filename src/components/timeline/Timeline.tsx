@@ -72,23 +72,19 @@ export function Timeline() {
   const [normalDrag, setNormalDrag] = useState<DragRect | null>(null);
   const [fileDragOver, setFileDragOver] = useState(false);
   const dragCounterRef = useRef(0);
-  const { importAudioBufferToTrack, importMultipleFiles } = useAudioImport();
+  const { importAudioBufferToTrack, importMultipleFiles, importLoopToTrack, importAssetToTrack } = useAudioImport();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
-    if (
-      e.dataTransfer.types.includes('Files')
-      || e.dataTransfer.types.includes('application/x-loop-id')
-    ) {
+    const types = e.dataTransfer.types;
+    if (types.includes('Files') || types.includes('application/x-loop-id') || types.includes('application/x-asset-id')) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
     }
   }, []);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
-    if (
-      e.dataTransfer.types.includes('Files')
-      || e.dataTransfer.types.includes('application/x-loop-id')
-    ) {
+    const types = e.dataTransfer.types;
+    if (types.includes('Files') || types.includes('application/x-loop-id') || types.includes('application/x-asset-id')) {
       e.preventDefault();
       dragCounterRef.current++;
       setFileDragOver(true);
@@ -108,15 +104,19 @@ export function Timeline() {
     dragCounterRef.current = 0;
     setFileDragOver(false);
 
+    // Handle preset loop drop -> create new sample track
     const loopId = e.dataTransfer.getData('application/x-loop-id');
     if (loopId) {
-      const { LOOP_DEFINITIONS, loadLoop } = await import('../../engine/LoopLibrary');
-      const def = LOOP_DEFINITIONS.find((item) => item.id === loopId);
-      if (!def) return;
-      const { audioBuffer } = await loadLoop(def);
-      const track = addTrack('custom', 'sample');
-      updateTrack(track.id, { displayName: def.name });
-      await importAudioBufferToTrack(audioBuffer, def.name, track.id, 0);
+      const newTrack = addTrack('custom', 'sample');
+      await importLoopToTrack(loopId, newTrack.id, 0);
+      return;
+    }
+
+    // Handle asset drop -> create new sample track
+    const assetId = e.dataTransfer.getData('application/x-asset-id');
+    if (assetId) {
+      const newTrack = addTrack('custom', 'sample');
+      await importAssetToTrack(assetId, newTrack.id, 0);
       return;
     }
 
@@ -124,7 +124,7 @@ export function Timeline() {
     if (files.length > 0) {
       await importMultipleFiles(files);
     }
-  }, [addTrack, importAudioBufferToTrack, importMultipleFiles, updateTrack]);
+  }, [addTrack, importMultipleFiles, importLoopToTrack, importAssetToTrack]);
 
   // Safety net: if a child (e.g. TrackLane) stops propagation on drop,
   // the Timeline's own handleDrop never fires. Listen globally to clear the overlay.

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
+import { useProjectStore } from '../../store/projectStore';
 import {
   LOOP_DEFINITIONS,
   LoopCategory,
@@ -8,9 +9,15 @@ import {
   getLoopDuration,
   formatDuration,
 } from '../../engine/LoopLibrary';
+import { loadAudioBlobByKey } from '../../services/audioFileManager';
+import { getAudioEngine } from '../../hooks/useAudioEngine';
+import type { AssetClip } from '../../types/project';
 import * as Tone from 'tone';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
+
+type Tab = 'presets' | 'myLoops';
+type AssetFilter = 'all' | 'starred' | 'generated' | 'uploaded';
 
 const CATEGORIES: Array<'All' | LoopCategory> = ['All', 'Drums', 'Bass', 'Keys', 'Synth'];
 
@@ -109,9 +116,42 @@ function MiniWaveform({ data, color, height = 32 }: { data: number[] | null; col
   );
 }
 
-// ─── Loop Item Component ────────────────────────────────────────────────────
+// ─── SVG Mini Waveform for Assets ───────────────────────────────────────────
 
-function LoopItem({
+function SvgMiniWaveform({ peaks, color }: { peaks: number[] | null; color: string }) {
+  if (!peaks || peaks.length === 0) return <div className="w-full h-full bg-white/5 rounded" />;
+  const w = 60;
+  const h = 20;
+  const step = w / peaks.length;
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="rounded bg-white/5">
+      {peaks.map((p, i) => {
+        const barH = Math.max(p * (h - 2), 0.5);
+        return (
+          <rect
+            key={i}
+            x={i * step}
+            y={(h - barH) / 2}
+            width={Math.max(step * 0.7, 0.5)}
+            height={barH}
+            fill={color}
+            opacity={0.7}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+function fmtDuration(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// ─── Preset Loop Item Component ─────────────────────────────────────────────
+
+function PresetLoopItem({
   def,
   isPreviewing,
   onPreview,
@@ -179,6 +219,96 @@ function LoopItem({
   );
 }
 
+// ─── Asset Loop Item Component ──────────────────────────────────────────────
+
+function AssetLoopItem({
+  asset,
+  isPreviewing,
+  onPreview,
+  onStar,
+  onDelete,
+  onDragStart,
+}: {
+  asset: AssetClip;
+  isPreviewing: boolean;
+  onPreview: (asset: AssetClip) => void;
+  onStar: (e: React.MouseEvent, assetId: string) => void;
+  onDelete: (e: React.MouseEvent, assetId: string) => void;
+  onDragStart: (e: React.DragEvent, asset: AssetClip) => void;
+}) {
+  return (
+    <div
+      className={`group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-grab transition-colors ${
+        isPreviewing ? 'bg-white/10' : 'hover:bg-white/5'
+      }`}
+      draggable
+      onDragStart={(e) => onDragStart(e, asset)}
+    >
+      <button
+        className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+          isPreviewing
+            ? 'bg-violet-500 text-white'
+            : 'bg-white/5 text-white/40 group-hover:text-white/70 group-hover:bg-white/10'
+        }`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onPreview(asset);
+        }}
+      >
+        {isPreviewing ? (
+          <svg className="h-2.5 w-2.5 fill-current" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12"/></svg>
+        ) : (
+          <svg className="h-2.5 w-2.5 fill-current ml-0.5" viewBox="0 0 16 16"><polygon points="3,2 14,8 3,14"/></svg>
+        )}
+      </button>
+
+      <div className="shrink-0">
+        <SvgMiniWaveform peaks={asset.waveformPeaks} color="#6b7280" />
+      </div>
+
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <div className="flex items-center gap-1">
+          <span className={`shrink-0 text-[8px] px-1 py-px rounded font-medium ${
+            asset.source === 'uploaded'
+              ? 'bg-amber-500/20 text-amber-400'
+              : 'bg-violet-500/20 text-violet-400'
+          }`}>
+            {asset.source === 'uploaded' ? 'IMP' : 'AI'}
+          </span>
+          <span className="text-[10px] text-white/70 truncate">
+            {asset.prompt || asset.trackDisplayName}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 mt-0.5">
+          <span className="text-[9px] text-white/40 truncate">{asset.trackDisplayName}</span>
+          <span className="text-[9px] text-white/20">{fmtDuration(asset.duration)}</span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-0.5 shrink-0">
+        <button
+          onClick={(e) => onStar(e, asset.id)}
+          className={`w-5 h-5 flex items-center justify-center rounded text-[10px] transition-colors ${
+            asset.starred
+              ? 'text-yellow-400 hover:text-yellow-300'
+              : 'text-zinc-600 hover:text-zinc-400 opacity-0 group-hover:opacity-100'
+          }`}
+          title={asset.starred ? 'Remove star' : 'Star'}
+        >
+          {asset.starred ? '\u2605' : '\u2606'}
+        </button>
+        <button
+          onClick={(e) => onDelete(e, asset.id)}
+          className="w-5 h-5 flex items-center justify-center rounded text-[10px] text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+          title="Remove"
+        >
+          \u00d7
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Loop Browser Component ────────────────────────────────────────────
 
 export function LoopBrowser() {
@@ -191,24 +321,50 @@ export function LoopBrowser() {
   const setPreviewingId = useUIStore((s) => s.setPreviewingLoopId);
   const toggleBrowser = useUIStore((s) => s.toggleLoopBrowser);
 
+  const project = useProjectStore((s) => s.project);
+  const removeAsset = useProjectStore((s) => s.removeAsset);
+  const toggleAssetStar = useProjectStore((s) => s.toggleAssetStar);
+
+  const [activeTab, setActiveTab] = useState<Tab>('presets');
+  const [assetFilter, setAssetFilter] = useState<AssetFilter>('all');
   const [previewWaveform, setPreviewWaveform] = useState<number[] | null>(null);
   const [width, setWidth] = useState(240);
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
-  const filteredLoops = LOOP_DEFINITIONS.filter((def) => {
+  // ── Presets filtering ──
+  const filteredPresets = LOOP_DEFINITIONS.filter((def) => {
     const matchesCategory = category === 'All' || def.category === category;
     const matchesSearch = search === '' || def.name.toLowerCase().includes(search.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
-  const handlePreview = useCallback(async (def: LoopDefinition) => {
+  // ── Assets filtering ──
+  const allAssets = useMemo<AssetClip[]>(() => project?.assets ?? [], [project?.assets]);
+
+  const filteredAssets = useMemo(() => {
+    let list = allAssets;
+    if (assetFilter === 'starred') list = list.filter((a) => a.starred);
+    else if (assetFilter === 'generated') list = list.filter((a) => a.source !== 'uploaded');
+    else if (assetFilter === 'uploaded') list = list.filter((a) => a.source === 'uploaded');
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((a) =>
+        (a.prompt ?? '').toLowerCase().includes(q) ||
+        (a.trackDisplayName ?? '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [allAssets, assetFilter, search]);
+
+  // ── Preview handlers ──
+  const handlePresetPreview = useCallback(async (def: LoopDefinition) => {
     if (previewingId === def.id) {
       stopPreview();
       setPreviewingId(null);
       setPreviewWaveform(null);
       return;
     }
-
     try {
       const { audioBuffer, waveformData } = await loadLoop(def);
       await playPreview(audioBuffer);
@@ -219,6 +375,31 @@ export function LoopBrowser() {
     }
   }, [previewingId, setPreviewingId]);
 
+  const handleAssetPreview = useCallback(async (asset: AssetClip) => {
+    if (previewingId === asset.id) {
+      stopPreview();
+      setPreviewingId(null);
+      setPreviewWaveform(null);
+      return;
+    }
+    try {
+      const audioKey = asset.isolatedAudioKey ?? asset.cumulativeMixKey;
+      if (!audioKey) return;
+      const blob = await loadAudioBlobByKey(audioKey);
+      if (!blob) return;
+      const engine = getAudioEngine();
+      await engine.resume();
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioBuffer = await engine.ctx.decodeAudioData(arrayBuffer);
+      await playPreview(audioBuffer);
+      setPreviewingId(asset.id);
+      setPreviewWaveform(asset.waveformPeaks);
+    } catch (err) {
+      console.error('Failed to preview asset:', err);
+    }
+  }, [previewingId, setPreviewingId]);
+
+  // ── Stop preview on close ──
   useEffect(() => {
     if (!isOpen) {
       stopPreview();
@@ -227,15 +408,33 @@ export function LoopBrowser() {
     }
   }, [isOpen, setPreviewingId]);
 
-  const handleDragStart = useCallback((e: React.DragEvent, def: LoopDefinition) => {
+  // ── Drag handlers ──
+  const handlePresetDragStart = useCallback((e: React.DragEvent, def: LoopDefinition) => {
     e.dataTransfer.setData('application/x-loop-id', def.id);
     e.dataTransfer.effectAllowed = 'copy';
   }, []);
 
+  const handleAssetDragStart = useCallback((e: React.DragEvent, asset: AssetClip) => {
+    e.dataTransfer.setData('application/x-asset-id', asset.id);
+    e.dataTransfer.effectAllowed = 'copy';
+  }, []);
+
+  // ── Asset actions ──
+  const handleStar = useCallback((e: React.MouseEvent, assetId: string) => {
+    e.stopPropagation();
+    toggleAssetStar(assetId);
+  }, [toggleAssetStar]);
+
+  const handleDelete = useCallback((e: React.MouseEvent, assetId: string) => {
+    e.stopPropagation();
+    removeAsset(assetId);
+  }, [removeAsset]);
+
+  // ── Resize ──
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!resizeRef.current) return;
-      const dx = e.clientX - resizeRef.current.startX;
+      const dx = resizeRef.current.startX - e.clientX;
       setWidth(Math.max(180, Math.min(400, resizeRef.current.startWidth + dx)));
     };
     const handleMouseUp = () => {
@@ -253,11 +452,20 @@ export function LoopBrowser() {
 
   if (!isOpen) return null;
 
-  const previewingDef = previewingId ? LOOP_DEFINITIONS.find(d => d.id === previewingId) : null;
+  const previewingPresetDef = activeTab === 'presets' && previewingId
+    ? LOOP_DEFINITIONS.find(d => d.id === previewingId)
+    : null;
+
+  const assetFilters: { id: AssetFilter; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'starred', label: '\u2605' },
+    { id: 'generated', label: 'AI' },
+    { id: 'uploaded', label: 'Imported' },
+  ];
 
   return (
     <div
-      className="relative flex flex-col bg-[#111126] border-r border-white/10 shrink-0 select-none"
+      className="relative flex flex-col bg-[#111126] border-l border-white/10 shrink-0 select-none"
       style={{ width }}
     >
       {/* Header */}
@@ -285,50 +493,127 @@ export function LoopBrowser() {
         </div>
       </div>
 
-      {/* Category pills */}
-      <div className="flex gap-1 px-2 py-1.5 border-b border-white/5 overflow-x-auto shrink-0">
-        {CATEGORIES.map((cat) => {
-          const isActive = category === cat;
-          return (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap transition-colors ${
-                isActive
-                  ? (CATEGORY_ACTIVE_COLORS[cat] ?? CATEGORY_ACTIVE_COLORS.All)
-                  : (CATEGORY_COLORS[cat] ?? CATEGORY_COLORS.All)
-              }`}
-            >
-              {cat}
-            </button>
-          );
-        })}
+      {/* Tab buttons */}
+      <div className="flex border-b border-white/5 shrink-0">
+        <button
+          onClick={() => setActiveTab('presets')}
+          className={`flex-1 py-1.5 text-[10px] font-medium uppercase tracking-wider transition-colors ${
+            activeTab === 'presets'
+              ? 'text-violet-300 border-b-2 border-violet-500'
+              : 'text-white/30 hover:text-white/50'
+          }`}
+        >
+          Presets
+        </button>
+        <button
+          onClick={() => setActiveTab('myLoops')}
+          className={`flex-1 py-1.5 text-[10px] font-medium uppercase tracking-wider transition-colors ${
+            activeTab === 'myLoops'
+              ? 'text-violet-300 border-b-2 border-violet-500'
+              : 'text-white/30 hover:text-white/50'
+          }`}
+        >
+          My Loops
+          {allAssets.length > 0 && (
+            <span className="ml-1 text-[9px] text-white/20">{allAssets.length}</span>
+          )}
+        </button>
       </div>
 
-      {/* Loop list */}
-      <div className="flex-1 overflow-y-auto px-1 py-1">
-        {filteredLoops.length === 0 ? (
-          <div className="text-center text-white/20 text-xs py-8">
-            No loops found
+      {/* ── Presets Tab ── */}
+      {activeTab === 'presets' && (
+        <>
+          {/* Category pills */}
+          <div className="flex gap-1 px-2 py-1.5 border-b border-white/5 overflow-x-auto shrink-0">
+            {CATEGORIES.map((cat) => {
+              const isActive = category === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setCategory(cat)}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap transition-colors ${
+                    isActive
+                      ? (CATEGORY_ACTIVE_COLORS[cat] ?? CATEGORY_ACTIVE_COLORS.All)
+                      : (CATEGORY_COLORS[cat] ?? CATEGORY_COLORS.All)
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
           </div>
-        ) : (
-          filteredLoops.map((def) => (
-            <LoopItem
-              key={def.id}
-              def={def}
-              isPreviewing={previewingId === def.id}
-              onPreview={handlePreview}
-              onDragStart={handleDragStart}
-            />
-          ))
-        )}
-      </div>
+
+          {/* Preset loop list */}
+          <div className="flex-1 overflow-y-auto px-1 py-1">
+            {filteredPresets.length === 0 ? (
+              <div className="text-center text-white/20 text-xs py-8">
+                No loops found
+              </div>
+            ) : (
+              filteredPresets.map((def) => (
+                <PresetLoopItem
+                  key={def.id}
+                  def={def}
+                  isPreviewing={previewingId === def.id}
+                  onPreview={handlePresetPreview}
+                  onDragStart={handlePresetDragStart}
+                />
+              ))
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── My Loops Tab ── */}
+      {activeTab === 'myLoops' && (
+        <>
+          {/* Filter pills */}
+          <div className="flex gap-1 px-2 py-1.5 border-b border-white/5 flex-wrap shrink-0">
+            {assetFilters.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setAssetFilter(f.id)}
+                className={`px-2 py-0.5 text-[10px] rounded-full font-medium transition-colors ${
+                  assetFilter === f.id
+                    ? 'bg-violet-500/30 text-violet-200'
+                    : 'bg-white/5 text-white/30 hover:bg-white/10 hover:text-white/50'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+            <span className="text-[9px] text-white/20 self-center ml-auto">{filteredAssets.length} items</span>
+          </div>
+
+          {/* Asset list */}
+          <div className="flex-1 overflow-y-auto px-1 py-1">
+            {filteredAssets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-24 text-white/20 text-xs gap-1">
+                <span>No loops yet</span>
+                <span className="text-[9px] text-white/10">Generate or import audio to see it here</span>
+              </div>
+            ) : (
+              filteredAssets.map((asset) => (
+                <AssetLoopItem
+                  key={asset.id}
+                  asset={asset}
+                  isPreviewing={previewingId === asset.id}
+                  onPreview={handleAssetPreview}
+                  onStar={handleStar}
+                  onDelete={handleDelete}
+                  onDragStart={handleAssetDragStart}
+                />
+              ))
+            )}
+          </div>
+        </>
+      )}
 
       {/* Preview section */}
-      {previewingDef && (
+      {previewingPresetDef && (
         <div className="border-t border-white/5 px-2 py-2 shrink-0">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-white/50 truncate">{previewingDef.name}</span>
+            <span className="text-[10px] text-white/50 truncate">{previewingPresetDef.name}</span>
             <button
               className="text-white/30 hover:text-white/60"
               onClick={() => {
@@ -348,9 +633,9 @@ export function LoopBrowser() {
         </div>
       )}
 
-      {/* Resize handle */}
+      {/* Resize handle (left edge) */}
       <div
-        className="absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-violet-500/30 transition-colors"
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-violet-500/30 transition-colors"
         onMouseDown={(e) => {
           resizeRef.current = { startX: e.clientX, startWidth: width };
           document.body.style.cursor = 'ew-resize';

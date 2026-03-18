@@ -86,7 +86,7 @@ export function TrackLane({ track }: TrackLaneProps) {
     startTime: number; duration: number;
   } | null>(null);
 
-  const { importAudioBufferToTrack, importAudioToTrack } = useAudioImport();
+  const { importAudioBufferToTrack, importAudioToTrack, importLoopToTrack, importAssetToTrack } = useAudioImport();
   const [fileDragOver, setFileDragOver] = useState(false);
 
   const resizeRef = useRef<{ startY: number; startH: number } | null>(null);
@@ -178,10 +178,8 @@ export function TrackLane({ track }: TrackLaneProps) {
   }, []);
 
   const handleFileDragOver = useCallback((e: React.DragEvent) => {
-    if (
-      e.dataTransfer.types.includes('Files')
-      || e.dataTransfer.types.includes('application/x-loop-id')
-    ) {
+    const types = e.dataTransfer.types;
+    if (types.includes('Files') || types.includes('application/x-loop-id') || types.includes('application/x-asset-id')) {
       e.preventDefault();
       e.stopPropagation();
       e.dataTransfer.dropEffect = 'copy';
@@ -204,25 +202,29 @@ export function TrackLane({ track }: TrackLaneProps) {
     const rawTime = laneX / pixelsPerSecond;
     const startTime = Math.max(0, snapToGrid(rawTime, project.bpm, 1));
 
+    // Handle preset loop drop
     const loopId = e.dataTransfer.getData('application/x-loop-id');
     if (loopId) {
-      const { LOOP_DEFINITIONS, loadLoop } = await import('../../engine/LoopLibrary');
-      const def = LOOP_DEFINITIONS.find((item) => item.id === loopId);
-      if (!def) return;
-      const { audioBuffer } = await loadLoop(def);
-      await importAudioBufferToTrack(audioBuffer, def.name, track.id, startTime);
+      await importLoopToTrack(loopId, track.id, startTime);
       return;
     }
 
+    // Handle asset drop
+    const assetId = e.dataTransfer.getData('application/x-asset-id');
+    if (assetId) {
+      await importAssetToTrack(assetId, track.id, startTime);
+      return;
+    }
+
+    // Handle file drop
     const files = e.dataTransfer.files;
     if (!files.length) return;
-
     for (const file of Array.from(files)) {
       if (file.type.startsWith('audio/') || /\.(wav|mp3|ogg|flac|aac|m4a|webm)$/i.test(file.name)) {
         await importAudioToTrack(file, track.id, startTime);
       }
     }
-  }, [project, pixelsPerSecond, track.id, importAudioBufferToTrack, importAudioToTrack]);
+  }, [project, pixelsPerSecond, track.id, importAudioToTrack, importLoopToTrack, importAssetToTrack]);
 
   const hasClips = track.clips.length > 0;
 
