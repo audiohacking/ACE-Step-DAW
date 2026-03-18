@@ -5,3 +5,7 @@ dist
 .env.*
 .DS_Store
 *.tsbuildinfo
+
+# Playwright test artifacts
+test-results/
+playwright-report/
