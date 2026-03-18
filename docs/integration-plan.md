@@ -1,5 +1,26 @@
 # AceStudio Lite — 整合计划
 
+## 开发模型分工
+
+| 模型 | 角色 | 用途 | 额度 |
+|------|------|------|------|
+| 🧠 **Claude Opus (1M context)** | 大脑 | 调研、规划、架构设计、代码审查、测试分析、上下文理解 | 公司 API（省着用）|
+| 🔧 **Claude Code CLI** | 精细执行 | 需要深度理解上下文的编码、适配、重构 | 个人免费 6 个月 |
+| ⚡ **Codex (gpt-5.4)** | 快速执行 | 大量编码、新功能开发、机械性任务 | 赞助免费 6 个月 |
+
+### 协作流程
+1. **Claude Opus**: 读竞品文档(1M context!)→ 写详细任务规划 → 架构决策
+2. **Codex/Claude Code**: 执行编码任务
+3. **Claude Opus**: 浏览器测试 → 代码审查 → 发现问题
+4. **Codex/Claude Code**: 修复
+5. **Claude Opus**: commit + GIF + 发版
+
+### 什么时候用谁
+- 需要理解大量上下文(多文件对比/架构) → **Claude Opus**
+- 需要精细适配(类型映射/重构) → **Claude Code CLI**
+- 需要快速写大量代码(新组件/新功能) → **Codex**
+- 简单修改(单文件/小fix) → 直接 edit 工具
+
 > 基于 ACE-Step DAW 的 fork，整合我们自研的增强功能
 > 分支: dev/acestudio-lite
 
