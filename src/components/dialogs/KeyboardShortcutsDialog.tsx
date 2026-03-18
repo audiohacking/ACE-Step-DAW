@@ -82,6 +82,16 @@ const SECTIONS: Section[] = [
       { keys: ['?'],                    description: 'This help overlay' },
     ],
   },
+  {
+    title: 'Piano Roll',
+    rows: [
+      { keys: ['Delete', 'Backspace'],  description: 'Delete selected notes' },
+      { keys: ['⇧', '↑'],               description: 'Transpose selected notes up 1 semitone' },
+      { keys: ['⇧', '↓'],               description: 'Transpose selected notes down 1 semitone' },
+      { keys: ['Q'],                    description: 'Quantize selected notes to the current grid' },
+      { keys: [`${mod}`, 'A'],          description: 'Select all notes in the current clip' },
+    ],
+  },
 ];
 
 function Key({ label }: { label: string }) {

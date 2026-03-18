@@ -700,9 +700,10 @@ export function PianoRoll() {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (!clip) return;
+      const key = e.key.toLowerCase();
 
       // B = toggle draw mode
-      if ((e.key === 'b' || e.key === 'B') && !e.metaKey && !e.ctrlKey) {
+      if (key === 'b' && !e.metaKey && !e.ctrlKey) {
         setDrawMode((m) => !m);
         return;
       }
@@ -717,8 +718,8 @@ export function PianoRoll() {
         }
       }
 
-      // Ctrl+A = select all
-      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+      // Ctrl/Cmd+A = select all notes in current clip
+      if ((e.ctrlKey || e.metaKey) && key === 'a') {
         e.preventDefault();
         setSelectedNoteIds(new Set(notes.map((n) => n.id)));
         return;
@@ -730,22 +731,29 @@ export function PianoRoll() {
         return;
       }
 
+      // Q = quantize selected notes to the current grid subdivision
+      if (key === 'q' && !e.metaKey && !e.ctrlKey && selectedNoteIds.size > 0) {
+        e.preventDefault();
+        for (const noteId of selectedNoteIds) {
+          const note = notes.find((n) => n.id === noteId);
+          if (note) updateMidiNote(clip.id, noteId, { startBeat: Math.max(0, snapBeat(note.startBeat)) });
+        }
+        return;
+      }
+
       // Arrow keys = move selected notes
       if (selectedNoteIds.size > 0) {
-        const shift = e.shiftKey;
         if (e.key === 'ArrowUp') {
           e.preventDefault();
-          const delta = shift ? 12 : 1;
           for (const noteId of selectedNoteIds) {
             const note = notes.find((n) => n.id === noteId);
-            if (note) updateMidiNote(clip.id, noteId, { pitch: Math.min(MIDI_MAX_NOTE, note.pitch + delta) });
+            if (note) updateMidiNote(clip.id, noteId, { pitch: Math.min(MIDI_MAX_NOTE, note.pitch + 1) });
           }
         } else if (e.key === 'ArrowDown') {
           e.preventDefault();
-          const delta = shift ? 12 : 1;
           for (const noteId of selectedNoteIds) {
             const note = notes.find((n) => n.id === noteId);
-            if (note) updateMidiNote(clip.id, noteId, { pitch: Math.max(0, note.pitch - delta) });
+            if (note) updateMidiNote(clip.id, noteId, { pitch: Math.max(0, note.pitch - 1) });
           }
         } else if (e.key === 'ArrowLeft') {
           e.preventDefault();
@@ -763,7 +771,7 @@ export function PianoRoll() {
       }
 
       // Ctrl+C = copy
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+      if ((e.ctrlKey || e.metaKey) && key === 'c') {
         if (selectedNoteIds.size > 0) {
           const copiedNotes = notes.filter((n) => selectedNoteIds.has(n.id));
           (window as unknown as Record<string, unknown>).__pianoRollClipboard = JSON.parse(JSON.stringify(copiedNotes));
@@ -772,7 +780,7 @@ export function PianoRoll() {
       }
 
       // Ctrl+V = paste
-      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      if ((e.ctrlKey || e.metaKey) && key === 'v') {
         const clipboard = (window as unknown as Record<string, unknown>).__pianoRollClipboard as MidiNote[] | undefined;
         if (clipboard && clipboard.length > 0) {
           e.preventDefault();
@@ -798,7 +806,7 @@ export function PianoRoll() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     clip, notes, selectedNoteIds, drawMode, gridBeats, currentTime, bpm,
-    removeMidiNote, updateMidiNote, addMidiNote,
+    removeMidiNote, updateMidiNote, addMidiNote, snapBeat,
   ]);
 
   // ─── Resize handle (panel height) ─────────────────────────────────────────
