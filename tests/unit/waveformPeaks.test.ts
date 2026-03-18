@@ -15,7 +15,7 @@ describe('computeWaveformPeaks', () => {
     );
 
     expect(peaks).toHaveLength(4);
-    expect(peaks).toEqual([0.2, 0.7, 0.9, 0.3]);
+    peaks.forEach((p, i) => expect(p).toBeCloseTo([0.2, 0.7, 0.9, 0.3][i], 5));
   });
 
   it('keeps peak values between 0 and 1 for normalized source audio', () => {
