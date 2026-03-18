@@ -386,6 +386,96 @@ export function SettingsDialog() {
           {initMessage && !initError && (
             <p className="text-[10px] text-emerald-400">{initMessage}</p>
           )}
+
+          {/* Custom Models inventory */}
+          {availableModels.length > 0 && (
+            <>
+              <h3 className="text-xs font-medium text-zinc-300 pt-2">Custom Models</h3>
+              <div className="bg-[#1a1a1a] rounded border border-daw-border max-h-[140px] overflow-y-auto">
+                <table className="w-full text-[10px]">
+                  <thead>
+                    <tr className="border-b border-daw-border text-zinc-500">
+                      <th className="text-left px-2 py-1.5 font-medium">DiT Model</th>
+                      <th className="text-center px-2 py-1.5 font-medium w-16">Default</th>
+                      <th className="text-center px-2 py-1.5 font-medium w-16">Loaded</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {availableModels.map((m) => (
+                      <tr
+                        key={m.name}
+                        onClick={() => handleModelChange(m.name)}
+                        className={`border-b border-[#2a2a2a] cursor-pointer transition-colors ${
+                          m.name === model ? 'bg-daw-accent/15' : 'hover:bg-[#252525]'
+                        }`}
+                      >
+                        <td className="px-2 py-1.5 text-zinc-200 truncate max-w-[200px]">
+                          {m.name}
+                          {m.name === model && (
+                            <span className="ml-1.5 text-[8px] text-daw-accent font-bold uppercase">selected</span>
+                          )}
+                        </td>
+                        <td className="text-center px-2 py-1.5">
+                          {m.is_default ? (
+                            <span className="text-emerald-400">Yes</span>
+                          ) : (
+                            <span className="text-zinc-600">-</span>
+                          )}
+                        </td>
+                        <td className="text-center px-2 py-1.5">
+                          {m.is_loaded ? (
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          ) : (
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {availableLmModels.length > 0 && (
+                <div className="bg-[#1a1a1a] rounded border border-daw-border max-h-[100px] overflow-y-auto mt-2">
+                  <table className="w-full text-[10px]">
+                    <thead>
+                      <tr className="border-b border-daw-border text-zinc-500">
+                        <th className="text-left px-2 py-1.5 font-medium">LM Model</th>
+                        <th className="text-center px-2 py-1.5 font-medium w-16">Loaded</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {availableLmModels.map((m) => (
+                        <tr
+                          key={m.name}
+                          onClick={() => setSelectedLmModel(m.name)}
+                          className={`border-b border-[#2a2a2a] cursor-pointer transition-colors ${
+                            m.name === selectedLmModel ? 'bg-daw-accent/15' : 'hover:bg-[#252525]'
+                          }`}
+                        >
+                          <td className="px-2 py-1.5 text-zinc-200 truncate max-w-[240px]">
+                            {m.name}
+                            {m.name === selectedLmModel && (
+                              <span className="ml-1.5 text-[8px] text-daw-accent font-bold uppercase">selected</span>
+                            )}
+                          </td>
+                          <td className="text-center px-2 py-1.5">
+                            {m.is_loaded ? (
+                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            ) : (
+                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p className="text-[9px] text-zinc-600 mt-1">
+                Click a row to select it. Selection is saved with project settings.
+              </p>
+            </>
+          )}
         </div>
 
         <div className="px-4 pt-3 pb-1 space-y-2">

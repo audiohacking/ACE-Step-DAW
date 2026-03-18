@@ -40,6 +40,8 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const selectWindow = useUIStore((s) => s.selectWindow);
   const setCoverModal = useUIStore((s) => s.setCoverModal);
   const setRepaintModal = useUIStore((s) => s.setRepaintModal);
+  const setVocal2BGMModal = useUIStore((s) => s.setVocal2BGMModal);
+  const setAnalysisPanel = useUIStore((s) => s.setAnalysisPanel);
 
   // Track generating progress for this clip to show in the status overlay
   const generatingProgress = useGenerationStore((s) => {
@@ -486,10 +488,19 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
             }
             setRepaintModal(clip.id, range);
           }}
+          onVocal2BGM={() => {
+            closeCtxMenu();
+            setVocal2BGMModal(clip.id);
+          }}
+          onAnalyze={() => {
+            closeCtxMenu();
+            setAnalysisPanel(clip.id);
+          }}
           onClose={closeCtxMenu}
           hasPrompt={!!clip.prompt}
           isReady={clip.generationStatus === 'ready'}
           isMidiClip={isMidiClip}
+          isVocalTrack={track.trackName === 'vocals' || track.trackName === 'backing_vocals'}
         />
       )}
 
@@ -617,8 +628,9 @@ function ClipContextMenu({
   onEdit, onGenerate, onRegenerate, onOpenMidi,
   onDuplicate, onDelete, onAddLayer,
   onCreateCover, onRepaint,
+  onVocal2BGM, onAnalyze,
   onClose,
-  hasPrompt, isReady, isMidiClip,
+  hasPrompt, isReady, isMidiClip, isVocalTrack,
 }: {
   x: number;
   y: number;
@@ -631,10 +643,13 @@ function ClipContextMenu({
   onAddLayer: () => void;
   onCreateCover: () => void;
   onRepaint: () => void;
+  onVocal2BGM: () => void;
+  onAnalyze: () => void;
   onClose: () => void;
   hasPrompt: boolean;
   isReady: boolean;
   isMidiClip: boolean;
+  isVocalTrack: boolean;
 }) {
   const clampedX = Math.min(x, window.innerWidth - 210);
   const clampedY = Math.min(y, window.innerHeight - 300);
@@ -670,6 +685,14 @@ function ClipContextMenu({
             </button>
             <button onClick={onRepaint} className="w-full text-left px-3 py-1.5 text-[11px] text-rose-300 hover:bg-daw-accent hover:text-white transition-colors">
               Repaint Selection…
+            </button>
+            {isVocalTrack && (
+              <button onClick={onVocal2BGM} className="w-full text-left px-3 py-1.5 text-[11px] text-emerald-300 hover:bg-daw-accent hover:text-white transition-colors">
+                Generate Accompaniment…
+              </button>
+            )}
+            <button onClick={onAnalyze} className="w-full text-left px-3 py-1.5 text-[11px] text-cyan-300 hover:bg-daw-accent hover:text-white transition-colors">
+              Analyze Audio…
             </button>
           </>
         )}

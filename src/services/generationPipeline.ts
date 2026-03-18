@@ -873,6 +873,166 @@ export async function generateRepaintClip(opts: GenerateRepaintOptions): Promise
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// generateVocal2BGM — generates accompaniment from a vocal reference clip
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Vocal2BGMOptions {
+  /** Source vocal clip whose audio is sent as reference */
+  clipId: string;
+  /** Style/genre description for the accompaniment */
+  caption: string;
+  /** Target instrument track for the BGM result */
+  targetTrackId: string;
+  /** Optional BPM override (null = auto-detect) */
+  bpm: number | null;
+  /** Optional key override ('' = auto-detect) */
+  keyScale: string;
+}
+
+export async function generateVocal2BGM(opts: Vocal2BGMOptions): Promise<void> {
+  const genStore = useGenerationStore.getState();
+  if (genStore.isGenerating) return;
+  genStore.setIsGenerating(true);
+
+  const { clipId, caption, targetTrackId, bpm, keyScale } = opts;
+  const store = useProjectStore.getState();
+
+  const sourceClip = store.getClipById(clipId);
+  const sourceTrack = store.getTrackForClip(clipId);
+  if (!sourceClip || !sourceTrack) {
+    genStore.setIsGenerating(false);
+    return;
+  }
+
+  // Load the vocal audio (prefer isolated, fall back to cumulative)
+  let vocalBlob: Blob | null = null;
+  if (sourceClip.isolatedAudioKey) {
+    vocalBlob = (await loadAudioBlobByKey(sourceClip.isolatedAudioKey)) ?? null;
+  }
+  if (!vocalBlob && sourceClip.cumulativeMixKey) {
+    vocalBlob = (await loadAudioBlobByKey(sourceClip.cumulativeMixKey)) ?? null;
+  }
+  if (!vocalBlob) {
+    genStore.setIsGenerating(false);
+    return;
+  }
+
+  const project = store.project!;
+  const targetTrack = project.tracks.find((t) => t.id === targetTrackId);
+  if (!targetTrack) {
+    genStore.setIsGenerating(false);
+    return;
+  }
+
+  // Create a new clip on the target track
+  const newClip = store.addClip(targetTrackId, {
+    startTime: sourceClip.startTime,
+    duration: sourceClip.duration,
+    prompt: caption,
+    globalCaption: caption,
+    lyrics: '',
+  });
+
+  const jobId = uuidv4();
+  genStore.addJob({
+    id: jobId,
+    clipId: newClip.id,
+    trackName: targetTrack.trackName,
+    status: 'queued',
+    progress: 'Queued',
+  });
+  store.updateClipStatus(newClip.id, 'queued', { generationJobId: jobId });
+
+  try {
+    // Send vocal as reference_audio via the cover endpoint — task_type 'cover'
+    // with low cover_strength so the model treats the vocal as a reference
+    // and generates accompaniment matching the caption.
+    const coverParams: CoverTaskParams = {
+      task_type: 'cover',
+      caption: `accompaniment for vocals: ${caption}`,
+      lyrics: '',
+      cover_strength: 0.8,
+      audio_duration: sourceClip.duration,
+      inference_steps: project.generationDefaults.inferenceSteps,
+      guidance_scale: project.generationDefaults.guidanceScale,
+      shift: project.generationDefaults.shift,
+      batch_size: 1,
+      audio_format: 'wav',
+      thinking: project.generationDefaults.thinking,
+      model: project.generationDefaults.model,
+    };
+
+    genStore.updateJob(jobId, { status: 'generating', progress: 'Submitting...' });
+    store.updateClipStatus(newClip.id, 'generating');
+
+    const releaseResp = await api.releaseLegoTask(vocalBlob, coverParams);
+    const taskId = releaseResp.task_id;
+
+    const startTime = Date.now();
+    let resultAudioPath: string | null = null;
+    let firstResult: TaskResultItem | null = null;
+
+    while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
+      await sleep(POLL_INTERVAL_MS);
+      const entries = await api.queryResult([taskId]);
+      const entry = entries?.[0];
+      if (!entry) continue;
+      genStore.updateJob(jobId, { progress: entry.progress_text || 'Generating accompaniment...' });
+      if (entry.status === 1) {
+        const items: TaskResultItem[] = JSON.parse(entry.result);
+        firstResult = items?.[0] ?? null;
+        resultAudioPath = firstResult?.file ?? null;
+        break;
+      } else if (entry.status === 2) {
+        throw new Error(`Vocal2BGM generation failed: ${entry.result}`);
+      }
+    }
+
+    if (!resultAudioPath) throw new Error('Vocal2BGM generation timed out');
+
+    genStore.updateJob(jobId, { status: 'processing', progress: 'Downloading audio...' });
+    store.updateClipStatus(newClip.id, 'processing');
+
+    const bgmBlob = await api.downloadAudio(resultAudioPath);
+    const engine = getAudioEngine();
+    const buffer = await engine.decodeAudioData(bgmBlob);
+    const peaks = computeWaveformPeaks(buffer, 200);
+
+    const isolatedKey = await saveAudioBlob(project.id, newClip.id, 'isolated', bgmBlob);
+    const cumulativeKey = await saveAudioBlob(project.id, newClip.id, 'cumulative', bgmBlob);
+
+    const inferredMetas: InferredMetas | undefined = firstResult
+      ? {
+          bpm: firstResult.metas?.bpm,
+          keyScale: firstResult.metas?.keyscale,
+          genres: firstResult.metas?.genres,
+          seed: firstResult.seed_value,
+          ditModel: firstResult.dit_model,
+        }
+      : undefined;
+
+    store.updateClipStatus(newClip.id, 'ready', {
+      cumulativeMixKey: cumulativeKey,
+      isolatedAudioKey: isolatedKey,
+      waveformPeaks: peaks,
+      audioDuration: buffer.duration,
+      audioOffset: 0,
+      inferredMetas,
+      generatedFromContext: true,
+    });
+
+    genStore.updateJob(jobId, { status: 'done', progress: 'Done' });
+    store.saveClipVersion(newClip.id);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    store.updateClipStatus(newClip.id, 'error', { errorMessage: message });
+    genStore.updateJob(jobId, { status: 'error', progress: message, error: message });
+  } finally {
+    genStore.setIsGenerating(false);
+  }
+}
+
 /**
  * Extract a server-local file path from the audio URL returned by the backend.
  * The backend URL is typically `/v1/audio?path=/tmp/.../output.wav`.

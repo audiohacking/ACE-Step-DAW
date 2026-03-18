@@ -51,6 +51,10 @@ interface UIState {
   repaintClipId: string | null;
   repaintRange: { start: number; end: number } | null;
 
+  // Vocal2BGM / Audio Analysis
+  vocal2bgmClipId: string | null;
+  analysisClipId: string | null;
+
   setPixelsPerSecond: (pps: number) => void;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -95,6 +99,10 @@ interface UIState {
   // Cover / Repaint modals
   setCoverModal: (clipId: string | null) => void;
   setRepaintModal: (clipId: string | null, range?: { start: number; end: number } | null) => void;
+
+  // Vocal2BGM / Audio Analysis
+  setVocal2BGMModal: (clipId: string | null) => void;
+  setAnalysisPanel: (clipId: string | null) => void;
 }
 
 const ZOOM_LEVELS = [10, 25, 50, 100, 200, 500];
@@ -140,6 +148,9 @@ export const useUIStore = create<UIState>((set) => ({
   coverClipId: null,
   repaintClipId: null,
   repaintRange: null,
+
+  vocal2bgmClipId: null,
+  analysisClipId: null,
 
   setPixelsPerSecond: (pps) => set({ pixelsPerSecond: pps }),
 
@@ -218,4 +229,7 @@ export const useUIStore = create<UIState>((set) => ({
 
   setCoverModal: (clipId) => set({ coverClipId: clipId }),
   setRepaintModal: (clipId, range = null) => set({ repaintClipId: clipId, repaintRange: range }),
+
+  setVocal2BGMModal: (clipId) => set({ vocal2bgmClipId: clipId }),
+  setAnalysisPanel: (clipId) => set({ analysisClipId: clipId }),
 }));
