@@ -81,17 +81,13 @@ describe('uiStore', () => {
       expect(state.loopBrowserOpen).toBe(false);
       expect(state.showLibrary).toBe(false);
     });
-  });
 
-  describe('arrangement view toggle', () => {
-    it('switches between arrangement and session views', () => {
-      expect(useUIStore.getState().arrangementView).toBe('arrangement');
-
-      useUIStore.getState().toggleArrangementView();
-      expect(useUIStore.getState().arrangementView).toBe('session');
-
-      useUIStore.getState().setArrangementView('arrangement');
-      expect(useUIStore.getState().arrangementView).toBe('arrangement');
+    it('toggles the primary arrangement/session view', () => {
+      expect(useUIStore.getState().mainView).toBe('arrangement');
+      useUIStore.getState().toggleMainView();
+      expect(useUIStore.getState().mainView).toBe('session');
+      useUIStore.getState().setMainView('arrangement');
+      expect(useUIStore.getState().mainView).toBe('arrangement');
     });
   });
 
