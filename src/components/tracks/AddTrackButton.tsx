@@ -1,8 +1,10 @@
 import { useUIStore } from '../../store/uiStore';
+import { useProjectStore } from '../../store/projectStore';
 import { useAudioImport } from '../../hooks/useAudioImport';
 
 export function AddTrackButton() {
   const setShowInstrumentPicker = useUIStore((s) => s.setShowInstrumentPicker);
+  const createGroupTrack = useProjectStore((s) => s.createGroupTrack);
   const { openFilePicker } = useAudioImport();
 
   return (
@@ -12,6 +14,19 @@ export function AddTrackButton() {
         className="flex-1 flex items-center justify-center gap-1 h-7 text-[11px] font-medium text-zinc-400 hover:text-white bg-[#3a3a3a] hover:bg-[#484848] rounded transition-colors"
       >
         <span className="text-sm">+</span> Track
+      </button>
+      <button
+        onClick={() => {
+          const name = window.prompt('Group name', 'New Group');
+          if (name?.trim()) createGroupTrack(name.trim());
+        }}
+        className="flex items-center justify-center gap-1 h-7 px-2 text-[11px] font-medium text-zinc-400 hover:text-white bg-[#3a3a3a] hover:bg-[#484848] rounded transition-colors"
+        title="Add group/folder track (Cmd+Shift+G)"
+        aria-label="Add group track"
+      >
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 4h4l2 2h6v7H2V4z" />
+        </svg>
       </button>
       <button
         onClick={openFilePicker}

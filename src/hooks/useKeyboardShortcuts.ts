@@ -110,7 +110,12 @@ function toggleFocusedTrackFlag(flag: 'muted' | 'soloed') {
   const track = project.tracks.find((candidate) => candidate.id === trackId);
   if (!track) return;
 
-  projectStore.updateTrack(trackId, { [flag]: !track[flag] });
+  if (track.isGroup) {
+    if (flag === 'muted') projectStore.setGroupMuted(trackId, !track.muted);
+    else projectStore.setGroupSoloed(trackId, !track.soloed);
+  } else {
+    projectStore.updateTrack(trackId, { [flag]: !track[flag] });
+  }
   useUIStore.getState().setKeyboardContext(useUIStore.getState().keyboardContext.scope, trackId);
 }
 
@@ -393,6 +398,25 @@ export function useKeyboardShortcuts() {
       }
 
       if (matches('view.toggleSnap')) { event.preventDefault(); ui.toggleSnap(); return; }
+
+      // Group track shortcuts
+      if (mod && event.shiftKey && event.code === 'KeyG' && !event.altKey) {
+        event.preventDefault();
+        const name = window.prompt('Group name', 'New Group');
+        if (name?.trim()) project.createGroupTrack(name.trim());
+        return;
+      }
+      if (event.shiftKey && event.code === 'KeyG' && !mod && !event.altKey) {
+        const focusedTrackId = resolveFocusedTrackId();
+        if (focusedTrackId) {
+          const focusedTrack = project.project?.tracks.find((t) => t.id === focusedTrackId);
+          if (focusedTrack?.isGroup) {
+            event.preventDefault();
+            project.toggleGroupCollapse(focusedTrackId);
+            return;
+          }
+        }
+      }
 
       if (event.code === 'KeyG' && !event.shiftKey && !event.altKey) {
         event.preventDefault();

@@ -125,6 +125,10 @@ export function useTransport() {
     const sessionTracks = mainView === 'session' ? getSessionTracks(proj) : [];
     const sessionTrackMap = new Map(sessionTracks.map((entry) => [entry.track.id, entry]));
 
+    // First pass: create all TrackNodes (groups first so children can route to them)
+    for (const track of proj.tracks.filter((t) => t.isGroup)) {
+      engine.getOrCreateTrackNode(track.id);
+    }
     for (const track of proj.tracks) {
       const trackNode = engine.getOrCreateTrackNode(track.id);
       trackNode.volume = track.volume;
@@ -140,6 +144,8 @@ export function useTransport() {
         track.compressorRatio ?? 4,
       );
       trackNode.setReverb(track.reverbMix ?? 0, track.reverbRoomSize ?? 0.5);
+      // Route child tracks through their parent group bus
+      engine.setTrackGroupRouting(track.id, track.parentTrackId ?? null);
 
       // Frozen track: play frozen bounce instead of individual clips/MIDI
       if (track.frozen && track.frozenAudioKey && mainView !== 'session') {
@@ -596,6 +602,8 @@ export function useTransport() {
           track.compressorRatio ?? 4,
         );
         trackNode.setReverb(track.reverbMix ?? 0, track.reverbRoomSize ?? 0.5);
+        // Update group bus routing on live parameter changes
+        engine.setTrackGroupRouting(track.id, track.parentTrackId ?? null);
       }
     }
     engine.updateSoloState();

@@ -46,6 +46,8 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
   const updateTrackMixer = useProjectStore((s) => s.updateTrackMixer);
   const addTrackEffect = useProjectStore((s) => s.addTrackEffect);
   const updateTrackSend = useProjectStore((s) => s.updateTrackSend);
+  const setGroupMuted = useProjectStore((s) => s.setGroupMuted);
+  const setGroupSoloed = useProjectStore((s) => s.setGroupSoloed);
   const setExpandedTrackId = useUIStore((s) => s.setExpandedTrackId);
   const setKeyboardContext = useUIStore((s) => s.setKeyboardContext);
 
@@ -80,6 +82,9 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
     >
       <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 overflow-y-auto">
         <div className="w-full h-1.5 rounded-full mb-0.5" style={{ backgroundColor: track.color }} />
+        {track.isGroup && (
+          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 bg-[#333] rounded px-1.5 py-0.5">GRP</span>
+        )}
         <span className="text-xs text-zinc-300 font-medium leading-none truncate w-full text-center uppercase tracking-wide" title={track.displayName}>
           {isFrozen && <span className="text-cyan-400 mr-0.5" title="Frozen">*</span>}
           {track.displayName}
@@ -87,7 +92,7 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
 
         <div className="flex gap-2 mt-0.5">
           <button
-            onClick={() => updateTrack(track.id, { muted: !track.muted })}
+            onClick={() => track.isGroup ? setGroupMuted(track.id, !track.muted) : updateTrack(track.id, { muted: !track.muted })}
             aria-label={`Mute ${track.displayName}`}
             className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
               track.muted ? 'bg-amber-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
@@ -96,7 +101,7 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
             M
           </button>
           <button
-            onClick={() => updateTrack(track.id, { soloed: !track.soloed })}
+            onClick={() => track.isGroup ? setGroupSoloed(track.id, !track.soloed) : updateTrack(track.id, { soloed: !track.soloed })}
             aria-label={`Solo ${track.displayName}`}
             className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
               track.soloed ? 'bg-emerald-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
@@ -330,7 +335,7 @@ export function MixerPanel() {
               Add tracks to see mixer channels
             </div>
           )}
-          {project.tracks.map((track) => (
+          {[...project.tracks].sort((a, b) => a.order - b.order).map((track) => (
             <ChannelStrip key={track.id} track={track} faderHeight={faderHeight} returnTracks={returnTracks} />
           ))}
           <MasterStrip faderHeight={faderHeight} />

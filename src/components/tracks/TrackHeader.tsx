@@ -13,6 +13,7 @@ const MAX_LANE_HEIGHT = 400;
 
 interface TrackHeaderProps {
   track: Track;
+  isChild?: boolean;
   onDragStart: (id: string) => void;
   onDragOver: (e: React.DragEvent, id: string) => void;
   onDrop: (e: React.DragEvent, id: string) => void;
@@ -22,6 +23,7 @@ interface TrackHeaderProps {
 
 export function TrackHeader({
   track,
+  isChild,
   onDragStart,
   onDragOver,
   onDrop,
@@ -38,6 +40,11 @@ export function TrackHeader({
   const setInputMonitoring = useProjectStore((s) => s.setInputMonitoring);
   const exportTrackMidi = useProjectStore((s) => s.exportTrackMidi);
   const unfreezeTrack = useProjectStore((s) => s.unfreezeTrack);
+  const toggleGroupCollapse = useProjectStore((s) => s.toggleGroupCollapse);
+  const setGroupMuted = useProjectStore((s) => s.setGroupMuted);
+  const setGroupSoloed = useProjectStore((s) => s.setGroupSoloed);
+  const removeGroupTrack = useProjectStore((s) => s.removeGroupTrack);
+  const moveTrackToGroup = useProjectStore((s) => s.moveTrackToGroup);
   const project = useProjectStore((s) => s.project);
 
   // Check if any track is soloed — if so, non-soloed tracks are "implied muted"
@@ -54,6 +61,7 @@ export function TrackHeader({
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [heightSubmenu, setHeightSubmenu] = useState(false);
+  const [groupSubmenu, setGroupSubmenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isFreezing, setIsFreezing] = useState(false);
 
@@ -161,11 +169,16 @@ export function TrackHeader({
       tabIndex={0}
       data-keyboard-context="timeline"
       data-track-id={track.id}
-      className={`relative flex items-center gap-2 px-2 border-b border-[#3a3a3a] group select-none ${
-        isDragOver ? 'bg-[#383838]' : 'bg-[#2d2d2d]'
+      data-group={track.isGroup ? 'true' : undefined}
+      data-child={isChild ? 'true' : undefined}
+      aria-label={track.isGroup ? `Group track: ${track.displayName}${track.collapsed ? ' (collapsed)' : ''}` : `Track: ${track.displayName}`}
+      className={`relative flex items-center gap-2 border-b border-[#3a3a3a] group select-none ${
+        isDragOver ? 'bg-[#383838]' : track.isGroup ? 'bg-[#333]' : 'bg-[#2d2d2d]'
       }`}
       style={{
-        height: laneHeight,
+        height: track.isGroup ? Math.max(40, laneHeight * 0.7) : laneHeight,
+        paddingLeft: isChild ? 24 : 8,
+        paddingRight: 8,
         borderTop: isDragOver && dragOverPosition === 'before' ? '2px solid var(--color-daw-accent)' : undefined,
         borderBottom: isDragOver && dragOverPosition === 'after' ? '2px solid var(--color-daw-accent)' : undefined,
         opacity: isImpliedMute ? 0.45 : undefined,
@@ -209,21 +222,41 @@ export function TrackHeader({
         }}
       />
 
-      {/* Drag handle */}
-      <div
-        className="flex-shrink-0 ml-1 text-zinc-600 hover:text-zinc-400 cursor-grab active:cursor-grabbing text-[10px] leading-none select-none"
-        title="Drag to reorder"
-      >
-        ⠿
-      </div>
+      {/* Group collapse toggle or drag handle */}
+      {track.isGroup ? (
+        <button
+          onClick={(e) => { e.stopPropagation(); toggleGroupCollapse(track.id); }}
+          className="flex-shrink-0 ml-1 w-5 h-5 flex items-center justify-center rounded text-zinc-400 hover:text-zinc-200 hover:bg-[#444] transition-colors"
+          title={track.collapsed ? 'Expand group' : 'Collapse group'}
+          aria-label={track.collapsed ? `Expand group ${track.displayName}` : `Collapse group ${track.displayName}`}
+          aria-expanded={!track.collapsed}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ transform: track.collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 150ms ease' }}
+          >
+            <path d="M2 3.5L5 6.5L8 3.5" />
+          </svg>
+        </button>
+      ) : (
+        <div
+          className="flex-shrink-0 ml-1 text-zinc-600 hover:text-zinc-400 cursor-grab active:cursor-grabbing text-[10px] leading-none select-none"
+          title="Drag to reorder"
+        >
+          ⠿
+        </div>
+      )}
 
-      {/* Instrument icon */}
+      {/* Instrument icon or folder icon */}
       <div
         className="flex-shrink-0 w-6 h-6 rounded flex items-center justify-center text-sm"
         style={{ backgroundColor: track.color + '20' }}
-        title={info.displayName}
+        title={track.isGroup ? 'Group' : info.displayName}
       >
-        {info.emoji}
+        {track.isGroup ? (
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 4h4l2 2h6v7H2V4z" fill={track.color + '40'} />
+          </svg>
+        ) : info.emoji}
       </div>
 
       {/* Name + controls column */}
@@ -279,7 +312,7 @@ export function TrackHeader({
           className="flex items-center gap-0.5 rounded-lg border border-[#494949] bg-[#242424]/95 p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
         >
           <button
-            onClick={() => updateTrack(track.id, { muted: !track.muted })}
+            onClick={() => track.isGroup ? setGroupMuted(track.id, !track.muted) : updateTrack(track.id, { muted: !track.muted })}
             className={`${primaryButtonClass} ${
               track.muted
                 ? 'bg-amber-600/90 text-white'
@@ -303,7 +336,7 @@ export function TrackHeader({
             </svg>
           </button>
           <button
-            onClick={() => updateTrack(track.id, { soloed: !track.soloed })}
+            onClick={() => track.isGroup ? setGroupSoloed(track.id, !track.soloed) : updateTrack(track.id, { soloed: !track.soloed })}
             className={`${primaryButtonClass} ${
               track.soloed
                 ? 'bg-emerald-600/90 text-white'
@@ -516,6 +549,52 @@ export function TrackHeader({
           >
             Duplicate Track
           </button>
+          {/* Move to Group submenu — only for non-group tracks */}
+          {!track.isGroup && (() => {
+            const groups = project?.tracks.filter((t) => t.isGroup) ?? [];
+            return groups.length > 0 ? (
+              <div
+                className="relative"
+                onMouseEnter={() => setGroupSubmenu(true)}
+                onMouseLeave={() => setGroupSubmenu(false)}
+              >
+                <button
+                  className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors flex items-center justify-between"
+                >
+                  Move to Group
+                  <span className="text-zinc-500 text-[9px] ml-2">&#8250;</span>
+                </button>
+                {groupSubmenu && (
+                  <div className="absolute left-full top-0 bg-[#383838] border border-[#555] rounded-lg shadow-2xl py-1 min-w-[130px] z-50">
+                    {groups.map((g) => (
+                      <button
+                        key={g.id}
+                        onClick={() => { setCtxMenu(null); setGroupSubmenu(false); moveTrackToGroup(track.id, g.id); }}
+                        className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
+                          track.parentTrackId === g.id
+                            ? 'text-daw-accent font-medium'
+                            : 'text-zinc-200 hover:bg-daw-accent hover:text-white'
+                        }`}
+                      >
+                        {g.displayName}
+                      </button>
+                    ))}
+                    {track.parentTrackId && (
+                      <>
+                        <div className="my-1 border-t border-[#555]" />
+                        <button
+                          onClick={() => { setCtxMenu(null); setGroupSubmenu(false); moveTrackToGroup(track.id, null); }}
+                          className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-400 hover:bg-daw-accent hover:text-white transition-colors"
+                        >
+                          Remove from Group
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : null;
+          })()}
           <div className="my-1 border-t border-[#555]" />
           <button
             onClick={() => { setCtxMenu(null); openBounceInPlaceDialog(track.id); }}
@@ -546,10 +625,10 @@ export function TrackHeader({
           </button>
           <div className="my-1 border-t border-[#555]" />
           <button
-            onClick={() => { setCtxMenu(null); removeTrack(track.id); }}
+            onClick={() => { setCtxMenu(null); track.isGroup ? removeGroupTrack(track.id) : removeTrack(track.id); }}
             className="w-full text-left px-3 py-1.5 text-[11px] text-red-400 hover:bg-red-600 hover:text-white transition-colors"
           >
-            Delete Track
+            {track.isGroup ? 'Delete Group (keeps children)' : 'Delete Track'}
           </button>
         </div>
       </>
