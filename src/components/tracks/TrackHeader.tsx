@@ -292,78 +292,83 @@ export function TrackHeader({
             <circle cx="6" cy="6" r="3.25" fill={isArmed ? 'currentColor' : 'none'} />
           </svg>
         </button>
-        {/* Input monitoring — cycles off → auto → on */}
-        <button
-          onClick={cycleMonitor}
-          className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
-            monitorMode === 'on'
-              ? 'bg-cyan-600/90 text-white'
-              : monitorMode === 'auto'
-                ? 'bg-cyan-600/50 text-cyan-200'
-                : 'text-zinc-500 hover:text-cyan-400 hover:bg-[#444]'
-          }`}
-          title={`Input monitoring: ${monitorMode} (click to cycle off→auto→on)`}
-          aria-label={`Input monitoring ${track.displayName}: ${monitorMode}`}
-        >
-          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-            <path d="M2 7V6a4 4 0 018 0v1" />
-            <rect x="1" y="7" width="2.5" height="3" rx="0.5" fill={monitorMode !== 'off' ? 'currentColor' : 'none'} />
-            <rect x="8.5" y="7" width="2.5" height="3" rx="0.5" fill={monitorMode !== 'off' ? 'currentColor' : 'none'} />
-          </svg>
-        </button>
-        {/* Freeze toggle */}
-        <button
-          onClick={handleFreeze}
-          disabled={isFreezing}
-          className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
-            track.frozen
-              ? 'bg-cyan-600/90 text-white'
-              : isFreezing
-                ? 'text-cyan-400 animate-pulse'
-                : 'text-zinc-500 hover:text-cyan-400 hover:bg-[#444]'
-          }`}
-          title={track.frozen ? 'Unfreeze Track' : 'Freeze Track'}
-          aria-label={`${track.frozen ? 'Unfreeze' : 'Freeze'} ${track.displayName}`}
-        >
-          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
-            <path d="M6 1v10M1 6h10M3 3l6 6M9 3L3 9" />
-          </svg>
-        </button>
-        {/* Automation toggle */}
-        <button
-          onClick={() => {
-            const project = useProjectStore.getState().project;
-            if (!project) return;
-            const hasLane = (project.automationLanes ?? []).some((l) => l.trackId === track.id);
-            if (!hasLane) {
-              // Create a default volume automation lane with 2 points
-              useProjectStore.getState().addAutomationPoint(
-                track.id,
-                { type: 'mixer', param: 'volume' },
-                { time: 0, value: track.volume },
-              );
-              useProjectStore.getState().addAutomationPoint(
-                track.id,
-                { type: 'mixer', param: 'volume' },
-                { time: project.totalDuration, value: track.volume },
-              );
-            } else {
-              // Clear all automation for this track
-              for (const lane of (project.automationLanes ?? []).filter((l) => l.trackId === track.id)) {
-                useProjectStore.getState().clearAutomationLane(track.id, lane.parameter);
+        {/* Secondary buttons — visible on hover or when active */}
+        <div className={`flex items-center gap-px transition-opacity ${
+          monitorMode !== 'off' || track.frozen || isFreezing || (useProjectStore.getState().project?.automationLanes ?? []).some((l) => l.trackId === track.id)
+            ? 'opacity-100'
+            : 'opacity-0 group-hover:opacity-100'
+        }`}>
+          {/* Input monitoring — microphone icon, cycles off → auto → on */}
+          <button
+            onClick={cycleMonitor}
+            className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
+              monitorMode === 'on'
+                ? 'bg-cyan-600/90 text-white'
+                : monitorMode === 'auto'
+                  ? 'bg-cyan-600/50 text-cyan-200'
+                  : 'text-zinc-500 hover:text-cyan-400 hover:bg-[#444]'
+            }`}
+            title={`Input monitoring: ${monitorMode} (click to cycle off→auto→on)`}
+            aria-label={`Input monitoring ${track.displayName}: ${monitorMode}`}
+          >
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+              <rect x="4" y="1" width="4" height="6" rx="2" fill={monitorMode !== 'off' ? 'currentColor' : 'none'} />
+              <path d="M3 7a3 3 0 006 0" />
+              <path d="M6 10v1.5M4.5 11.5h3" />
+            </svg>
+          </button>
+          {/* Freeze toggle */}
+          <button
+            onClick={handleFreeze}
+            disabled={isFreezing}
+            className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
+              track.frozen
+                ? 'bg-cyan-600/90 text-white'
+                : isFreezing
+                  ? 'text-cyan-400 animate-pulse'
+                  : 'text-zinc-500 hover:text-cyan-400 hover:bg-[#444]'
+            }`}
+            title={track.frozen ? 'Unfreeze Track' : 'Freeze Track'}
+            aria-label={`${track.frozen ? 'Unfreeze' : 'Freeze'} ${track.displayName}`}
+          >
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+              <path d="M6 1v10M1 6h10M3 3l6 6M9 3L3 9" />
+            </svg>
+          </button>
+          {/* Automation toggle */}
+          <button
+            onClick={() => {
+              const project = useProjectStore.getState().project;
+              if (!project) return;
+              const hasLane = (project.automationLanes ?? []).some((l) => l.trackId === track.id);
+              if (!hasLane) {
+                useProjectStore.getState().addAutomationPoint(
+                  track.id,
+                  { type: 'mixer', param: 'volume' },
+                  { time: 0, value: track.volume },
+                );
+                useProjectStore.getState().addAutomationPoint(
+                  track.id,
+                  { type: 'mixer', param: 'volume' },
+                  { time: project.totalDuration, value: track.volume },
+                );
+              } else {
+                for (const lane of (project.automationLanes ?? []).filter((l) => l.trackId === track.id)) {
+                  useProjectStore.getState().clearAutomationLane(track.id, lane.parameter);
+                }
               }
-            }
-          }}
-          className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold transition-colors ${
-            (useProjectStore.getState().project?.automationLanes ?? []).some((l) => l.trackId === track.id)
-              ? 'bg-amber-600/80 text-white'
-              : 'text-zinc-500 hover:text-amber-400 hover:bg-[#444]'
-          }`}
-          title="Toggle automation lane (A)"
-          aria-label={`Toggle automation ${track.displayName}`}
-        >
-          A
-        </button>
+            }}
+            className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold transition-colors ${
+              (useProjectStore.getState().project?.automationLanes ?? []).some((l) => l.trackId === track.id)
+                ? 'bg-amber-600/80 text-white'
+                : 'text-zinc-500 hover:text-amber-400 hover:bg-[#444]'
+            }`}
+            title="Toggle automation lane (A)"
+            aria-label={`Toggle automation ${track.displayName}`}
+          >
+            A
+          </button>
+        </div>
         {/* Delete - hidden by default, visible on hover */}
         <button
           onClick={() => removeTrack(track.id)}
