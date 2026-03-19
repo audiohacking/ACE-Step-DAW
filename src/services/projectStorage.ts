@@ -1,7 +1,8 @@
 import { get, set, del, keys } from 'idb-keyval';
-import type { Project } from '../types/project';
+import type { Project, ProjectTemplate } from '../types/project';
 
 const PROJECT_PREFIX = 'project:';
+const TEMPLATE_PREFIX = 'template:';
 const AUDIO_PREFIX = 'audio:';
 const ARCHIVE_MAGIC = 'ACED';
 
@@ -10,6 +11,14 @@ export interface ProjectSummary {
   name: string;
   createdAt: number;
   updatedAt: number;
+  trackCount: number;
+}
+
+export interface TemplateSummary {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: number;
   trackCount: number;
 }
 
@@ -51,6 +60,46 @@ export async function listProjects(): Promise<ProjectSummary[]> {
   }
 
   return summaries.sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+// ── Project templates (IndexedDB) ──
+
+export async function saveTemplate(template: ProjectTemplate): Promise<void> {
+  await set(`${TEMPLATE_PREFIX}${template.id}`, JSON.stringify(template));
+}
+
+export async function loadTemplate(id: string): Promise<ProjectTemplate | null> {
+  const data = await get<string>(`${TEMPLATE_PREFIX}${id}`);
+  if (!data) return null;
+  return JSON.parse(data);
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  await del(`${TEMPLATE_PREFIX}${id}`);
+}
+
+export async function listTemplates(): Promise<TemplateSummary[]> {
+  const allKeys = await keys();
+  const templateKeys = allKeys.filter(
+    (k) => typeof k === 'string' && k.startsWith(TEMPLATE_PREFIX),
+  );
+
+  const summaries: TemplateSummary[] = [];
+  for (const key of templateKeys) {
+    const data = await get<string>(key as string);
+    if (data) {
+      const template = JSON.parse(data) as ProjectTemplate;
+      summaries.push({
+        id: template.id,
+        name: template.name,
+        description: template.description,
+        createdAt: template.createdAt,
+        trackCount: template.tracks.length,
+      });
+    }
+  }
+
+  return summaries.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 // ── Archive file export/import (.acedaw) ──

@@ -14,6 +14,9 @@ vi.mock('../../src/services/projectStorage', () => ({
   listProjects: (...args: unknown[]) => mockListProjects(...(args as [])),
   loadProject: (...args: unknown[]) => mockLoadProject(...(args as [])),
   saveProject: (...args: unknown[]) => mockSaveProject(...(args as [])),
+  listTemplates: vi.fn().mockResolvedValue([]),
+  loadTemplate: vi.fn().mockResolvedValue(null),
+  deleteTemplate: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../src/services/aceStepApi', () => ({
