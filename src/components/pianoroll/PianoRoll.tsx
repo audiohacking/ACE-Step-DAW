@@ -49,6 +49,7 @@ export function PianoRoll() {
   const setOpenPianoRoll = useUIStore((s) => s.setOpenPianoRoll);
   const setKeyboardContext = useUIStore((s) => s.setKeyboardContext);
   const openGeneratePatternDialog = useUIStore((s) => s.openGeneratePatternDialog);
+  const openQuantizeDialog = useUIStore((s) => s.openQuantizeDialog);
   const setHistoryFocusScope = useUIStore((s) => s.setHistoryFocusScope);
 
   useEffect(() => {
@@ -263,6 +264,21 @@ export function PianoRoll() {
         </select>
 
         {clip && <TransformMenu clipId={clip.id} selectedNoteIds={selectedNoteIds} />}
+
+        {clip && (
+          <button
+            className="px-2 py-1 rounded text-[10px] bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200 transition-colors"
+            onClick={() => {
+              const noteIds = selectedNoteIds.size > 0
+                ? Array.from(selectedNoteIds)
+                : (clip.midiData?.notes.map((n) => n.id) ?? []);
+              if (noteIds.length > 0) openQuantizeDialog(clip.id, noteIds);
+            }}
+            title="Quantize notes with options (Ctrl+Q)"
+          >
+            Quantize
+          </button>
+        )}
 
         {clip && (
           <button
