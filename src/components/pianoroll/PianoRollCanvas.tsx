@@ -33,6 +33,7 @@ interface NoteDragState {
   originalDurationBeats: number;
   originalVelocity: number;
   isBoxSelect?: boolean;
+  boxSelectBaseSelection?: Set<string>;
   boxStartX?: number;
   boxStartY?: number;
 }
@@ -542,10 +543,12 @@ export function PianoRollCanvas({
         return;
       }
 
-      // Click on empty space: create a note (like FL Studio / Ableton)
-      // Shift+click or Shift+drag = box select
-      if (e.shiftKey) {
-        setSelectedNoteIds(new Set());
+      // In select mode, dragging empty space starts marquee selection by default.
+      // Shift preserves the current selection and adds intersecting notes.
+      if (activeTool === 'select') {
+        if (!e.shiftKey) {
+          setSelectedNoteIds(new Set());
+        }
         dragRef.current = {
           mode: null,
           noteId: '',
@@ -556,6 +559,7 @@ export function PianoRollCanvas({
           originalDurationBeats: 0,
           originalVelocity: 0,
           isBoxSelect: true,
+          boxSelectBaseSelection: e.shiftKey ? new Set(selectedNoteIds) : new Set(),
           boxStartX: x,
           boxStartY: y,
         };
@@ -663,7 +667,7 @@ export function PianoRollCanvas({
         const boxX2 = Math.max(x, drag.boxStartX!);
         const boxY2 = Math.max(y, drag.boxStartY!);
 
-        const nextSelectedIds = new Set<string>();
+        const nextSelectedIds = new Set(drag.boxSelectBaseSelection ?? []);
         for (const note of notes) {
           const noteX = beatToX(note.startBeat);
           const noteY = pitchToY(note.pitch);

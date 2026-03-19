@@ -271,4 +271,75 @@ describe('PianoRollCanvas — context menu accessibility (#298)', () => {
       velocity: 100,
     });
   });
+
+  it('starts marquee selection when dragging empty space in select mode without Shift (#393)', () => {
+    const note = makeNote();
+    const clip = makeClip([note]);
+
+    const { container } = render(
+      <PianoRollCanvas
+        clip={clip}
+        track={makeTrack()}
+        activeTool="select"
+        gridSize="1/4"
+        prZoomX={1}
+        onZoomXChange={vi.fn()}
+        selectedNoteIds={new Set<string>()}
+        onSelectedNoteIdsChange={setSelectedNoteIds}
+      />,
+    );
+
+    const canvas = container.querySelector('canvas')!;
+
+    fireEvent.mouseDown(canvas, {
+      clientX: 110,
+      clientY: 150,
+    });
+    fireEvent.mouseMove(window, {
+      clientX: 50,
+      clientY: 180,
+    });
+
+    const lastSelection = setSelectedNoteIds.mock.calls.at(-1)?.[0];
+    expect(lastSelection).toEqual(new Set(['note-1']));
+  });
+
+  it('keeps the existing selection when Shift-dragging an additive marquee (#393)', () => {
+    const noteOne = makeNote();
+    const noteTwo = makeNote({
+      id: 'note-2',
+      pitch: 72,
+      startBeat: 4,
+    });
+    const clip = makeClip([noteOne, noteTwo]);
+
+    const { container } = render(
+      <PianoRollCanvas
+        clip={clip}
+        track={makeTrack()}
+        activeTool="select"
+        gridSize="1/4"
+        prZoomX={1}
+        onZoomXChange={vi.fn()}
+        selectedNoteIds={new Set(['note-2'])}
+        onSelectedNoteIdsChange={setSelectedNoteIds}
+      />,
+    );
+
+    const canvas = container.querySelector('canvas')!;
+
+    fireEvent.mouseDown(canvas, {
+      clientX: 110,
+      clientY: 150,
+      shiftKey: true,
+    });
+    fireEvent.mouseMove(window, {
+      clientX: 50,
+      clientY: 180,
+      shiftKey: true,
+    });
+
+    const lastSelection = setSelectedNoteIds.mock.calls.at(-1)?.[0];
+    expect(lastSelection).toEqual(new Set(['note-1', 'note-2']));
+  });
 });
