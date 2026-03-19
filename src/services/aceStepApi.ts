@@ -2,6 +2,7 @@ import type {
   LegoTaskParams,
   CoverTaskParams,
   RepaintTaskParams,
+  StemSeparationTaskParams,
   ApiEnvelope,
   ReleaseTaskResponse,
   TaskResultEntry,
@@ -11,7 +12,11 @@ import type {
   InitModelResponse,
 } from '../types/api';
 
-export type AceStepTaskParams = LegoTaskParams | CoverTaskParams | RepaintTaskParams;
+export type AceStepTaskParams =
+  | LegoTaskParams
+  | CoverTaskParams
+  | RepaintTaskParams
+  | StemSeparationTaskParams;
 import { downsampleWavBlob } from '../utils/audioDownsample';
 
 const BACKEND_URL_KEY = 'ace-step-daw-backend-url';
@@ -118,21 +123,21 @@ export async function getStats(): Promise<StatsResponse> {
 const RELEASE_TASK_TIMEOUT_MS = 3 * 60 * 1000;
 const RELEASE_TASK_MAX_RETRIES = 3;
 
-export async function releaseLegoTask(
+async function releaseTask(
   srcAudioBlob: Blob,
   params: AceStepTaskParams,
 ): Promise<ReleaseTaskResponse> {
   const base = getApiBase();
 
-  const legoParams = params as Partial<LegoTaskParams>;
-  const usePath = Boolean(legoParams.src_audio_path);
+  const taskParams = params as Partial<LegoTaskParams>;
+  const usePath = Boolean(taskParams.src_audio_path);
 
   console.log(
-    `[aceStepApi] releaseLegoTask: ${usePath ? `src_audio_path=${legoParams.src_audio_path}` : `src_audio blob size=${srcAudioBlob.size}`}`,
+    `[aceStepApi] releaseTask: ${usePath ? `src_audio_path=${taskParams.src_audio_path}` : `src_audio blob size=${srcAudioBlob.size}`}`,
     `task_type=${params.task_type}`,
-    `audio_duration=${params.audio_duration}`,
-    `repainting_start=${legoParams.repainting_start}`,
-    `repainting_end=${legoParams.repainting_end}`,
+    'audio_duration' in params ? `audio_duration=${params.audio_duration}` : 'audio_duration=n/a',
+    'repainting_start' in taskParams ? `repainting_start=${taskParams.repainting_start}` : 'repainting_start=n/a',
+    'repainting_end' in taskParams ? `repainting_end=${taskParams.repainting_end}` : 'repainting_end=n/a',
   );
 
   // Only downsample and upload the blob when no server-side path is provided.
@@ -193,7 +198,21 @@ export async function releaseLegoTask(
     }
   }
 
-  throw lastError ?? new Error('releaseLegoTask failed after retries');
+  throw lastError ?? new Error('releaseTask failed after retries');
+}
+
+export async function releaseLegoTask(
+  srcAudioBlob: Blob,
+  params: LegoTaskParams | CoverTaskParams | RepaintTaskParams,
+): Promise<ReleaseTaskResponse> {
+  return releaseTask(srcAudioBlob, params);
+}
+
+export async function releaseStemSeparationTask(
+  srcAudioBlob: Blob,
+  params: StemSeparationTaskParams,
+): Promise<ReleaseTaskResponse> {
+  return releaseTask(srcAudioBlob, params);
 }
 
 export async function queryResult(taskIds: string[]): Promise<TaskResultEntry[]> {

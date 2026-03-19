@@ -60,11 +60,13 @@ import {
 import { saveProject as saveProjectToIDB } from '../services/projectStorage';
 import { exportStemToWav, type ExportClip } from '../engine/exportMix';
 import { applyTransform, type TransformOptions } from '../utils/midiTransforms';
-import { loadAudioBlobByKey } from '../services/audioFileManager';
+import { loadAudioBlobByKey, saveAudioBlob } from '../services/audioFileManager';
 import { getAudioEngine } from '../hooks/useAudioEngine';
 import { renderMidiTrackOffline, renderSequencerTrackOffline } from '../engine/offlineRender';
 import { convertClipAudioToMidi } from '../services/audioToMidi';
 import { createDefaultParametricEqBands } from '../utils/parametricEq';
+import type { StemCount } from '../types/api';
+import { separateClipAudioToStems } from '../services/stemSeparation';
 import { beatToTime, getBeatAtBar } from '../utils/tempoMap';
 
 function getBarDurationSec(bpm: number, timeSig: number): number {
@@ -275,6 +277,7 @@ interface ProjectState {
 
   /** Convert an audio clip to MIDI, creating a new piano roll track with detected notes. */
   convertAudioToMidi: (clipId: string, options?: { threshold?: number; minConfidence?: number; minNoteDuration?: number }) => Promise<{ trackId: string; clipId: string } | undefined>;
+  separateStems: (clipId: string, stemCount: StemCount) => Promise<Track[] | undefined>;
 
   /** Export each track as a separate WAV file (stem export). */
   exportStems: () => Promise<void>;
@@ -3203,6 +3206,117 @@ export const useProjectStore = create<ProjectState>()(
       }
     }
     return Math.max(MIN_TIMELINE_DURATION, maxEnd);
+  },
+
+  separateStems: async (clipId, stemCount) => {
+    const state = get();
+    const project = state.project;
+    if (!project) return undefined;
+
+    const sourceTrack = project.tracks.find((track) => track.clips.some((clip) => clip.id === clipId));
+    if (!sourceTrack) {
+      throw new Error(`Track for clip '${clipId}' not found`);
+    }
+
+    const sourceClip = sourceTrack.clips.find((clip) => clip.id === clipId);
+    if (!sourceClip) {
+      throw new Error(`Clip '${clipId}' not found`);
+    }
+
+    const audioKey = sourceClip.isolatedAudioKey ?? sourceClip.cumulativeMixKey;
+    if (!audioKey) {
+      throw new Error('Stem separation requires an audio clip');
+    }
+
+    const sourceBlob = await loadAudioBlobByKey(audioKey);
+    if (!sourceBlob) {
+      throw new Error(`Audio for clip '${clipId}' not found`);
+    }
+
+    const preparedStems = await separateClipAudioToStems({
+      clipId,
+      sourceBlob,
+      stemCount,
+      sourceLabel: sourceTrack.displayName,
+    });
+
+    const latest = get();
+    if (!latest.project) return undefined;
+    _pushHistory(latest.project);
+
+    const existingOrders = latest.project.tracks.map((track) => track.order);
+    let nextOrder = existingOrders.length > 0 ? Math.max(...existingOrders) + 1 : 1;
+    const existingNames = latest.project.tracks.map((track) => track.displayName);
+    const appendedTracks: Track[] = [];
+
+    for (const stem of preparedStems) {
+      let displayName = stem.displayName;
+      let suffix = 2;
+      while (existingNames.includes(displayName)) {
+        displayName = `${stem.displayName} ${suffix}`;
+        suffix += 1;
+      }
+      existingNames.push(displayName);
+
+      const newTrackId = uuidv4();
+      const newClipId = uuidv4();
+      const isolatedKey = await saveAudioBlob(latest.project.id, newClipId, 'isolated', stem.audioBlob);
+
+      appendedTracks.push({
+        id: newTrackId,
+        trackType: 'sample',
+        trackName: stem.trackName,
+        displayName,
+        color: stem.color,
+        order: nextOrder++,
+        volume: 0.8,
+        muted: false,
+        soloed: false,
+        clips: [{
+          id: newClipId,
+          trackId: newTrackId,
+          startTime: sourceClip.startTime,
+          duration: sourceClip.duration,
+          prompt: `${displayName} stem`,
+          lyrics: '',
+          generationStatus: 'ready',
+          generationJobId: null,
+          cumulativeMixKey: null,
+          isolatedAudioKey: isolatedKey,
+          waveformPeaks: stem.waveformPeaks,
+          audioDuration: stem.audioDuration,
+          audioOffset: 0,
+          source: 'uploaded',
+        }],
+        effects: [],
+      });
+    }
+
+    const newAssets: AssetClip[] = appendedTracks.flatMap((track) => track.clips.map((clip) => ({
+      id: uuidv4(),
+      clipId: clip.id,
+      trackDisplayName: track.displayName,
+      prompt: clip.prompt,
+      source: clip.source ?? 'uploaded',
+      isolatedAudioKey: clip.isolatedAudioKey,
+      cumulativeMixKey: clip.cumulativeMixKey,
+      waveformPeaks: clip.waveformPeaks,
+      starred: false,
+      createdAt: Date.now(),
+      duration: clip.duration,
+    })));
+    const updatedTracks = [...latest.project.tracks, ...appendedTracks];
+    set({
+      project: {
+        ...latest.project,
+        updatedAt: Date.now(),
+        totalDuration: computeTotalDuration(updatedTracks, latest.project.measures, latest.project.bpm, latest.project.timeSignature),
+        tracks: updatedTracks,
+        assets: [...(latest.project.assets ?? []), ...newAssets],
+      },
+    });
+
+    return appendedTracks;
   },
 
   convertAudioToMidi: async (clipId, options) => {

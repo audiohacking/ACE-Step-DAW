@@ -12,6 +12,7 @@ interface ClipContextMenuProps {
   onRepaint: () => void;
   onVocal2BGM: () => void;
   onAnalyze: () => void;
+  onSeparateStems: () => void;
   onConvertToMidi: () => void;
   onClose: () => void;
   hasPrompt: boolean;
@@ -35,6 +36,7 @@ export function ClipContextMenu({
   onRepaint,
   onVocal2BGM,
   onAnalyze,
+  onSeparateStems,
   onConvertToMidi,
   onClose,
   hasPrompt,
@@ -78,6 +80,11 @@ export function ClipContextMenu({
             <button onClick={onRepaint} className="w-full text-left px-3 py-1.5 text-[11px] text-rose-300 hover:bg-daw-accent hover:text-white transition-colors">
               Repaint Selection…
             </button>
+            {hasAudio && (
+              <button onClick={onSeparateStems} className="w-full text-left px-3 py-1.5 text-[11px] text-sky-300 hover:bg-daw-accent hover:text-white transition-colors">
+                Separate Stems…
+              </button>
+            )}
             {isVocalTrack && (
               <button onClick={onVocal2BGM} className="w-full text-left px-3 py-1.5 text-[11px] text-emerald-300 hover:bg-daw-accent hover:text-white transition-colors">
                 Generate Accompaniment…

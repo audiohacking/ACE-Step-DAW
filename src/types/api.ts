@@ -36,6 +36,14 @@ export interface RepaintTaskParams {
   use_random_seed?: boolean;
 }
 
+export type StemCount = 2 | 4 | 6;
+
+export interface StemSeparationTaskParams {
+  task_type: 'stem_separation';
+  stem_count: StemCount;
+  audio_format: 'wav';
+}
+
 export interface LegoTaskParams {
   task_type: 'lego';
   track_name: string;
