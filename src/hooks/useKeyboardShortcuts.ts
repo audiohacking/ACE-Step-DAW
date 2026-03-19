@@ -10,23 +10,36 @@ import { useRecording } from './useRecording';
 import { getMidiCaptureService } from '../services/midiCaptureService';
 import type { KeyCombo } from '../types/shortcuts';
 
-function isInputFocused(e: KeyboardEvent): boolean {
+function isInputFocused(event: KeyboardEvent): boolean {
   return (
-    e.target instanceof HTMLInputElement ||
-    e.target instanceof HTMLTextAreaElement ||
-    e.target instanceof HTMLSelectElement
+    event.target instanceof HTMLInputElement ||
+    event.target instanceof HTMLTextAreaElement ||
+    event.target instanceof HTMLSelectElement
+  );
+}
+
+const NUDGE_SECONDS = 5;
+const DEFAULT_PIXELS_PER_SECOND = 50;
+
+function eventMatchesCombo(event: KeyboardEvent, combo: KeyCombo): boolean {
+  const mod = event.metaKey || event.ctrlKey;
+  return (
+    event.code === combo.code &&
+    mod === !!combo.mod &&
+    event.shiftKey === !!combo.shift &&
+    event.altKey === !!combo.alt
   );
 }
 
 function getBounceTargetTrackId(): string | null {
   const ui = useUIStore.getState();
-  const projectState = useProjectStore.getState();
-  const project = projectState.project;
+  const projectStore = useProjectStore.getState();
+  const project = projectStore.project;
   if (!project) return null;
 
   const [selectedClipId] = [...ui.selectedClipIds];
   if (selectedClipId) {
-    const track = projectState.getTrackForClip(selectedClipId);
+    const track = projectStore.getTrackForClip(selectedClipId);
     if (track) return track.id;
   }
 
@@ -39,18 +52,73 @@ function getBounceTargetTrackId(): string | null {
     ?? null;
 }
 
-const NUDGE_SECONDS = 5;
-const DEFAULT_PIXELS_PER_SECOND = 50;
+function resolveFocusedTrackId(): string | null {
+  const ui = useUIStore.getState();
+  const project = useProjectStore.getState().project;
+  if (!project) return null;
 
-/** Check whether a keyboard event matches a KeyCombo binding. */
-function eventMatchesCombo(e: KeyboardEvent, combo: KeyCombo): boolean {
-  const mod = e.metaKey || e.ctrlKey;
-  return (
-    e.code === combo.code &&
-    mod === !!combo.mod &&
-    e.shiftKey === !!combo.shift &&
-    e.altKey === !!combo.alt
-  );
+  const inProject = (trackId: string | null | undefined) =>
+    trackId ? project.tracks.find((track) => track.id === trackId)?.id ?? null : null;
+
+  const keyboardTrackId = inProject(ui.keyboardContext.trackId);
+  if (keyboardTrackId) return keyboardTrackId;
+
+  const editorTrackId = inProject(ui.openPianoRollTrackId)
+    ?? inProject(ui.openSequencerTrackId)
+    ?? inProject(ui.openDrumMachineTrackId)
+    ?? inProject(ui.expandedTrackId);
+  if (editorTrackId) return editorTrackId;
+
+  if (ui.selectedClipIds.size > 0) {
+    const selectedClipIds = new Set(ui.selectedClipIds);
+    for (const track of project.tracks) {
+      if (track.clips.some((clip) => selectedClipIds.has(clip.id))) {
+        return track.id;
+      }
+    }
+  }
+
+  return project.tracks[0]?.id ?? null;
+}
+
+function focusTrack(delta: number) {
+  const ui = useUIStore.getState();
+  const project = useProjectStore.getState().project;
+  if (!project || project.tracks.length === 0) return;
+
+  const orderedTracks = [...project.tracks].sort((a, b) => a.order - b.order);
+  const currentId = resolveFocusedTrackId();
+  const currentIndex = Math.max(0, orderedTracks.findIndex((track) => track.id === currentId));
+  const nextIndex = Math.min(orderedTracks.length - 1, Math.max(0, currentIndex + delta));
+  const nextTrack = orderedTracks[nextIndex];
+  if (!nextTrack) return;
+
+  ui.setExpandedTrackId(nextTrack.id);
+  ui.setKeyboardContext(ui.keyboardContext.scope, nextTrack.id);
+
+  if (ui.keyboardContext.scope === 'pianoRoll' && ui.openPianoRollTrackId) {
+    ui.setOpenPianoRoll(nextTrack.id);
+  }
+}
+
+function toggleFocusedTrackFlag(flag: 'muted' | 'soloed') {
+  const trackId = resolveFocusedTrackId();
+  const projectStore = useProjectStore.getState();
+  const project = projectStore.project;
+  if (!project || !trackId) return;
+
+  const track = project.tracks.find((candidate) => candidate.id === trackId);
+  if (!track) return;
+
+  projectStore.updateTrack(trackId, { [flag]: !track[flag] });
+  useUIStore.getState().setKeyboardContext(useUIStore.getState().keyboardContext.scope, trackId);
+}
+
+function shouldDeferToPianoRollTools(event: KeyboardEvent): boolean {
+  const ui = useUIStore.getState();
+  if (ui.keyboardContext.scope !== 'pianoRoll') return false;
+  if (event.metaKey || event.ctrlKey || event.altKey) return false;
+  return ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'KeyB'].includes(event.code);
 }
 
 export function useKeyboardShortcuts() {
@@ -58,96 +126,80 @@ export function useKeyboardShortcuts() {
   const { toggleRecord } = useRecording();
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
+    const handler = (event: KeyboardEvent) => {
+      const mod = event.metaKey || event.ctrlKey;
       const getCombo = useShortcutsStore.getState().getCombo;
       const ui = useUIStore.getState();
+      const project = useProjectStore.getState();
+      const transport = useTransportStore.getState();
+      const generation = useGenerationStore.getState();
       const activeHistoryScope = ui.historyFocusScope;
+      const matches = (actionId: string) => eventMatchesCombo(event, getCombo(actionId));
 
-      if (mod && e.code === 'KeyK') {
-        e.preventDefault();
-        if (ui.showCommandPalette) {
-          ui.closeCommandPalette();
-        } else {
-          ui.openCommandPalette();
-        }
+      if (mod && event.code === 'KeyK') {
+        event.preventDefault();
+        if (ui.showCommandPalette) ui.closeCommandPalette();
+        else ui.openCommandPalette();
         return;
       }
 
-      // Undo/Redo are always available — even when an input field is focused
-      if (mod && e.code === 'KeyZ' && !e.altKey) {
-        if (!isInputFocused(e)) {
-          e.preventDefault();
-          if (e.shiftKey) {
-            useProjectStore.getState().redo(activeHistoryScope);
-          } else {
-            useProjectStore.getState().undo(activeHistoryScope);
-          }
-          return;
-        }
+      if (mod && event.code === 'KeyZ' && !event.altKey && !isInputFocused(event)) {
+        event.preventDefault();
+        if (event.shiftKey) useProjectStore.getState().redo(activeHistoryScope);
+        else useProjectStore.getState().undo(activeHistoryScope);
+        return;
       }
 
-      if (mod && e.altKey && e.code === 'KeyZ') {
-        if (!isInputFocused(e)) {
-          e.preventDefault();
-          ui.setShowUndoHistoryPanel(!ui.showUndoHistoryPanel);
-          return;
-        }
+      if (mod && event.altKey && event.code === 'KeyZ' && !isInputFocused(event)) {
+        event.preventDefault();
+        ui.setShowUndoHistoryPanel(!ui.showUndoHistoryPanel);
+        return;
       }
 
-      if (isInputFocused(e)) return;
-      const project = useProjectStore.getState();
-      const transport = useTransportStore.getState();
-      const gen = useGenerationStore.getState();
+      if (isInputFocused(event)) return;
 
-      // ─── Helper: check if event matches a given action's binding ───
-      const matches = (actionId: string) => eventMatchesCombo(e, getCombo(actionId));
-
-      // -----------------------------------------------------------------------
-      // Escape — close topmost modal in priority order (not rebindable)
-      // -----------------------------------------------------------------------
-      if (e.code === 'Escape') {
+      if (event.code === 'Escape') {
         if (ui.showCommandPalette) {
-          e.preventDefault();
+          event.preventDefault();
           ui.closeCommandPalette();
         } else if (ui.showUndoHistoryPanel) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setShowUndoHistoryPanel(false);
         } else if (ui.showAIAssistant) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setShowAIAssistant(false);
         } else if (ui.bounceInPlaceTrackId !== null) {
-          e.preventDefault();
+          event.preventDefault();
           ui.closeBounceInPlaceDialog();
         } else if (ui.editingClipId !== null) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setEditingClip(null);
         } else if (ui.batchGenerateMode !== null) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setBatchGenerateMode(null);
         } else if (ui.showKeyboardShortcutsDialog) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setShowKeyboardShortcutsDialog(false);
         } else if (ui.showShortcutEditorDialog) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setShowShortcutEditorDialog(false);
         } else if (ui.showInstrumentPicker) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setShowInstrumentPicker(false);
         } else if (ui.showSettingsDialog) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setShowSettingsDialog(false);
         } else if (ui.showExportDialog) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setShowExportDialog(false);
         } else if (ui.showProjectListDialog) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setShowProjectListDialog(false);
         } else if (ui.selectWindow !== null) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setSelectWindow(null);
         } else if (ui.contextWindow !== null) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setContextWindow(null);
         } else {
           ui.deselectAll();
@@ -155,7 +207,6 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Don't fire any other shortcut when a modal is open (except Escape above)
       const anyModalOpen =
         ui.showCommandPalette ||
         ui.editingClipId !== null ||
@@ -169,24 +220,18 @@ export function useKeyboardShortcuts() {
         ui.showProjectListDialog ||
         ui.showNewProjectDialog;
 
-      // -----------------------------------------------------------------------
-      // Mod shortcuts — zoom always works, others check anyModalOpen
-      // -----------------------------------------------------------------------
+      if (matches('view.zoomIn')) { event.preventDefault(); ui.zoomIn(); return; }
+      if (matches('view.zoomOut')) { event.preventDefault(); ui.zoomOut(); return; }
+      if (matches('view.zoomReset')) { event.preventDefault(); ui.setPixelsPerSecond(DEFAULT_PIXELS_PER_SECOND); return; }
 
-      // Zoom (always)
-      if (matches('view.zoomIn')) { e.preventDefault(); ui.zoomIn(); return; }
-      if (matches('view.zoomOut')) { e.preventDefault(); ui.zoomOut(); return; }
-      if (matches('view.zoomReset')) { e.preventDefault(); ui.setPixelsPerSecond(DEFAULT_PIXELS_PER_SECOND); return; }
-
-      // Project shortcuts (require no modal)
-      if (matches('project.settings')) { e.preventDefault(); if (!anyModalOpen) ui.setShowSettingsDialog(true); return; }
-      if (matches('project.new')) { e.preventDefault(); if (!anyModalOpen) ui.setShowNewProjectDialog(true); return; }
-      if (matches('project.open')) { e.preventDefault(); if (!anyModalOpen) ui.setShowProjectListDialog(true); return; }
-      if (matches('project.export')) { e.preventDefault(); if (!anyModalOpen) ui.setShowExportDialog(true); return; }
-      if (matches('project.addTrack')) { e.preventDefault(); if (!anyModalOpen) ui.setShowInstrumentPicker(true); return; }
-      if (matches('project.help')) { e.preventDefault(); if (!anyModalOpen) ui.setShowKeyboardShortcutsDialog(true); return; }
+      if (matches('project.settings')) { event.preventDefault(); if (!anyModalOpen) ui.setShowSettingsDialog(true); return; }
+      if (matches('project.new')) { event.preventDefault(); if (!anyModalOpen) ui.setShowNewProjectDialog(true); return; }
+      if (matches('project.open')) { event.preventDefault(); if (!anyModalOpen) ui.setShowProjectListDialog(true); return; }
+      if (matches('project.export')) { event.preventDefault(); if (!anyModalOpen) ui.setShowExportDialog(true); return; }
+      if (matches('project.addTrack')) { event.preventDefault(); if (!anyModalOpen) ui.setShowInstrumentPicker(true); return; }
+      if (matches('project.help')) { event.preventDefault(); if (!anyModalOpen) ui.setShowKeyboardShortcutsDialog(true); return; }
       if (matches('project.bounceInPlace')) {
-        e.preventDefault();
+        event.preventDefault();
         if (!anyModalOpen) {
           const trackId = getBounceTargetTrackId();
           if (trackId) ui.openBounceInPlaceDialog(trackId);
@@ -194,46 +239,39 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Generation
       if (matches('generation.context')) {
-        e.preventDefault();
-        if (!anyModalOpen && !gen.isGenerating) ui.setBatchGenerateMode('context');
+        event.preventDefault();
+        if (!anyModalOpen && !generation.isGenerating) ui.setBatchGenerateMode('context');
         return;
       }
       if (matches('generation.silence')) {
-        e.preventDefault();
-        if (!anyModalOpen && !gen.isGenerating) ui.setBatchGenerateMode('silence');
+        event.preventDefault();
+        if (!anyModalOpen && !generation.isGenerating) ui.setBatchGenerateMode('silence');
         return;
       }
 
-      // AI Assistant
-      if (matches('panels.aiAssistant')) { e.preventDefault(); ui.toggleAIAssistant(); return; }
+      if (matches('panels.aiAssistant')) { event.preventDefault(); ui.toggleAIAssistant(); return; }
 
-      // Clip actions with mod
       if (matches('clips.selectAll')) {
-        e.preventDefault();
+        event.preventDefault();
         if (!anyModalOpen && project.project) {
-          const allClips = project.project.tracks.flatMap((t) => t.clips);
-          if (allClips.length > 0) {
-            const firstId = allClips[0].id;
-            ui.selectClip(firstId, false);
-            for (let i = 1; i < allClips.length; i++) {
-              ui.selectClip(allClips[i].id, true);
-            }
-          }
+          const allClips = project.project.tracks.flatMap((track) => track.clips);
+          if (allClips.length > 0) ui.selectClips(allClips.map((clip) => clip.id));
         }
         return;
       }
+
       if (matches('clips.duplicate')) {
-        e.preventDefault();
+        event.preventDefault();
         if (!anyModalOpen) {
           const [firstSelected] = ui.selectedClipIds;
           if (firstSelected) project.duplicateClip(firstSelected);
         }
         return;
       }
-      if (mod && e.code === 'KeyJ' && !e.shiftKey && !e.altKey) {
-        e.preventDefault();
+
+      if (mod && event.code === 'KeyJ' && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
         if (!anyModalOpen && ui.selectedClipIds.size > 0 && project.project) {
           const selectedIds = [...ui.selectedClipIds];
           const selectedClips = project.project.tracks
@@ -243,83 +281,52 @@ export function useKeyboardShortcuts() {
           if (trackIds.length === 1) {
             void (async () => {
               const consolidatedClip = await project.consolidateClips(trackIds[0], selectedIds);
-              if (consolidatedClip) {
-                ui.selectClip(consolidatedClip.id, false);
-              }
+              if (consolidatedClip) ui.selectClip(consolidatedClip.id, false);
             })();
           }
         }
         return;
       }
+
       if (matches('clips.generate')) {
-        e.preventDefault();
-        if (!anyModalOpen && !gen.isGenerating) {
+        event.preventDefault();
+        if (!anyModalOpen && !generation.isGenerating) {
           const [clipId] = ui.selectedClipIds;
           if (clipId) generateSingleClip(clipId);
         }
         return;
       }
 
-      // If event uses mod and hasn't matched anything above, let it pass through
       if (mod) return;
-
-      // -----------------------------------------------------------------------
-      // Non-mod shortcuts — skip if any modal is open
-      // -----------------------------------------------------------------------
       if (anyModalOpen) return;
+      if (shouldDeferToPianoRollTools(event)) return;
 
-      if (e.code === 'Tab') {
-        e.preventDefault();
+      if (event.code === 'Tab') {
+        event.preventDefault();
         ui.toggleMainView();
         return;
       }
 
-      // Transport
       if (matches('transport.playPause')) {
-        e.preventDefault();
-        if (transport.isPlaying) {
-          pause();
-        } else {
-          play();
-        }
+        event.preventDefault();
+        if (transport.isPlaying) pause();
+        else play();
         return;
       }
-      if (matches('transport.stop')) {
-        e.preventDefault();
-        stop();
-        return;
-      }
-      if (matches('transport.loop')) { e.preventDefault(); transport.toggleLoop(); return; }
-      if (matches('transport.metronome')) { e.preventDefault(); transport.toggleMetronome(); return; }
-      if (matches('transport.record')) { e.preventDefault(); void toggleRecord(); return; }
-      if (matches('transport.home')) { e.preventDefault(); seek(0); return; }
+      if (matches('transport.stop')) { event.preventDefault(); stop(); return; }
+      if (matches('transport.loop')) { event.preventDefault(); transport.toggleLoop(); return; }
+      if (matches('transport.metronome')) { event.preventDefault(); transport.toggleMetronome(); return; }
+      if (matches('transport.record')) { event.preventDefault(); void toggleRecord(); return; }
+      if (matches('transport.home')) { event.preventDefault(); seek(0); return; }
       if (matches('transport.end')) {
-        e.preventDefault();
+        event.preventDefault();
         if (project.project) seek(project.project.totalDuration);
         return;
       }
-      if (matches('transport.nudgeLeft')) {
-        e.preventDefault();
-        seek(Math.max(0, transport.currentTime - NUDGE_SECONDS));
-        return;
-      }
-      if (matches('transport.nudgeRight')) {
-        e.preventDefault();
-        seek(transport.currentTime + NUDGE_SECONDS);
-        return;
-      }
-      if (matches('transport.punchIn')) {
-        e.preventDefault();
-        transport.setPunchIn(transport.currentTime);
-        return;
-      }
-      if (matches('transport.punchOut')) {
-        e.preventDefault();
-        transport.setPunchOut(transport.currentTime);
-        return;
-      }
+      if (matches('transport.punchIn')) { event.preventDefault(); transport.setPunchIn(transport.currentTime); return; }
+      if (matches('transport.punchOut')) { event.preventDefault(); transport.setPunchOut(transport.currentTime); return; }
       if (matches('transport.captureMidi')) {
-        e.preventDefault();
+        event.preventDefault();
         const captureService = getMidiCaptureService();
         const targetTrackId = transport.armedTrackIds[0];
         if (targetTrackId) {
@@ -328,9 +335,20 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Clips
+      if (matches('panels.mixer')) { event.preventDefault(); ui.setShowMixer(!ui.showMixer); return; }
+      if (matches('panels.smartControls')) { event.preventDefault(); ui.setShowSmartControls(!ui.showSmartControls); return; }
+      if (matches('panels.library')) { event.preventDefault(); ui.setShowLibrary(!ui.showLibrary); return; }
+      if (matches('panels.loopBrowser')) { event.preventDefault(); ui.toggleLoopBrowser(); return; }
+      if (matches('panels.tempoLane')) { event.preventDefault(); ui.toggleTempoLane(); return; }
+
+      if (matches('tracks.mute')) { event.preventDefault(); toggleFocusedTrackFlag('muted'); return; }
+      if (matches('tracks.solo')) { event.preventDefault(); toggleFocusedTrackFlag('soloed'); return; }
+
+      if (matches('navigation.previousTrack')) { event.preventDefault(); focusTrack(-1); return; }
+      if (matches('navigation.nextTrack')) { event.preventDefault(); focusTrack(1); return; }
+
       if (matches('clips.delete')) {
-        e.preventDefault();
+        event.preventDefault();
         if (ui.selectedClipIds.size > 0) {
           const ids = [...ui.selectedClipIds];
           ui.deselectAll();
@@ -338,61 +356,67 @@ export function useKeyboardShortcuts() {
         }
         return;
       }
+
       if (matches('clips.edit')) {
         const selected = [...ui.selectedClipIds];
         if (selected.length === 1) {
-          e.preventDefault();
+          event.preventDefault();
           ui.setEditingClip(selected[0]);
         }
         return;
       }
+
       if (matches('clips.split')) {
         const selected = [...ui.selectedClipIds];
         if (selected.length === 1) {
-          e.preventDefault();
+          event.preventDefault();
           project.splitClip(selected[0], transport.currentTime);
         }
         return;
       }
 
-      // View
       if (matches('view.zoomToFit')) {
-        e.preventDefault();
+        event.preventDefault();
         if (project.project && project.project.totalDuration > 0) {
           const viewportWidth = window.innerWidth - 200;
-          const fitPps = Math.max(10, Math.min(500, viewportWidth / project.project.totalDuration));
-          ui.setPixelsPerSecond(fitPps);
+          const fitPixelsPerSecond = Math.max(10, Math.min(500, viewportWidth / project.project.totalDuration));
+          ui.setPixelsPerSecond(fitPixelsPerSecond);
         }
         return;
       }
-      if (matches('view.toggleSnap')) { e.preventDefault(); ui.toggleSnap(); return; }
 
-      // Panels
-      if (matches('panels.mixer')) { e.preventDefault(); ui.setShowMixer(!ui.showMixer); return; }
-      if (matches('panels.smartControls')) { e.preventDefault(); ui.setShowSmartControls(!ui.showSmartControls); return; }
-      if (matches('panels.library')) { e.preventDefault(); ui.setShowLibrary(!ui.showLibrary); return; }
-      if (matches('panels.tempoLane')) { e.preventDefault(); ui.toggleTempoLane(); return; }
+      if (matches('view.toggleSnap')) { event.preventDefault(); ui.toggleSnap(); return; }
 
-      // Generation panel toggle remains fixed to G so agents and users have a direct entry point.
-      if (e.code === 'KeyG' && !e.shiftKey && !e.altKey) {
-        e.preventDefault();
+      if (event.code === 'KeyG' && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
         ui.toggleGenerationPanel();
         return;
       }
 
-      // Variation switching uses the number row while a session is present.
-      if (/^Digit[1-4]$/.test(e.code)) {
-        const variationIdx = Number(e.code.slice(5)) - 1;
-        const session = gen.variationSession;
-        if (session && variationIdx < session.variations.length) {
-          e.preventDefault();
-          gen.setActiveVariation(variationIdx);
+      if (/^Digit[1-4]$/.test(event.code)) {
+        const variationIndex = Number(event.code.slice(5)) - 1;
+        const session = generation.variationSession;
+        if (session && variationIndex < session.variations.length) {
+          event.preventDefault();
+          generation.setActiveVariation(variationIndex);
           return;
+        }
+      }
+
+      if (ui.keyboardContext.scope === 'timeline') {
+        if (matches('transport.nudgeLeft')) {
+          event.preventDefault();
+          seek(Math.max(0, transport.currentTime - NUDGE_SECONDS));
+          return;
+        }
+        if (matches('transport.nudgeRight')) {
+          event.preventDefault();
+          seek(transport.currentTime + NUDGE_SECONDS);
         }
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [play, pause, stop, seek, toggleRecord]);
+  }, [pause, play, seek, stop, toggleRecord]);
 }

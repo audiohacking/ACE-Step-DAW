@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { KeyCombo, ShortcutMap } from '../types/shortcuts';
+import type { KeyCombo, ShortcutBindingExport, ShortcutMap } from '../types/shortcuts';
 import { SHORTCUT_ACTIONS, SHORTCUT_ACTION_MAP } from '../constants/shortcutDefaults';
 import { SHORTCUT_PRESET_MAP } from '../constants/shortcutPresets';
+import { getUnsafeBrowserComboReason, parseShortcutBindings, serializeShortcutBindings } from '../utils/shortcutUtils';
 
 interface ShortcutsState {
   /** User overrides keyed by actionId. Missing keys fall back to defaults. */
@@ -23,6 +24,12 @@ interface ShortcutsState {
   resetAll: () => void;
   /** Check whether a combo is already used by another action. */
   findConflict: (combo: KeyCombo, excludeActionId?: string) => string | null;
+  /** Check whether a combo should be blocked due to browser conflicts. */
+  getUnsafeReason: (combo: KeyCombo) => string | null;
+  /** Export current bindings as JSON text. */
+  exportBindings: () => ShortcutBindingExport;
+  /** Import bindings from JSON text or payload. */
+  importBindings: (payload: string | ShortcutBindingExport) => void;
 }
 
 function comboEquals(a: KeyCombo, b: KeyCombo): boolean {
@@ -51,10 +58,16 @@ export const useShortcutsStore = create<ShortcutsState>()(
       },
 
       setBinding: (actionId, combo) =>
-        set((s) => ({
-          overrides: { ...s.overrides, [actionId]: combo },
-          activePresetId: 'custom',
-        })),
+        set((s) => {
+          const unsafeReason = getUnsafeBrowserComboReason(combo);
+          if (unsafeReason) {
+            throw new Error(unsafeReason);
+          }
+          return {
+            overrides: { ...s.overrides, [actionId]: combo },
+            activePresetId: 'custom',
+          };
+        }),
 
       clearBinding: (actionId) =>
         set((s) => {
@@ -82,6 +95,34 @@ export const useShortcutsStore = create<ShortcutsState>()(
         }
         return null;
       },
+
+      getUnsafeReason: (combo) => getUnsafeBrowserComboReason(combo),
+
+      exportBindings: () => ({
+        version: 1,
+        presetId: get().activePresetId,
+        overrides: { ...get().overrides },
+        exportedAt: new Date().toISOString(),
+      }),
+
+      importBindings: (payload) => {
+        const parsed = typeof payload === 'string' ? parseShortcutBindings(payload) : payload;
+
+        for (const [actionId, combo] of Object.entries(parsed.overrides)) {
+          if (!SHORTCUT_ACTION_MAP[actionId]) {
+            throw new Error(`Unknown shortcut action: ${actionId}`);
+          }
+          const unsafeReason = getUnsafeBrowserComboReason(combo);
+          if (unsafeReason) {
+            throw new Error(`${actionId}: ${unsafeReason}`);
+          }
+        }
+
+        set({
+          overrides: { ...parsed.overrides },
+          activePresetId: parsed.presetId || 'custom',
+        });
+      },
     }),
     {
       name: 'ace-step-daw-shortcuts',
@@ -93,3 +134,7 @@ export const useShortcutsStore = create<ShortcutsState>()(
     },
   ),
 );
+
+export function exportShortcutBindings(): string {
+  return serializeShortcutBindings(useShortcutsStore.getState().exportBindings());
+}

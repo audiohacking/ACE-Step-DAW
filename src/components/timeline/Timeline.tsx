@@ -64,6 +64,7 @@ export function Timeline() {
   const updateTrack = useProjectStore((s) => s.updateTrack);
   const pixelsPerSecond = useUIStore((s) => s.pixelsPerSecond);
   const setPixelsPerSecond = useUIStore((s) => s.setPixelsPerSecond);
+  const setKeyboardContext = useUIStore((s) => s.setKeyboardContext);
   const showTempoLane = useUIStore((s) => s.showTempoLane);
   const contextWindow = useUIStore((s) => s.contextWindow);
   const setContextWindow = useUIStore((s) => s.setContextWindow);
@@ -339,9 +340,14 @@ export function Timeline() {
       <Minimap />
       <div
         ref={scrollRef}
+        data-keyboard-context="timeline"
+        role="grid"
+        tabIndex={0}
         className="flex-1 overflow-auto bg-[#242424] relative"
         onWheel={handleWheel}
         onMouseDownCapture={handleMouseDownCapture}
+        onFocus={() => setKeyboardContext('timeline')}
+        onMouseDown={() => setKeyboardContext('timeline')}
         onDragOver={handleDragOver}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}

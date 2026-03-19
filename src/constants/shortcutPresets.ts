@@ -21,8 +21,10 @@ const abletonMap: ShortcutMap = {
   'view.zoomIn':          { code: 'Equal', mod: true },
   'view.zoomOut':         { code: 'Minus', mod: true },
   'view.toggleSnap':      { code: 'KeyB', mod: true },  // Cmd+B = snap in Ableton
+  'tracks.mute':          { code: 'Digit0' },            // 0 disables/activates selection in Ableton
   'panels.mixer':         { code: 'KeyM', mod: true },  // Cmd+M = mixer in Ableton
   'panels.library':       { code: 'KeyL', mod: true, alt: true }, // Cmd+Alt+L
+  'panels.loopBrowser':   { code: 'Tab' },
   'project.new':          { code: 'KeyN', mod: true },
   'project.export':       { code: 'KeyE', mod: true, shift: true },
   'project.settings':     { code: 'Comma', mod: true },
@@ -45,9 +47,12 @@ const logicProMap: ShortcutMap = {
   'view.zoomOut':           { code: 'Minus', mod: true },
   'view.zoomToFit':         { code: 'KeyZ' },
   'view.toggleSnap':        { code: 'KeyN' },
+  'tracks.mute':            { code: 'KeyM' },
+  'tracks.solo':            { code: 'KeyS' },
   'panels.mixer':           { code: 'KeyX' },
   'panels.smartControls':   { code: 'KeyB' },
   'panels.library':         { code: 'KeyY' },
+  'panels.loopBrowser':     { code: 'KeyO' },
   'project.new':            { code: 'KeyN', mod: true },
   'project.settings':       { code: 'Comma', mod: true },
   'project.export':         { code: 'KeyE', mod: true },  // Cmd+E = bounce in Logic
@@ -64,11 +69,14 @@ const flStudioMap: ShortcutMap = {
   'clips.duplicate':        { code: 'KeyB', mod: true },   // Ctrl+B = duplicate in FL
   'clips.split':            { code: 'KeyS', mod: true, shift: true },
   'clips.selectAll':        { code: 'KeyA', mod: true },
+  'tracks.mute':            { code: 'KeyM' },
+  'tracks.solo':            { code: 'KeyS' },
   'view.zoomIn':            { code: 'Equal', mod: true },
   'view.zoomOut':           { code: 'Minus', mod: true },
   'view.toggleSnap':        { code: 'KeyS', alt: true },   // Alt+S in FL
   'panels.mixer':           { code: 'F9' },                // F9 = mixer in FL
   'panels.library':         { code: 'F8' },                // F8 = plugin picker in FL
+  'panels.loopBrowser':     { code: 'KeyO' },
   'project.new':            { code: 'KeyN', mod: true },
   'project.export':         { code: 'KeyR', mod: true, shift: true },
   'project.settings':       { code: 'F11' },
@@ -86,11 +94,14 @@ const proToolsMap: ShortcutMap = {
   'clips.duplicate':        { code: 'KeyD', mod: true },
   'clips.split':            { code: 'KeyB' },               // B = separate clip in Pro Tools
   'clips.selectAll':        { code: 'KeyA', mod: true },
+  'tracks.mute':            { code: 'KeyM' },
+  'tracks.solo':            { code: 'KeyS' },
   'view.zoomIn':            { code: 'KeyT' },               // T = zoom in on Pro Tools
   'view.zoomOut':           { code: 'KeyR' },               // R = zoom out on Pro Tools
   'view.zoomToFit':         { code: 'KeyA', alt: true },    // Alt+A = zoom to fit in Pro Tools
   'view.toggleSnap':        { code: 'KeyN' },
   'panels.mixer':           { code: 'Equal', mod: true },   // Cmd+= = mix window in PT
+  'panels.loopBrowser':     { code: 'KeyO' },
   'project.new':            { code: 'KeyN', mod: true },
   'project.export':         { code: 'KeyB', mod: true, shift: true, alt: true },
   'project.settings':       { code: 'Comma', mod: true },

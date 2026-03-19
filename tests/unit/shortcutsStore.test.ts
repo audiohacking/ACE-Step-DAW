@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useShortcutsStore, comboEquals } from '../../src/store/shortcutsStore';
 import { SHORTCUT_ACTIONS, SHORTCUT_ACTION_MAP } from '../../src/constants/shortcutDefaults';
 import { SHORTCUT_PRESETS, SHORTCUT_PRESET_MAP } from '../../src/constants/shortcutPresets';
-import type { KeyCombo } from '../../src/types/shortcuts';
+import type { KeyCombo, ShortcutBindingExport } from '../../src/types/shortcuts';
 
 beforeEach(() => {
   useShortcutsStore.setState({ overrides: {}, activePresetId: 'ace-step' });
@@ -42,7 +42,7 @@ describe('getCombo', () => {
   });
 
   it('returns the override when one is set', () => {
-    const custom: KeyCombo = { code: 'KeyP', mod: true };
+    const custom: KeyCombo = { code: 'F5' };
     useShortcutsStore.getState().setBinding('transport.playPause', custom);
     expect(useShortcutsStore.getState().getCombo('transport.playPause')).toEqual(custom);
   });
@@ -68,6 +68,11 @@ describe('setBinding / clearBinding', () => {
     useShortcutsStore.getState().setBinding('transport.record', { code: 'F5' });
     useShortcutsStore.getState().clearBinding('transport.record');
     expect(useShortcutsStore.getState().overrides['transport.record']).toBeUndefined();
+  });
+
+  it('rejects unsafe browser-reserved shortcuts', () => {
+    expect(() => useShortcutsStore.getState().setBinding('project.export', { code: 'KeyW', mod: true }))
+      .toThrow(/close the current tab/i);
   });
 });
 
@@ -102,6 +107,45 @@ describe('resetAll', () => {
     const state = useShortcutsStore.getState();
     expect(Object.keys(state.overrides)).toHaveLength(0);
     expect(state.activePresetId).toBe('ace-step');
+  });
+});
+
+describe('exportBindings / importBindings', () => {
+  it('exports the current preset metadata and overrides', () => {
+    useShortcutsStore.getState().setBinding('transport.record', { code: 'F5' });
+    const exported = useShortcutsStore.getState().exportBindings();
+
+    expect(exported.version).toBe(1);
+    expect(exported.presetId).toBe('custom');
+    expect(exported.overrides['transport.record']).toEqual({ code: 'F5' });
+  });
+
+  it('imports overrides from a payload object', () => {
+    const payload: ShortcutBindingExport = {
+      version: 1,
+      presetId: 'custom',
+      exportedAt: new Date().toISOString(),
+      overrides: {
+        'tracks.mute': { code: 'F6' },
+      },
+    };
+
+    useShortcutsStore.getState().importBindings(payload);
+
+    expect(useShortcutsStore.getState().getCombo('tracks.mute')).toEqual({ code: 'F6' });
+  });
+
+  it('rejects imported unsafe browser-reserved combos', () => {
+    const payload: ShortcutBindingExport = {
+      version: 1,
+      presetId: 'custom',
+      exportedAt: new Date().toISOString(),
+      overrides: {
+        'tracks.mute': { code: 'KeyT', mod: true },
+      },
+    };
+
+    expect(() => useShortcutsStore.getState().importBindings(payload)).toThrow(/new tab/i);
   });
 });
 

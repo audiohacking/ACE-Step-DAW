@@ -75,7 +75,12 @@ export function AppShell() {
   useShareLink(); // Check URL for share parameters on mount
 
   return (
-    <div className="flex flex-col h-screen bg-daw-bg text-zinc-300" onClick={handleClick}>
+    <div
+      className="flex flex-col h-screen bg-daw-bg text-zinc-300"
+      onClick={handleClick}
+      role="application"
+      aria-label="ACE-Step DAW"
+    >
       {/* Audio context overlay — shown until user's first click resumes audio */}
       {!audioResumed && project && (
         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center backdrop-blur-sm cursor-pointer">

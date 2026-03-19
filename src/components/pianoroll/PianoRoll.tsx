@@ -47,6 +47,7 @@ export function PianoRoll() {
   const pianoRollHeight = useUIStore((s) => s.pianoRollHeight);
   const setPianoRollHeight = useUIStore((s) => s.setPianoRollHeight);
   const setOpenPianoRoll = useUIStore((s) => s.setOpenPianoRoll);
+  const setKeyboardContext = useUIStore((s) => s.setKeyboardContext);
   const openGeneratePatternDialog = useUIStore((s) => s.openGeneratePatternDialog);
   const setHistoryFocusScope = useUIStore((s) => s.setHistoryFocusScope);
 
@@ -176,10 +177,15 @@ export function PianoRoll() {
 
   return (
     <div
+      data-keyboard-context="pianoRoll"
+      role="region"
+      tabIndex={0}
       className="border-t border-[#1a1a1a] bg-[#0a0a1e] flex flex-col select-none shrink-0"
       style={{ height: pianoRollHeight }}
       onMouseDownCapture={() => setHistoryFocusScope('pianoRoll')}
       onFocusCapture={() => setHistoryFocusScope('pianoRoll')}
+      onFocus={() => setKeyboardContext('pianoRoll', track.id)}
+      onMouseDown={() => setKeyboardContext('pianoRoll', track.id)}
     >
       <div
         aria-label="Resize piano roll"

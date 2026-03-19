@@ -27,16 +27,26 @@ export interface ShortcutAction {
   label: string;
   /** Default combo shipped with ACE-Step. */
   defaultCombo: KeyCombo;
+  /** Which keyboard context this shortcut primarily belongs to. */
+  contexts?: ShortcutContext[];
 }
 
 export type ShortcutCategory =
   | 'transport'
   | 'clips'
+  | 'tracks'
+  | 'navigation'
   | 'view'
   | 'generation'
   | 'panels'
   | 'project'
   | 'pianoRoll';
+
+export type ShortcutContext =
+  | 'global'
+  | 'timeline'
+  | 'pianoRoll'
+  | 'mixer';
 
 /** A complete set of overrides keyed by actionId. */
 export type ShortcutMap = Record<string, KeyCombo>;
@@ -47,4 +57,11 @@ export interface ShortcutPreset {
   name: string;
   description: string;
   map: ShortcutMap;
+}
+
+export interface ShortcutBindingExport {
+  version: 1;
+  presetId: string;
+  overrides: ShortcutMap;
+  exportedAt: string;
 }

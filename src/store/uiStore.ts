@@ -8,6 +8,7 @@ import { useTransportStore } from './transportStore';
 import type { AIChatContext } from '../utils/aiAssistantContext';
 import { buildAssistantContext } from '../utils/aiAssistantContext';
 import { getAssistantSuggestions, streamAssistantResponse } from '../services/aiAssistantService';
+import type { ShortcutContext } from '../types/shortcuts';
 import {
   buildCommandPaletteCommands,
   buildCommandPaletteRegistry,
@@ -27,6 +28,7 @@ function createAssistantMessage(role: AIChatMessage['role'], content: string): A
 
 interface UIState {
   mainView: 'arrangement' | 'session';
+  keyboardContext: { scope: ShortcutContext; trackId: string | null };
   pixelsPerSecond: number;
   snapEnabled: boolean;
   scrollX: number;
@@ -126,6 +128,7 @@ interface UIState {
   setMainView: (view: 'arrangement' | 'session') => void;
   toggleMainView: () => void;
   setPixelsPerSecond: (pps: number) => void;
+  setKeyboardContext: (scope: ShortcutContext, trackId?: string | null) => void;
   toggleSnap: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -238,6 +241,7 @@ export const useUIStore = create<UIState>()(
   persist(
     (set, get) => ({
   mainView: 'arrangement',
+  keyboardContext: { scope: 'timeline', trackId: null },
   pixelsPerSecond: 50,
   snapEnabled: true,
   scrollX: 0,
@@ -319,6 +323,12 @@ export const useUIStore = create<UIState>()(
   setMainView: (mainView) => set({ mainView }),
   toggleMainView: () => set((s) => ({ mainView: s.mainView === 'arrangement' ? 'session' : 'arrangement' })),
   setPixelsPerSecond: (pps) => set({ pixelsPerSecond: pps }),
+  setKeyboardContext: (scope, trackId = null) => set((state) => ({
+    keyboardContext: {
+      scope,
+      trackId: trackId ?? state.keyboardContext.trackId,
+    },
+  })),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
 
   zoomIn: () =>
@@ -410,12 +420,13 @@ export const useUIStore = create<UIState>()(
   setExpandedTrackId: (id) => set({ expandedTrackId: id }),
   setOpenSequencerTrackId: (id) => set({ openSequencerTrackId: id, activeBottomPanel: id ? 'editor' : null, historyFocusScope: id ? 'track' : 'arrangement' }),
   setOpenDrumMachineTrackId: (id) => set({ openDrumMachineTrackId: id, activeBottomPanel: id ? 'drumMachine' : null, historyFocusScope: id ? 'track' : 'arrangement' }),
-  setOpenPianoRoll: (trackId, clipId = null) => set({
+  setOpenPianoRoll: (trackId, clipId = null) => set((state) => ({
+    keyboardContext: trackId ? { scope: 'pianoRoll', trackId } : state.keyboardContext,
     openPianoRollTrackId: trackId,
     openPianoRollClipId: clipId,
     activeBottomPanel: trackId ? 'pianoRoll' : null,
     historyFocusScope: trackId ? 'pianoRoll' : 'arrangement',
-  }),
+  })),
   setOpenEffectChainTrackId: (id) => set({
     openEffectChainTrackId: id,
     activeBottomPanel: id ? 'effects' : null,
@@ -559,6 +570,7 @@ export const useUIStore = create<UIState>()(
         showLibrary: state.showLibrary,
         loopBrowserOpen: state.loopBrowserOpen,
         showSmartControls: state.showSmartControls,
+        keyboardContext: state.keyboardContext,
         // Panel sizes
         mixerHeight: state.mixerHeight,
         drumMachineEditorHeight: state.drumMachineEditorHeight,

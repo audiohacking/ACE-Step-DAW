@@ -1,113 +1,8 @@
+import { useMemo } from 'react';
 import { useUIStore } from '../../store/uiStore';
-
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
-const mod = isMac ? '⌘' : 'Ctrl';
-const opt = isMac ? '⌥' : 'Alt';
-
-interface ShortcutRow {
-  keys: string[];
-  description: string;
-}
-
-interface Section {
-  title: string;
-  rows: ShortcutRow[];
-}
-
-const SECTIONS: Section[] = [
-  {
-    title: 'Transport',
-    rows: [
-      { keys: ['Space'],          description: 'Play / Pause' },
-      { keys: ['Enter'],          description: 'Stop + return to 0' },
-      { keys: ['R'],              description: 'Toggle audio recording' },
-      { keys: ['L'],              description: 'Toggle Loop' },
-      { keys: ['←', '→'],        description: 'Nudge playhead ±5 s' },
-    ],
-  },
-  {
-    title: 'Clips',
-    rows: [
-      { keys: ['Delete', 'Backspace'],  description: 'Delete selected clips' },
-      { keys: [`${mod}`, 'D'],          description: 'Duplicate selected clip' },
-      { keys: [`${mod}`, 'J'],          description: 'Consolidate selected clips' },
-      { keys: ['S'],                    description: 'Split clip at playhead' },
-      { keys: [`${mod}`, 'A'],          description: 'Select all clips' },
-      { keys: ['E'],                    description: 'Edit selected clip' },
-      { keys: [`${mod}`, 'Enter'],      description: 'Generate selected clip' },
-      { keys: ['Esc'],                  description: 'Close modal / deselect all' },
-    ],
-  },
-  {
-    title: 'Timeline Selection',
-    rows: [
-      { keys: ['Drag'],                   description: 'Rubber-band select clips' },
-      { keys: [`${mod}`, 'Drag'],         description: 'Select window (generation target)' },
-      { keys: [opt, 'Drag'],              description: 'Context window (audio context)' },
-      { keys: [`${mod}`, 'Click'],        description: 'Toggle clip multi-select' },
-      { keys: ['⇧', 'Drag clip'],        description: 'Copy clip(s) — works with multi-select' },
-      { keys: [`${mod}`, 'Drag clip'],   description: 'Fine-move clip (bypass grid snap)' },
-    ],
-  },
-  {
-    title: 'View',
-    rows: [
-      { keys: ['Tab'],           description: 'Toggle Arrangement / Session View' },
-      { keys: [`${mod}`, '='],  description: 'Zoom in' },
-      { keys: [`${mod}`, '−'],  description: 'Zoom out' },
-      { keys: [`${mod}`, '0'],  description: 'Reset zoom' },
-    ],
-  },
-  {
-    title: 'Generation',
-    rows: [
-      { keys: [`${mod}`, 'G'],         description: 'Generate from Silence' },
-      { keys: [`${mod}`, '⇧', 'G'],    description: 'Generate from Context' },
-      { keys: ['G'],                    description: 'Toggle Generation Panel' },
-      { keys: ['1–4'],                  description: 'Switch Variation (A/B compare)' },
-    ],
-  },
-  {
-    title: 'Panels',
-    rows: [
-      { keys: ['Y'],                    description: 'Toggle Library' },
-      { keys: ['X'],                    description: 'Toggle Mixer' },
-      { keys: ['B'],                    description: 'Toggle Smart Controls' },
-      { keys: ['O'],                    description: 'Toggle Loop Browser' },
-      { keys: ['T'],                    description: 'Toggle Tempo Lane' },
-      { keys: [`${mod}`, '/'],           description: 'Toggle AI Assistant' },
-      { keys: [`${mod}`, 'K'],           description: 'Command Palette' },
-    ],
-  },
-  {
-    title: 'Project',
-    rows: [
-      { keys: [`${mod}`, 'K'],         description: 'Open command palette' },
-      { keys: [`${mod}`, 'N'],         description: 'New project' },
-      { keys: [`${mod}`, 'O'],         description: 'Open project list' },
-      { keys: [`${mod}`, 'B'],         description: 'Bounce selected or focused track' },
-      { keys: [`${mod}`, ','],         description: 'Settings' },
-      { keys: [`${mod}`, '⇧', 'E'],    description: 'Export' },
-      { keys: [`${mod}`, '⇧', 'I'],    description: 'Add Track' },
-      { keys: ['?'],                    description: 'This help overlay' },
-    ],
-  },
-  {
-    title: 'Piano Roll',
-    rows: [
-      { keys: ['1', '2', '3', '4', '5'],   description: 'Switch tools: Select, Pencil, Paint, Erase, Slide' },
-      { keys: ['B'],                        description: 'Toggle pencil tool' },
-      { keys: ['Delete', 'Backspace'],  description: 'Delete selected notes' },
-      { keys: ['↑'],                    description: 'Transpose selected notes up 1 semitone' },
-      { keys: ['↓'],                    description: 'Transpose selected notes down 1 semitone' },
-      { keys: ['←'],                    description: 'Nudge selected notes earlier by one grid step' },
-      { keys: ['→'],                    description: 'Nudge selected notes later by one grid step' },
-      { keys: ['Q'],                    description: 'Quantize selected notes to the current grid' },
-      { keys: [`${mod}`, 'Q'],          description: 'Quantize with options (strength, swing, scope)' },
-      { keys: [`${mod}`, 'A'],          description: 'Select all notes in the current clip' },
-    ],
-  },
-];
+import { useShortcutsStore } from '../../store/shortcutsStore';
+import { SHORTCUT_ACTIONS, SHORTCUT_CATEGORIES } from '../../constants/shortcutDefaults';
+import { comboToDisplay } from '../../utils/shortcutUtils';
 
 function Key({ label }: { label: string }) {
   return (
@@ -120,21 +15,33 @@ function Key({ label }: { label: string }) {
 export function KeyboardShortcutsDialog() {
   const show = useUIStore((s) => s.showKeyboardShortcutsDialog);
   const setShow = useUIStore((s) => s.setShowKeyboardShortcutsDialog);
+  const getCombo = useShortcutsStore((s) => s.getCombo);
+
+  const sections = useMemo(() => (
+    SHORTCUT_CATEGORIES.map((category) => ({
+      ...category,
+      actions: SHORTCUT_ACTIONS.filter((action) => action.category === category.id),
+    })).filter((section) => section.actions.length > 0)
+  ), []);
 
   if (!show) return null;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onMouseDown={(e) => e.target === e.currentTarget && setShow(false)}
+      onMouseDown={(event) => event.target === event.currentTarget && setShow(false)}
     >
       <div
-        className="w-[540px] max-h-[85vh] bg-daw-surface rounded-lg border border-daw-border shadow-2xl flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+        className="w-[680px] max-h-[85vh] bg-daw-surface rounded-lg border border-daw-border shadow-2xl flex flex-col"
+        onClick={(event) => event.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-daw-border">
-          <h2 className="text-sm font-semibold text-zinc-100">Keyboard Shortcuts</h2>
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-100">Keyboard Shortcuts</h2>
+            <p className="text-[11px] text-zinc-500 mt-1">
+              Transport always responds unless you are typing in a form field.
+            </p>
+          </div>
           <button
             onClick={() => setShow(false)}
             aria-label="Close keyboard shortcuts"
@@ -144,35 +51,36 @@ export function KeyboardShortcutsDialog() {
           </button>
         </div>
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4">
           <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-          {SECTIONS.map((section) => (
-            <div key={section.title}>
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
-                {section.title}
-              </h3>
-              <div className="space-y-1.5">
-                {section.rows.map((row, i) => (
-                  <div key={i} className="flex items-center justify-between gap-3">
-                    <span className="text-xs text-zinc-400 flex-1">{row.description}</span>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {row.keys.map((k, ki) => (
-                        <Key key={ki} label={k} />
-                      ))}
+            {sections.map((section) => (
+              <div key={section.id}>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                  {section.label}
+                </h3>
+                <div className="space-y-1.5">
+                  {section.actions.map((action) => (
+                    <div key={action.id} className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-zinc-300">{action.label}</div>
+                        {action.contexts && (
+                          <div className="text-[10px] text-zinc-500">
+                            {action.contexts.join(', ')}
+                          </div>
+                        )}
+                      </div>
+                      <Key label={comboToDisplay(getCombo(action.id))} />
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between px-5 py-2.5 border-t border-daw-border">
           <p className="text-[10px] text-zinc-600">
-            Shortcuts are disabled when typing in text fields. Press <Key label="Esc" /> or <Key label="?" /> to toggle this overlay.
+            Press <Key label="Esc" /> or <Key label="?" /> to close. Use the editor for presets, conflicts, and JSON import/export.
           </p>
           <button
             onClick={() => {

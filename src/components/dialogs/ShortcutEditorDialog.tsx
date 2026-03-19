@@ -1,61 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useUIStore } from '../../store/uiStore';
-import { useShortcutsStore, comboEquals } from '../../store/shortcutsStore';
+import { useShortcutsStore, comboEquals, exportShortcutBindings } from '../../store/shortcutsStore';
 import { SHORTCUT_ACTIONS, SHORTCUT_CATEGORIES, SHORTCUT_ACTION_MAP } from '../../constants/shortcutDefaults';
 import { SHORTCUT_PRESETS } from '../../constants/shortcutPresets';
 import type { KeyCombo, ShortcutCategory } from '../../types/shortcuts';
-
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
-
-// ── Helpers ──────────────────────────────────────────────────────
-
-function comboToDisplay(combo: KeyCombo): string {
-  const parts: string[] = [];
-  if (combo.mod) parts.push(isMac ? '⌘' : 'Ctrl');
-  if (combo.shift) parts.push(isMac ? '⇧' : 'Shift');
-  if (combo.alt) parts.push(isMac ? '⌥' : 'Alt');
-  parts.push(codeToLabel(combo.code));
-  return parts.join(' + ');
-}
-
-function codeToLabel(code: string): string {
-  const map: Record<string, string> = {
-    Space: 'Space', Enter: '↵', Backspace: '⌫', Delete: 'Del',
-    ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓',
-    Home: 'Home', End: 'End', Escape: 'Esc',
-    Equal: '=', Minus: '-', Comma: ',', Period: '.', Slash: '/',
-    Digit0: '0', Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4',
-    Digit5: '5', Digit6: '6', Digit7: '7', Digit8: '8', Digit9: '9',
-    Numpad0: 'Num0', NumpadAdd: 'Num+', NumpadSubtract: 'Num-',
-    NumpadEnter: 'Num↵',
-    F1: 'F1', F2: 'F2', F3: 'F3', F4: 'F4', F5: 'F5', F6: 'F6',
-    F7: 'F7', F8: 'F8', F9: 'F9', F10: 'F10', F11: 'F11', F12: 'F12',
-  };
-  if (map[code]) return map[code];
-  if (code.startsWith('Key')) return code.slice(3);
-  return code;
-}
-
-function keyEventToCombo(e: KeyboardEvent): KeyCombo | null {
-  // Ignore bare modifier keys
-  if (['Meta', 'Control', 'Shift', 'Alt'].includes(e.key)) return null;
-  return {
-    code: e.code,
-    mod: e.metaKey || e.ctrlKey || undefined,
-    shift: e.shiftKey || undefined,
-    alt: e.altKey || undefined,
-  };
-}
-
-// ── Key Badge ────────────────────────────────────────────────────
-
-function KeyBadge({ label }: { label: string }) {
-  return (
-    <kbd className="inline-flex items-center justify-center min-w-[1.5rem] px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#444] border border-zinc-600 text-zinc-200 shadow-sm">
-      {label}
-    </kbd>
-  );
-}
+import { comboToDisplay, keyEventToCombo, parseShortcutBindings } from '../../utils/shortcutUtils';
 
 // ── Shortcut Row ─────────────────────────────────────────────────
 
@@ -66,11 +15,24 @@ interface RowProps {
   defaultCombo: KeyCombo;
   isRecording: boolean;
   conflictLabel: string | null;
+  unsafeReason: string | null;
+  contextsLabel: string;
   onStartRecord: () => void;
   onReset: () => void;
 }
 
-function ShortcutRow({ actionId, label, combo, defaultCombo, isRecording, conflictLabel, onStartRecord, onReset }: RowProps) {
+function ShortcutRow({
+  actionId,
+  label,
+  combo,
+  defaultCombo,
+  isRecording,
+  conflictLabel,
+  unsafeReason,
+  contextsLabel,
+  onStartRecord,
+  onReset,
+}: RowProps) {
   const isCustom = !comboEquals(combo, defaultCombo);
 
   return (
@@ -80,20 +42,29 @@ function ShortcutRow({ actionId, label, combo, defaultCombo, isRecording, confli
       }`}
       data-action-id={actionId}
     >
-      <span className="text-xs text-zinc-400 flex-1 truncate">{label}</span>
-
-      {conflictLabel && (
-        <span className="text-[10px] text-amber-400 truncate max-w-[120px]">
-          conflicts with {conflictLabel}
-        </span>
-      )}
+      <div className="flex-1 min-w-0">
+        <div className="text-xs text-zinc-300 truncate">{label}</div>
+        <div className="text-[10px] text-zinc-500 truncate">{contextsLabel}</div>
+        {conflictLabel && (
+          <div className="text-[10px] text-amber-400 truncate">
+            Conflicts with {conflictLabel}
+          </div>
+        )}
+        {unsafeReason && (
+          <div className="text-[10px] text-red-400 truncate">
+            {unsafeReason}
+          </div>
+        )}
+      </div>
 
       <button
         onClick={onStartRecord}
         className={`flex items-center gap-1 flex-shrink-0 px-2 py-0.5 rounded border text-xs transition-colors ${
           isRecording
             ? 'border-daw-accent text-daw-accent animate-pulse'
-            : 'border-zinc-600 text-zinc-300 hover:border-zinc-400'
+            : unsafeReason
+              ? 'border-red-500/60 text-red-200 hover:border-red-400'
+              : 'border-zinc-600 text-zinc-300 hover:border-zinc-400'
         }`}
         title="Click to rebind, then press a key combo"
       >
@@ -131,11 +102,15 @@ export function ShortcutEditorDialog() {
   const applyPreset = useShortcutsStore((s) => s.applyPreset);
   const resetAll = useShortcutsStore((s) => s.resetAll);
   const findConflict = useShortcutsStore((s) => s.findConflict);
+  const getUnsafeReason = useShortcutsStore((s) => s.getUnsafeReason);
+  const importBindings = useShortcutsStore((s) => s.importBindings);
 
   const [activeCategory, setActiveCategory] = useState<ShortcutCategory>('transport');
   const [recordingId, setRecordingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // ── Key capture while recording ────────────────────────────────
   useEffect(() => {
@@ -153,8 +128,13 @@ export function ShortcutEditorDialog() {
       const combo = keyEventToCombo(e);
       if (!combo) return;
 
-      setBinding(recordingId, combo);
-      setRecordingId(null);
+      try {
+        setBinding(recordingId, combo);
+        setErrorMessage(null);
+        setRecordingId(null);
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : 'Unable to assign that shortcut.');
+      }
     };
 
     window.addEventListener('keydown', handler, true);
@@ -176,6 +156,7 @@ export function ShortcutEditorDialog() {
 
   const handlePresetChange = useCallback(
     (presetId: string) => {
+      setErrorMessage(null);
       if (presetId === 'ace-step') {
         resetAll();
       } else {
@@ -184,6 +165,36 @@ export function ShortcutEditorDialog() {
     },
     [applyPreset, resetAll],
   );
+
+  const handleExport = useCallback(async () => {
+    const contents = exportShortcutBindings();
+    const blob = new Blob([contents], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'ace-step-shortcuts.json';
+    link.click();
+    URL.revokeObjectURL(url);
+
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(contents);
+      } catch {
+        // Ignore clipboard failures; the download already succeeded.
+      }
+    }
+  }, []);
+
+  const handleImportFile = useCallback(async (file: File | null) => {
+    if (!file) return;
+    try {
+      const raw = await file.text();
+      importBindings(parseShortcutBindings(raw));
+      setErrorMessage(null);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to import shortcut preset.');
+    }
+  }, [importBindings]);
 
   if (!show) return null;
 
@@ -247,6 +258,41 @@ export function ShortcutEditorDialog() {
           />
         </div>
 
+        <div className="flex items-center gap-2 px-5 py-2 border-b border-daw-border">
+          <button
+            onClick={() => importInputRef.current?.click()}
+            className="px-3 py-1 text-[10px] rounded border border-zinc-600 text-zinc-300 hover:border-zinc-400"
+          >
+            Import JSON
+          </button>
+          <button
+            onClick={() => void handleExport()}
+            className="px-3 py-1 text-[10px] rounded border border-zinc-600 text-zinc-300 hover:border-zinc-400"
+          >
+            Export JSON
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const [file] = Array.from(e.target.files ?? []);
+              void handleImportFile(file ?? null);
+              e.currentTarget.value = '';
+            }}
+          />
+          <div className="ml-auto text-[10px] text-zinc-500">
+            Presets for ACE-Step, Ableton, Logic, FL Studio, and Pro Tools
+          </div>
+        </div>
+
+        {errorMessage && (
+          <div className="px-5 py-2 border-b border-red-500/20 bg-red-950/20 text-[11px] text-red-300">
+            {errorMessage}
+          </div>
+        )}
+
         {/* ── Category tabs (hidden when searching) ───────────────── */}
         {!searchQuery && (
           <div className="flex gap-1 px-5 pt-2 overflow-x-auto">
@@ -275,6 +321,10 @@ export function ShortcutEditorDialog() {
             const combo = getCombo(action.id);
             const conflictId = findConflict(combo, action.id);
             const conflictLabel = conflictId ? SHORTCUT_ACTION_MAP[conflictId]?.label ?? null : null;
+            const unsafeReason = getUnsafeReason(combo);
+            const contextsLabel = action.contexts?.length
+              ? `Contexts: ${action.contexts.join(', ')}`
+              : 'Contexts: global';
 
             return (
               <ShortcutRow
@@ -285,8 +335,13 @@ export function ShortcutEditorDialog() {
                 defaultCombo={action.defaultCombo}
                 isRecording={recordingId === action.id}
                 conflictLabel={conflictLabel}
+                unsafeReason={unsafeReason}
+                contextsLabel={contextsLabel}
                 onStartRecord={() => setRecordingId(action.id)}
-                onReset={() => clearBinding(action.id)}
+                onReset={() => {
+                  clearBinding(action.id);
+                  setErrorMessage(null);
+                }}
               />
             );
           })}
@@ -301,7 +356,10 @@ export function ShortcutEditorDialog() {
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={resetAll}
+              onClick={() => {
+                resetAll();
+                setErrorMessage(null);
+              }}
               className="px-3 py-1 text-[10px] rounded border border-zinc-600 text-zinc-400 hover:text-zinc-200 hover:border-zinc-400 transition-colors"
             >
               Reset All

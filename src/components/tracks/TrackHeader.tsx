@@ -45,6 +45,8 @@ export function TrackHeader({
   const setOpenPianoRoll = useUIStore((s) => s.setOpenPianoRoll);
   const setOpenEffectChainTrackId = useUIStore((s) => s.setOpenEffectChainTrackId);
   const openBounceInPlaceDialog = useUIStore((s) => s.openBounceInPlaceDialog);
+  const setExpandedTrackId = useUIStore((s) => s.setExpandedTrackId);
+  const setKeyboardContext = useUIStore((s) => s.setKeyboardContext);
   const { armedTrackIds, toggleArmTrack } = useRecording();
   const info = TRACK_CATALOG[track.trackName];
 
@@ -154,6 +156,10 @@ export function TrackHeader({
   return (
     <>
     <div
+      role="button"
+      tabIndex={0}
+      data-keyboard-context="timeline"
+      data-track-id={track.id}
       className={`relative flex items-center gap-2 px-2 border-b border-[#3a3a3a] group select-none ${
         isDragOver ? 'bg-[#383838]' : 'bg-[#2d2d2d]'
       }`}
@@ -171,6 +177,14 @@ export function TrackHeader({
       onDragEnd={(e) => e.currentTarget.style.opacity = '1'}
       onDoubleClick={handleHeaderDoubleClick}
       onContextMenu={handleHeaderContextMenu}
+      onFocus={() => {
+        setExpandedTrackId(track.id);
+        setKeyboardContext('timeline', track.id);
+      }}
+      onMouseDown={() => {
+        setExpandedTrackId(track.id);
+        setKeyboardContext('timeline', track.id);
+      }}
     >
       {/* Color strip (left edge) — click to change track color */}
       <div

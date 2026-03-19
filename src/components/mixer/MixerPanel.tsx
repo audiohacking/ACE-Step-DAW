@@ -46,6 +46,8 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
   const updateTrackMixer = useProjectStore((s) => s.updateTrackMixer);
   const addTrackEffect = useProjectStore((s) => s.addTrackEffect);
   const updateTrackSend = useProjectStore((s) => s.updateTrackSend);
+  const setExpandedTrackId = useUIStore((s) => s.setExpandedTrackId);
+  const setKeyboardContext = useUIStore((s) => s.setKeyboardContext);
 
   const vol = track.volume;
   const pan = track.pan ?? 0;
@@ -63,7 +65,18 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
     <div
       data-testid="channel-strip"
       data-track-id={track.id}
+      data-keyboard-context="mixer"
+      role="group"
+      tabIndex={0}
       className={`flex h-full min-h-0 min-w-[120px] flex-col border-r border-[#3a3a3a] bg-[#2a2a2a] px-3 py-2 ${isFrozen ? 'opacity-70' : ''}`}
+      onFocus={() => {
+        setExpandedTrackId(track.id);
+        setKeyboardContext('mixer', track.id);
+      }}
+      onMouseDown={() => {
+        setExpandedTrackId(track.id);
+        setKeyboardContext('mixer', track.id);
+      }}
     >
       <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 overflow-y-auto">
         <div className="w-full h-1.5 rounded-full mb-0.5" style={{ backgroundColor: track.color }} />
@@ -259,6 +272,7 @@ export function MixerPanel() {
   const mixerHeight = useUIStore((s) => s.mixerHeight);
   const setMixerHeight = useUIStore((s) => s.setMixerHeight);
   const setHistoryFocusScope = useUIStore((s) => s.setHistoryFocusScope);
+  const setKeyboardContext = useUIStore((s) => s.setKeyboardContext);
   const project = useProjectStore((s) => s.project);
 
   const dragState = useRef<{ startY: number; startH: number } | null>(null);
@@ -297,7 +311,12 @@ export function MixerPanel() {
       className="border-t border-[#1a1a1a] bg-[#2a2a2a] flex flex-col select-none shrink-0"
       style={{ height: visibleMixerHeight }}
       onMouseDownCapture={() => setHistoryFocusScope('mixer')}
-      onFocusCapture={() => setHistoryFocusScope('mixer')}
+      onFocusCapture={() => {
+        setHistoryFocusScope('mixer');
+        setKeyboardContext('mixer');
+      }}
+      data-keyboard-context="mixer"
+      onMouseDown={() => setKeyboardContext('mixer')}
     >
       <div
         className="h-1.5 w-full cursor-ns-resize bg-[#444] hover:bg-daw-accent transition-colors flex-shrink-0"
