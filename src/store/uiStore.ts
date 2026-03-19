@@ -60,6 +60,7 @@ interface UIState {
   // Vocal2BGM / Audio Analysis
   vocal2bgmClipId: string | null;
   analysisClipId: string | null;
+  stemSeparationClipId: string | null;
 
   // Quantize dialog
   showQuantizeDialog: boolean;
@@ -119,6 +120,7 @@ interface UIState {
   // Vocal2BGM / Audio Analysis
   setVocal2BGMModal: (clipId: string | null) => void;
   setAnalysisPanel: (clipId: string | null) => void;
+  setStemSeparationModal: (clipId: string | null) => void;
 
   // Quantize dialog
   setShowQuantizeDialog: (v: boolean) => void;
@@ -178,6 +180,7 @@ export const useUIStore = create<UIState>()(
 
   vocal2bgmClipId: null,
   analysisClipId: null,
+  stemSeparationClipId: null,
 
   showQuantizeDialog: false,
   quantizeTarget: null,
@@ -269,6 +272,7 @@ export const useUIStore = create<UIState>()(
 
   setVocal2BGMModal: (clipId) => set({ vocal2bgmClipId: clipId }),
   setAnalysisPanel: (clipId) => set({ analysisClipId: clipId }),
+  setStemSeparationModal: (clipId) => set({ stemSeparationClipId: clipId }),
 
   setShowQuantizeDialog: (v) => set(v ? { showQuantizeDialog: v } : { showQuantizeDialog: false, quantizeTarget: null }),
   setQuantizeTarget: (target) => set({ quantizeTarget: target }),

@@ -46,9 +46,10 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const setRepaintModal = useUIStore((s) => s.setRepaintModal);
   const setVocal2BGMModal = useUIStore((s) => s.setVocal2BGMModal);
   const setAnalysisPanel = useUIStore((s) => s.setAnalysisPanel);
+  const setStemSeparationModal = useUIStore((s) => s.setStemSeparationModal);
 
   const generatingProgress = useGenerationStore((s) => {
-    const job = s.jobs.find(
+    const job = [...s.jobs].reverse().find(
       (j) => j.clipId === clip.id && (j.status === 'generating' || j.status === 'queued' || j.status === 'processing'),
     );
     return job?.progress ?? null;
@@ -457,6 +458,10 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
           onAnalyze={() => {
             closeCtxMenu();
             setAnalysisPanel(clip.id);
+          }}
+          onSeparateStems={() => {
+            closeCtxMenu();
+            setStemSeparationModal(clip.id);
           }}
           onConvertToMidi={() => {
             closeCtxMenu();
