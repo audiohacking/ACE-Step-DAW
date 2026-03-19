@@ -618,6 +618,152 @@ describe('projectStore', () => {
     });
   });
 
+describe('track presets', () => {
+  beforeEach(() => {
+    useProjectStore.getState().createProject();
+  });
+
+  it('saves track type, effects, and settings as a preset', () => {
+    const store = useProjectStore.getState();
+    const track = store.addTrack('keyboard', 'pianoRoll');
+    store.updateTrack(track.id, { volume: 0.65, synthPreset: 'organ' });
+    store.addTrackEffect(track.id, 'reverb');
+    store.addTrackEffect(track.id, 'delay');
+
+    const preset = store.saveTrackPreset(track.id, 'Dream Keys');
+
+    expect(preset.name).toBe('Dream Keys');
+    expect(preset.trackName).toBe('keyboard');
+    expect(preset.trackType).toBe('pianoRoll');
+    expect(preset.settings.volume).toBe(0.65);
+    expect(preset.settings.synthPreset).toBe('organ');
+    expect(preset.effects).toHaveLength(2);
+    expect(preset.effects[0].type).toBe('reverb');
+    expect(preset.effects[1].type).toBe('delay');
+    expect(preset.createdAt).toBeGreaterThan(0);
+
+    const presets = useProjectStore.getState().project!.trackPresets!;
+    expect(presets).toHaveLength(1);
+    expect(presets[0].id).toBe(preset.id);
+  });
+
+  it('applies a saved preset to create a new track', () => {
+    const store = useProjectStore.getState();
+    const track = store.addTrack('bass', 'pianoRoll');
+    store.updateTrack(track.id, { volume: 0.4 });
+    store.addTrackEffect(track.id, 'compressor');
+
+    const preset = store.saveTrackPreset(track.id, 'Fat Bass');
+    const newTrack = useProjectStore.getState().applyTrackPreset(preset.id);
+
+    expect(newTrack).toBeDefined();
+    expect(newTrack!.trackName).toBe('bass');
+    expect(newTrack!.trackType).toBe('pianoRoll');
+    expect(newTrack!.volume).toBe(0.4);
+    expect(newTrack!.effects).toHaveLength(1);
+    expect(newTrack!.effects![0].type).toBe('compressor');
+    expect(newTrack!.id).not.toBe(track.id);
+    expect(newTrack!.effects![0].id).not.toBe(preset.effects[0].id);
+
+    const tracks = useProjectStore.getState().project!.tracks;
+    expect(tracks).toHaveLength(2);
+  });
+
+  it('returns undefined when applying a non-existent preset', () => {
+    const result = useProjectStore.getState().applyTrackPreset('non-existent');
+    expect(result).toBeUndefined();
+  });
+
+  it('deletes a preset', () => {
+    const store = useProjectStore.getState();
+    const track = store.addTrack('drums', 'sequencer');
+    const preset = store.saveTrackPreset(track.id, 'Boom Kit');
+
+    expect(useProjectStore.getState().project!.trackPresets).toHaveLength(1);
+
+    useProjectStore.getState().deleteTrackPreset(preset.id);
+    expect(useProjectStore.getState().project!.trackPresets).toHaveLength(0);
+  });
+
+  it('throws when saving preset with empty name', () => {
+    const store = useProjectStore.getState();
+    const track = store.addTrack('drums');
+    expect(() => store.saveTrackPreset(track.id, '   ')).toThrow('Preset name is required');
+  });
+
+  it('throws when saving preset for non-existent track', () => {
+    expect(() => useProjectStore.getState().saveTrackPreset('nope', 'X')).toThrow();
+  });
+
+  it('preserves EQ and compressor settings in preset', () => {
+    const store = useProjectStore.getState();
+    const track = store.addTrack('vocals', 'stems');
+
+    useProjectStore.setState((state) => ({
+      project: {
+        ...state.project!,
+        tracks: state.project!.tracks.map((t) =>
+          t.id === track.id
+            ? {
+                ...t,
+                eqLowGain: -3,
+                eqMidGain: 2,
+                eqHighGain: 5,
+                compressorEnabled: true,
+                compressorThreshold: -20,
+                compressorRatio: 4,
+                reverbMix: 0.3,
+              }
+            : t,
+        ),
+      },
+    }));
+
+    const preset = useProjectStore.getState().saveTrackPreset(track.id, 'Vocal Chain');
+    expect(preset.settings.eqLowGain).toBe(-3);
+    expect(preset.settings.eqMidGain).toBe(2);
+    expect(preset.settings.eqHighGain).toBe(5);
+    expect(preset.settings.compressorEnabled).toBe(true);
+    expect(preset.settings.compressorThreshold).toBe(-20);
+    expect(preset.settings.compressorRatio).toBe(4);
+    expect(preset.settings.reverbMix).toBe(0.3);
+  });
+
+  it('strips sidechain source from compressor effects in preset', () => {
+    const store = useProjectStore.getState();
+    const kick = store.addTrack('drums');
+    const bass = store.addTrack('bass', 'pianoRoll');
+
+    const compId = store.addTrackEffect(bass.id, 'compressor');
+    if (compId) {
+      useProjectStore.getState().setSidechainSource(bass.id, compId, kick.id);
+    }
+
+    const preset = store.saveTrackPreset(bass.id, 'SC Bass');
+    const compEffect = preset.effects.find((e) => e.type === 'compressor');
+    expect(compEffect).toBeDefined();
+    if (compEffect && 'sidechainSourceTrackId' in compEffect) {
+      expect(compEffect.sidechainSourceTrackId).toBeUndefined();
+    }
+  });
+
+  it('can save multiple presets and apply any of them', () => {
+    const store = useProjectStore.getState();
+    const t1 = store.addTrack('drums', 'sequencer');
+    const t2 = store.addTrack('synth', 'pianoRoll');
+
+    const p1 = store.saveTrackPreset(t1.id, 'Kit A');
+    const p2 = useProjectStore.getState().saveTrackPreset(t2.id, 'Pad B');
+
+    expect(useProjectStore.getState().project!.trackPresets).toHaveLength(2);
+
+    const applied = useProjectStore.getState().applyTrackPreset(p2.id);
+    expect(applied).toBeDefined();
+    expect(applied!.trackName).toBe('synth');
+    expect(applied!.trackType).toBe('pianoRoll');
+  });
+});
+
 describe('setClipFade', () => {
   beforeEach(() => {
     useProjectStore.getState().createProject();
