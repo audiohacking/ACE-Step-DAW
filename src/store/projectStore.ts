@@ -97,6 +97,7 @@ import { buildConsolidatedMidiClipData, renderConsolidatedAudioClip, validateCli
 import type { MidiCaptureService } from '../services/midiCaptureService';
 import { snapTimeToZeroCrossing } from '../utils/zeroCrossing';
 import { useTransportStore } from './transportStore';
+import { useCollaborationStore } from './collaborationStore';
 import { bounceTrackToAudioAsset } from '../services/bounceInPlace';
 import {
   buildPlaybackLatencySettings,
@@ -104,6 +105,10 @@ import {
   type PlaybackLatencyMeasurement,
   setPlaybackLatencyOverride as applyPlaybackLatencyOverride,
 } from '../utils/playbackLatency';
+
+function _isViewerMode(): boolean {
+  return useCollaborationStore.getState().isViewerMode;
+}
 
 function getBarDurationSec(bpm: number, timeSig: number): number {
   return (60 / bpm) * timeSig;
@@ -1588,6 +1593,7 @@ export const useProjectStore = create<ProjectState>()(
 
   updateProject: (updates) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project, { scope: 'arrangement', label: 'Update project settings' });
     const merged = { ...state.project, ...updates, updatedAt: Date.now() };
@@ -1764,6 +1770,7 @@ export const useProjectStore = create<ProjectState>()(
 
   updateTrackMixer: (trackId, updates) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project, { scope: 'mixer', label: 'Adjust mixer', trackId });
     set({
@@ -2030,6 +2037,7 @@ export const useProjectStore = create<ProjectState>()(
 
   addTrack: (trackName, trackType) => {
     const state = get();
+    if (_isViewerMode()) return undefined as unknown as Track;
     if (!state.project) throw new Error('No project');
     _pushHistory(state.project, { scope: 'arrangement', label: 'Add track' });
 
@@ -2224,6 +2232,7 @@ export const useProjectStore = create<ProjectState>()(
 
   removeTrack: (trackId) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project, { scope: 'arrangement', label: 'Remove track', trackId });
     const newTracks = state.project.tracks.filter((t) => t.id !== trackId);
@@ -2239,6 +2248,7 @@ export const useProjectStore = create<ProjectState>()(
 
   duplicateTrack: (trackId) => {
     const state = get();
+    if (_isViewerMode()) return undefined;
     if (!state.project) return undefined;
     const source = state.project.tracks.find((t) => t.id === trackId);
     if (!source) return undefined;
@@ -2292,6 +2302,7 @@ export const useProjectStore = create<ProjectState>()(
 
   updateTrack: (trackId, updates) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project, getTrackUpdateHistoryOptions(trackId, updates));
     set({
@@ -2495,6 +2506,7 @@ export const useProjectStore = create<ProjectState>()(
 
   addClip: (trackId, clipData) => {
     const state = get();
+    if (_isViewerMode()) return undefined as unknown as Clip;
     if (!state.project) throw new Error('No project');
     _pushHistory(state.project);
 
@@ -2564,6 +2576,7 @@ export const useProjectStore = create<ProjectState>()(
 
   updateClip: (clipId, updates) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project);
     const newTracks = state.project.tracks.map((t) => ({
@@ -2584,6 +2597,7 @@ export const useProjectStore = create<ProjectState>()(
 
   removeClip: (clipId) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project);
     const newTracks = state.project.tracks.map((t) => ({
@@ -2615,6 +2629,7 @@ export const useProjectStore = create<ProjectState>()(
 
   duplicateClip: (clipId) => {
     const state = get();
+    if (_isViewerMode()) return undefined;
     if (!state.project) return undefined;
     _pushHistory(state.project);
 
@@ -3822,6 +3837,7 @@ export const useProjectStore = create<ProjectState>()(
 
   toggleSequencerStep: (trackId, rowId, stepIndex) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project, { scope: 'track', label: 'Toggle sequencer step', trackId });
     set({
@@ -4427,6 +4443,7 @@ export const useProjectStore = create<ProjectState>()(
 
   addMidiNote: (clipId, note) => {
     const state = get();
+    if (_isViewerMode()) return undefined;
     if (!state.project) return undefined;
     const noteId = note.id ?? uuidv4();
     _pushHistory(state.project, { scope: 'pianoRoll', label: 'Add MIDI note', clipId });
@@ -4455,6 +4472,7 @@ export const useProjectStore = create<ProjectState>()(
 
   updateMidiNote: (clipId, noteId, updates) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project, { scope: 'pianoRoll', label: 'Edit MIDI note', clipId });
     set({
@@ -4483,6 +4501,7 @@ export const useProjectStore = create<ProjectState>()(
 
   removeMidiNote: (clipId, noteId) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project, { scope: 'pianoRoll', label: 'Delete MIDI note', clipId });
     set({
