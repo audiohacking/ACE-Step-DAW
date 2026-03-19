@@ -36,6 +36,7 @@ import type {
   TimeSignatureEvent,
   AudioWarpMarker,
   StretchMode,
+  SamplerSettings,
   GainEnvelopePoint,
   LoudnessTarget,
   MasteringPreset,
@@ -68,7 +69,7 @@ import { applyTransform, type TransformOptions } from '../utils/midiTransforms';
 import { generatePattern, type PatternOptions } from '../utils/midiPatternGenerator';
 import { loadAudioBlobByKey, saveAudioBlob } from '../services/audioFileManager';
 import { getAudioEngine } from '../hooks/useAudioEngine';
-import { renderMidiTrackOffline, renderSequencerTrackOffline } from '../engine/offlineRender';
+import { renderMidiTrackOffline, renderSamplerTrackOffline, renderSequencerTrackOffline } from '../engine/offlineRender';
 import { convertClipAudioToMidi } from '../services/audioToMidi';
 import { createDefaultParametricEqBands } from '../utils/parametricEq';
 import type { StemCount } from '../types/api';
@@ -147,7 +148,9 @@ interface ProjectState {
   addTrack: (trackName: TrackName, trackType?: TrackType) => Track;
   removeTrack: (trackId: string) => void;
   duplicateTrack: (trackId: string) => Track | undefined;
-  updateTrack: (trackId: string, updates: Partial<Pick<Track, 'displayName' | 'volume' | 'muted' | 'soloed' | 'armed' | 'laneHeight' | 'trackType' | 'synthPreset' | 'drumKit' | 'color'>>) => void;
+  updateTrack: (trackId: string, updates: Partial<Pick<Track, 'displayName' | 'volume' | 'muted' | 'soloed' | 'armed' | 'laneHeight' | 'trackType' | 'synthPreset' | 'sampler' | 'samplerConfig' | 'drumKit' | 'color'>>) => void;
+  setTrackSampler: (trackId: string, sampler: Partial<SamplerSettings>) => void;
+  clearTrackSampler: (trackId: string) => void;
   /** Set or clear the sampler config on a pianoRoll track. Pass null to remove. */
   updateSamplerConfig: (trackId: string, config: SamplerConfig | null) => void;
   saveTrackPreset: (trackId: string, presetName: string) => TrackPreset;
@@ -516,6 +519,61 @@ function createDefaultDrumMachineConfig(kit: DrumKitName = '808'): DrumMachineCo
   };
 }
 
+function createDefaultSamplerSettings(overrides?: Partial<SamplerSettings>): SamplerSettings {
+  return {
+    rootNote: 60,
+    ...overrides,
+  };
+}
+
+function createDefaultSamplerConfig(audioKey: string, overrides?: Partial<SamplerConfig>): SamplerConfig {
+  return {
+    audioKey,
+    rootNote: 60,
+    attack: 0.005,
+    decay: 0.1,
+    sustain: 1,
+    release: 0.3,
+    ...overrides,
+  };
+}
+
+function syncSamplerState(
+  track: Track,
+  updates: {
+    sampler?: SamplerSettings | undefined;
+    samplerConfig?: SamplerConfig | undefined;
+  },
+): Pick<Track, 'sampler' | 'samplerConfig'> {
+  const nextSampler = updates.sampler ?? track.sampler;
+  const nextConfig = updates.samplerConfig ?? track.samplerConfig;
+
+  if (nextConfig) {
+    return {
+      sampler: createDefaultSamplerSettings({
+        ...(nextSampler ?? {}),
+        audioKey: nextConfig.audioKey,
+        rootNote: nextConfig.rootNote,
+      }),
+      samplerConfig: createDefaultSamplerConfig(nextConfig.audioKey, nextConfig),
+    };
+  }
+
+  if (nextSampler?.audioKey) {
+    return {
+      sampler: createDefaultSamplerSettings(nextSampler),
+      samplerConfig: createDefaultSamplerConfig(nextSampler.audioKey, {
+        rootNote: nextSampler.rootNote,
+      }),
+    };
+  }
+
+  return {
+    sampler: nextSampler ? createDefaultSamplerSettings(nextSampler) : undefined,
+    samplerConfig: undefined,
+  };
+}
+
 function getDefaultTrackSynthPreset(trackName: TrackName): Track['synthPreset'] {
   return trackName === 'bass' ? 'bass'
     : trackName === 'strings' ? 'strings'
@@ -593,6 +651,7 @@ function createTrackFromTemplate(
     track.drumMachine = createDefaultDrumMachineConfig(track.drumKit ?? '808');
   }
 
+  Object.assign(track, syncSamplerState(track, {}));
   return track;
 }
 
@@ -602,6 +661,7 @@ function createTrackPresetSnapshot(track: Track, name: string): TrackPreset {
     volume: track.volume,
     laneHeight: track.laneHeight,
     synthPreset: track.synthPreset,
+    sampler: track.sampler ? createDefaultSamplerSettings(track.sampler) : undefined,
     drumKit: track.drumKit,
     pan: track.pan,
     panMode: track.panMode,
@@ -631,7 +691,7 @@ function createTrackPresetSnapshot(track: Track, name: string): TrackPreset {
 }
 
 function ensureTrackDefaults(track: Track): Track {
-  return {
+  const normalizedTrack: Track = {
     ...track,
     synthPreset: track.synthPreset ?? getDefaultTrackSynthPreset(track.trackName),
     effects: track.effects ?? [],
@@ -646,6 +706,11 @@ function ensureTrackDefaults(track: Track): Track {
           }
         : undefined,
     })),
+  };
+
+  return {
+    ...normalizedTrack,
+    ...syncSamplerState(normalizedTrack, {}),
   };
 }
 
@@ -1024,6 +1089,7 @@ export const useProjectStore = create<ProjectState>()(
                 frozenAudioKey: undefined,
                 sequencerPattern: undefined,
                 synthPreset: undefined,
+                sampler: undefined,
                 clips: [newClip],
               }
             : t,
@@ -1169,7 +1235,75 @@ export const useProjectStore = create<ProjectState>()(
         ...state.project,
         updatedAt: Date.now(),
         tracks: state.project.tracks.map((t) =>
-          t.id === trackId ? { ...t, ...updates } : t,
+          t.id !== trackId
+            ? t
+            : (() => {
+                const sampler = updates.sampler
+                  ? createDefaultSamplerSettings(updates.sampler)
+                  : updates.sampler === undefined
+                    ? t.sampler
+                    : undefined;
+                const samplerConfig = updates.samplerConfig
+                  ? createDefaultSamplerConfig(updates.samplerConfig.audioKey, updates.samplerConfig)
+                  : updates.samplerConfig === undefined
+                    ? t.samplerConfig
+                    : undefined;
+                const nextTrack = {
+                  ...t,
+                  ...updates,
+                  sampler,
+                  samplerConfig,
+                };
+                return {
+                  ...nextTrack,
+                  ...syncSamplerState(nextTrack, { sampler, samplerConfig }),
+                };
+              })(),
+        ),
+      },
+    });
+  },
+
+  setTrackSampler: (trackId, sampler) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((t) =>
+          t.id === trackId
+            ? (() => {
+                const nextSampler = createDefaultSamplerSettings({ ...(t.sampler ?? {}), ...sampler });
+                return {
+                  ...t,
+                  synthPreset: 'sampler',
+                  ...syncSamplerState(t, { sampler: nextSampler }),
+                };
+              })()
+            : t,
+        ),
+      },
+    });
+  },
+
+  clearTrackSampler: (trackId) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((t) =>
+          t.id === trackId
+            ? {
+                ...t,
+                sampler: undefined,
+                samplerConfig: undefined,
+              }
+            : t,
         ),
       },
     });
@@ -1185,7 +1319,14 @@ export const useProjectStore = create<ProjectState>()(
         updatedAt: Date.now(),
         tracks: state.project.tracks.map((t) =>
           t.id === trackId
-            ? { ...t, samplerConfig: config ?? undefined }
+            ? (() => {
+                const nextConfig = config ?? undefined;
+                return {
+                  ...t,
+                  synthPreset: nextConfig ? 'sampler' : t.synthPreset,
+                  ...syncSamplerState(t, { samplerConfig: nextConfig }),
+                };
+              })()
             : t,
         ),
       },
@@ -3636,10 +3777,27 @@ export const useProjectStore = create<ProjectState>()(
         for (const clip of track.clips) {
           const notes = clip.midiData?.notes ?? [];
           if (notes.length === 0) continue;
-          const buffer = await renderMidiTrackOffline(
-            notes, clip.startTime, project.bpm,
-            track.synthPreset ?? 'piano', totalDuration,
-          );
+          let buffer: AudioBuffer | null = null;
+          if (track.synthPreset === 'sampler' && track.sampler?.audioKey) {
+            const samplerBlob = await loadAudioBlobByKey(track.sampler.audioKey);
+            if (samplerBlob) {
+              const sampleBuffer = await engine.decodeAudioData(samplerBlob);
+              buffer = await renderSamplerTrackOffline(
+                notes,
+                clip.startTime,
+                project.bpm,
+                sampleBuffer,
+                track.sampler.rootNote,
+                totalDuration,
+              );
+            }
+          } else {
+            buffer = await renderMidiTrackOffline(
+              notes, clip.startTime, project.bpm,
+              track.synthPreset ?? 'piano', totalDuration,
+            );
+          }
+          if (!buffer) continue;
           clips.push({ startTime: 0, buffer, volume: track.volume, pan: track.pan ?? 0, effects: track.effects });
         }
       }

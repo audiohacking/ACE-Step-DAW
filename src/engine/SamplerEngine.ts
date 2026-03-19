@@ -1,5 +1,7 @@
 import * as Tone from 'tone';
-import type { SamplerConfig } from '../types/project';
+import type { SamplerConfig, Track } from '../types/project';
+import { loadAudioBlobByKey } from '../services/audioFileManager';
+import { getAudioEngine } from '../hooks/useAudioEngine';
 
 interface SamplerInstance {
   sampler: Tone.Sampler;
@@ -27,6 +29,14 @@ export function createSamplerConfig(audioKey: string, overrides?: Partial<Sample
   };
 }
 
+function getTrackSamplerConfig(track: Track): SamplerConfig | null {
+  if (track.samplerConfig) return track.samplerConfig;
+  if (!track.sampler?.audioKey) return null;
+  return createSamplerConfig(track.sampler.audioKey, {
+    rootNote: track.sampler.rootNote ?? DEFAULT_SAMPLER_CONFIG.rootNote,
+  });
+}
+
 /**
  * Engine that manages Tone.js Sampler instances per track.
  * A sampler loads an audio buffer and pitch-shifts playback based on
@@ -36,6 +46,7 @@ class SamplerEngine {
   private samplers = new Map<string, SamplerInstance>();
   private previewSampler: Tone.Sampler | null = null;
   private previewGain: Tone.Gain | null = null;
+  private readonly bufferCache = new Map<string, AudioBuffer>();
 
   async ensureStarted() {
     if (Tone.getContext().state !== 'running') {
@@ -55,19 +66,16 @@ class SamplerEngine {
   ): Tone.Sampler {
     const existing = this.samplers.get(trackId);
     if (existing && existing.audioKey === config.audioKey) {
-      // Update envelope on existing sampler
       this._applyEnvelope(existing.sampler, config);
       return existing.sampler;
     }
 
-    // Dispose old sampler if audioKey changed
     if (existing) {
       this._disposeInstance(existing);
     }
 
     const toneBuffer = new Tone.ToneAudioBuffer(audioBuffer);
     const noteName = Tone.Frequency(config.rootNote, 'midi').toNote();
-
     const sampler = new Tone.Sampler({
       urls: { [noteName]: toneBuffer },
       attack: config.attack,
@@ -83,11 +91,29 @@ class SamplerEngine {
     }
 
     this.samplers.set(trackId, { sampler, gain, audioKey: config.audioKey });
+    this.bufferCache.set(config.audioKey, audioBuffer);
     return sampler;
   }
 
   getSampler(trackId: string): Tone.Sampler | null {
     return this.samplers.get(trackId)?.sampler ?? null;
+  }
+
+  async getTrackBuffer(track: Track): Promise<AudioBuffer | null> {
+    const config = getTrackSamplerConfig(track);
+    if (!config) return null;
+
+    const cached = this.bufferCache.get(config.audioKey);
+    if (cached) return cached;
+
+    const blob = await loadAudioBlobByKey(config.audioKey);
+    if (!blob) return null;
+
+    const engine = getAudioEngine();
+    await engine.resume();
+    const buffer = await engine.decodeAudioData(blob);
+    this.bufferCache.set(config.audioKey, buffer);
+    return buffer;
   }
 
   /**
@@ -105,6 +131,7 @@ class SamplerEngine {
       this.previewSampler.dispose();
       this.previewGain?.dispose();
     }
+
     const toneBuffer = new Tone.ToneAudioBuffer(audioBuffer);
     const noteName = Tone.Frequency(rootNote, 'midi').toNote();
     this.previewSampler = new Tone.Sampler({ urls: { [noteName]: toneBuffer } });
@@ -113,6 +140,20 @@ class SamplerEngine {
 
     const freq = Tone.Frequency(pitch, 'midi').toNote();
     this.previewSampler.triggerAttackRelease(freq, duration, undefined, velocity / 127);
+  }
+
+  async previewTrackNote(
+    track: Track,
+    pitch: number,
+    velocity = 100,
+    duration = 0.3,
+  ): Promise<void> {
+    const config = getTrackSamplerConfig(track);
+    if (!config) return;
+
+    const buffer = await this.getTrackBuffer(track);
+    if (!buffer) return;
+    await this.previewNote(buffer, config.rootNote, pitch, velocity, duration);
   }
 
   /** Trigger note on for a track sampler (for live playing / recording). */
@@ -143,6 +184,14 @@ class SamplerEngine {
     if (!instance) return;
     this._disposeInstance(instance);
     this.samplers.delete(trackId);
+  }
+
+  removeTrack(trackId: string) {
+    this.removeTrackSampler(trackId);
+  }
+
+  stopAll() {
+    this.releaseAll();
   }
 
   dispose() {

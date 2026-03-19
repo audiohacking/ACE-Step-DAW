@@ -7,6 +7,8 @@ import { PianoRollEmptyState } from './PianoRollEmptyState';
 import { QuantizeDialog } from './QuantizeDialog';
 import { GeneratePatternDialog } from './GeneratePatternDialog';
 import { TransformMenu } from './TransformMenu';
+import { midiNoteToName } from './PianoRollConstants';
+import { useAudioImport } from '../../hooks/useAudioImport';
 
 export function PianoRoll() {
   const [drawMode, setDrawMode] = useState(false);
@@ -17,6 +19,9 @@ export function PianoRoll() {
 
   const project = useProjectStore((s) => s.project);
   const updateTrack = useProjectStore((s) => s.updateTrack);
+  const setTrackSampler = useProjectStore((s) => s.setTrackSampler);
+  const clearTrackSampler = useProjectStore((s) => s.clearTrackSampler);
+  const { openSamplerFilePicker } = useAudioImport();
 
   const openTrackId = useUIStore((s) => s.openPianoRollTrackId);
   const openClipId = useUIStore((s) => s.openPianoRollClipId);
@@ -138,7 +143,42 @@ export function PianoRoll() {
           <option value="lead">Lead</option>
           <option value="bass">Bass</option>
           <option value="organ">Organ</option>
+          <option value="sampler">Sampler</option>
         </select>
+
+        {track.synthPreset === 'sampler' && (
+          <>
+            <button
+              aria-label={`Load sampler source for ${track.displayName}`}
+              className="px-2 py-1 rounded text-[10px] bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 transition-colors"
+              onClick={() => openSamplerFilePicker(track.id)}
+            >
+              {track.sampler?.audioKey ? 'Swap Sample' : 'Load Sample'}
+            </button>
+            <label className="text-[10px] text-zinc-400 flex items-center gap-1">
+              Root
+              <input
+                aria-label="Sampler root note"
+                type="number"
+                min="0"
+                max="127"
+                value={track.sampler?.rootNote ?? 60}
+                onChange={(e) => setTrackSampler(track.id, { rootNote: Number(e.target.value) })}
+                className="w-14 bg-[#111] border border-[#333] rounded px-1.5 py-1 text-[11px] text-zinc-200"
+              />
+              <span className="text-zinc-500">{midiNoteToName(track.sampler?.rootNote ?? 60)}</span>
+            </label>
+            {track.sampler?.audioKey && (
+              <button
+                aria-label={`Clear sampler source for ${track.displayName}`}
+                className="px-2 py-1 rounded text-[10px] bg-white/5 text-zinc-400 hover:bg-white/10"
+                onClick={() => clearTrackSampler(track.id)}
+              >
+                Clear
+              </button>
+            )}
+          </>
+        )}
 
         {clip && <TransformMenu clipId={clip.id} selectedNoteIds={selectedNoteIds} />}
 
@@ -153,6 +193,11 @@ export function PianoRoll() {
         )}
 
         {clip && <span className="text-[10px] text-zinc-500 ml-1 truncate max-w-[200px]">{clip.prompt}</span>}
+        {track.synthPreset === 'sampler' && (
+          <span className={`text-[10px] truncate max-w-[200px] ${track.sampler?.audioKey ? 'text-amber-200/80' : 'text-rose-300/80'}`}>
+            {track.sampler?.sampleName ? `Sample: ${track.sampler.sampleName}` : 'Load an audio sample to play this track'}
+          </span>
+        )}
 
         <div className="ml-auto flex items-center gap-2">
           <button

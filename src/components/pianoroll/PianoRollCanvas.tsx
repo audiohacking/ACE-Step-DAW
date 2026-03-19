@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { synthEngine } from '../../engine/SynthEngine';
+import { samplerEngine } from '../../engine/SamplerEngine';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { useTransportStore } from '../../store/transportStore';
@@ -89,6 +90,13 @@ export function PianoRollCanvas({
   const currentTime = useTransportStore((s) => s.currentTime);
   const previewEnabled = true;
   const synthPreset = track.synthPreset ?? 'piano';
+  const previewNoteAtPitch = useCallback((pitch: number, velocity = 100, duration = 0.3) => {
+    if (synthPreset === 'sampler') {
+      void samplerEngine.previewTrackNote(track, pitch, velocity, duration);
+      return;
+    }
+    void synthEngine.previewNote(pitch, velocity, duration, synthPreset);
+  }, [synthPreset, track]);
 
   const keyHeight = PIANO_ROLL_KEY_HEIGHT * prZoomY;
   const pixelsPerBeat = 40 * prZoomX;
@@ -404,7 +412,7 @@ export function PianoRollCanvas({
       if (x < PIANO_KEYBOARD_WIDTH) {
         const pitch = yToPitch(y);
         if (pitch >= 0 && pitch <= MIDI_MAX_NOTE && previewEnabled) {
-          synthEngine.previewNote(pitch, 100, 0.5, synthPreset);
+          previewNoteAtPitch(pitch, 100, 0.5);
         }
         return;
       }
@@ -434,7 +442,7 @@ export function PianoRollCanvas({
           velocity: 100,
         };
         addMidiNote(clip.id, newNote);
-        if (previewEnabled) synthEngine.previewNote(pitch, 100, 0.3, synthPreset);
+        if (previewEnabled) previewNoteAtPitch(pitch, 100, 0.3);
         beginDrag();
         dragRef.current = {
           mode: 'resize-right',
@@ -510,7 +518,7 @@ export function PianoRollCanvas({
         };
         addMidiNote(clip.id, newNote);
         setSelectedNoteIds(new Set([newNote.id]));
-        if (previewEnabled) synthEngine.previewNote(pitch, 100, 0.3, synthPreset);
+        if (previewEnabled) previewNoteAtPitch(pitch, 100, 0.3);
 
         beginDrag();
         dragRef.current = {
@@ -536,10 +544,10 @@ export function PianoRollCanvas({
       notes,
       pixelsPerBeat,
       previewEnabled,
+      previewNoteAtPitch,
       removeMidiNote,
       selectedNoteIds,
       snapBeat,
-      synthPreset,
       updateMidiNote,
       velocityHeight,
       xToBeat,
@@ -583,7 +591,7 @@ export function PianoRollCanvas({
       };
       addMidiNote(clip.id, newNote);
       setSelectedNoteIds(new Set([newNote.id]));
-      if (previewEnabled) synthEngine.previewNote(pitch, 100, 0.3, synthPreset);
+      if (previewEnabled) previewNoteAtPitch(pitch, 100, 0.3);
     },
     [
       addMidiNote,
@@ -592,9 +600,9 @@ export function PianoRollCanvas({
       findNoteAt,
       gridBeats,
       previewEnabled,
+      previewNoteAtPitch,
       removeMidiNote,
       snapBeat,
-      synthPreset,
       velocityHeight,
       xToBeat,
       yToPitch,
@@ -657,7 +665,7 @@ export function PianoRollCanvas({
         const newPitch = Math.max(0, Math.min(MIDI_MAX_NOTE, yToPitch(y)));
         updateMidiNote(clip.id, drag.noteId, { startBeat: newStartBeat, pitch: newPitch });
         if (previewEnabled && newPitch !== drag.originalPitch) {
-          synthEngine.previewNote(newPitch, 80, 0.15, synthPreset);
+          previewNoteAtPitch(newPitch, 80, 0.15);
           drag.originalPitch = newPitch;
         }
         return;
@@ -694,8 +702,8 @@ export function PianoRollCanvas({
     pitchToY,
     pixelsPerBeat,
     previewEnabled,
+    previewNoteAtPitch,
     snapBeat,
-    synthPreset,
     updateMidiNote,
     velocityHeight,
     yToPitch,

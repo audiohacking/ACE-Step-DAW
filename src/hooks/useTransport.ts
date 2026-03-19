@@ -196,23 +196,34 @@ export function useTransport() {
       if (track.frozen && track.frozenAudioKey) continue;
 
       if (track.trackType === 'pianoRoll') {
-        const useSampler = !!track.samplerConfig;
+        const preset = track.synthPreset ?? 'piano';
+        const samplerConfig = track.samplerConfig
+          ?? (preset === 'sampler' && track.sampler?.audioKey
+            ? {
+                audioKey: track.sampler.audioKey,
+                rootNote: track.sampler.rootNote ?? 60,
+                attack: 0.005,
+                decay: 0.1,
+                sustain: 1,
+                release: 0.3,
+              }
+            : null);
+        const useSampler = !!samplerConfig;
 
-        if (useSampler && track.samplerConfig) {
-          // Load the sample audio buffer and create a Tone.js Sampler
-          const sampleBlob = await loadAudioBlobByKey(track.samplerConfig.audioKey);
+        synthEngine.removeTrackSynth(track.id);
+        samplerEngine.removeTrackSampler(track.id);
+
+        if (useSampler && samplerConfig) {
+          const sampleBlob = await loadAudioBlobByKey(samplerConfig.audioKey);
           if (sampleBlob) {
             const sampleBuffer = await engine.decodeAudioData(sampleBlob);
             const trackNode = engine.getOrCreateTrackNode(track.id);
-            samplerEngine.removeTrackSampler(track.id);
             samplerEngine.ensureTrackSampler(
-              track.id, track.samplerConfig, sampleBuffer,
+              track.id, samplerConfig, sampleBuffer,
               trackNode.inputGain as unknown as Tone.InputNode,
             );
           }
-        } else {
-          const preset = track.synthPreset ?? 'piano';
-          synthEngine.removeTrackSynth(track.id);
+        } else if (preset !== 'sampler') {
           synthEngine.ensureTrackSynth(track.id, preset);
         }
 
@@ -324,7 +335,7 @@ export function useTransport() {
     const time = engine.getCurrentTime();
     engine.stop();
     synthEngine.releaseAll();
-    samplerEngine.releaseAll();
+    samplerEngine.stopAll();
     automationEngine.stop();
     useTransportStore.getState().pause();
     useTransportStore.getState().seek(time);
@@ -337,7 +348,7 @@ export function useTransport() {
     const engine = getAudioEngine();
     engine.stop();
     synthEngine.releaseAll();
-    samplerEngine.releaseAll();
+    samplerEngine.stopAll();
     automationEngine.stop();
     useTransportStore.getState().stop();
   }, [isRecording, stopRecording]);
@@ -347,7 +358,7 @@ export function useTransport() {
     if (engine.playing) {
       engine.stop();
       synthEngine.releaseAll();
-      samplerEngine.releaseAll();
+      samplerEngine.stopAll();
       useTransportStore.getState().seek(time);
       play(time);
     } else {

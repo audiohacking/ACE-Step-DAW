@@ -6,7 +6,7 @@ export type TrackName =
 
 export type TrackType = 'stems' | 'sample' | 'sequencer' | 'pianoRoll' | 'drumMachine';
 export type InputMonitoringMode = 'off' | 'auto' | 'on';
-export type SynthPreset = 'piano' | 'strings' | 'pad' | 'lead' | 'bass' | 'organ';
+export type SynthPreset = 'piano' | 'strings' | 'pad' | 'lead' | 'bass' | 'organ' | 'sampler';
 export type DrumKitName = '808' | 'acoustic' | 'electronic' | 'lofi';
 /** Time-stretch algorithm mode. 'repitch' uses playbackRate (changes pitch), 'slice' uses warp markers. */
 export type StretchMode = 'repitch' | 'slice';
@@ -26,6 +26,13 @@ export interface SamplerConfig {
   sustain: number;
   /** ADSR release time in seconds. */
   release: number;
+}
+
+export interface SamplerSettings {
+  audioKey?: string;
+  sampleName?: string;
+  rootNote: number;
+  sampleDuration?: number;
 }
 
 export interface DrumPad {
@@ -380,6 +387,7 @@ export interface TrackPresetSettings {
   volume: number;
   laneHeight?: number;
   synthPreset?: SynthPreset;
+  sampler?: SamplerSettings;
   drumKit?: DrumKitName;
   pan?: number;
   panMode?: 'stereo' | 'dual-mono';
@@ -426,6 +434,7 @@ export interface Track {
   collapsed?: boolean;
   sequencerPattern?: SequencerPattern;
   synthPreset?: SynthPreset;
+  sampler?: SamplerSettings;
   effects?: TrackEffect[];
   midiEffects?: MidiEffect[];
   drumKit?: DrumKitName;

@@ -4,7 +4,7 @@ import { useProjectStore } from '../../store/projectStore';
 import { getAudioEngine } from '../../hooks/useAudioEngine';
 import { loadAudioBlobByKey } from '../../services/audioFileManager';
 import { exportMix, type ExportClip } from '../../engine/exportMix';
-import { renderMidiTrackOffline, renderSequencerTrackOffline } from '../../engine/offlineRender';
+import { renderMidiTrackOffline, renderSamplerTrackOffline, renderSequencerTrackOffline } from '../../engine/offlineRender';
 import { toastError, toastSuccess } from '../../hooks/useToast';
 import {
   type ExportFormat,
@@ -78,13 +78,30 @@ export function ExportDialog() {
             const notes = clip.midiData?.notes ?? [];
             if (notes.length === 0) continue;
 
-            const buffer = await renderMidiTrackOffline(
-              notes,
-              clip.startTime,
-              project.bpm,
-              track.synthPreset ?? 'piano',
-              project.totalDuration,
-            );
+            let buffer: AudioBuffer | null = null;
+            if (track.synthPreset === 'sampler' && track.sampler?.audioKey) {
+              const samplerBlob = await loadAudioBlobByKey(track.sampler.audioKey);
+              if (samplerBlob) {
+                const sampleBuffer = await engine.decodeAudioData(samplerBlob);
+                buffer = await renderSamplerTrackOffline(
+                  notes,
+                  clip.startTime,
+                  project.bpm,
+                  sampleBuffer,
+                  track.sampler.rootNote,
+                  project.totalDuration,
+                );
+              }
+            } else {
+              buffer = await renderMidiTrackOffline(
+                notes,
+                clip.startTime,
+                project.bpm,
+                track.synthPreset ?? 'piano',
+                project.totalDuration,
+              );
+            }
+            if (!buffer) continue;
             clips.push({ startTime: 0, buffer, volume: track.volume, pan: track.pan ?? 0, effects: track.effects });
           }
         }

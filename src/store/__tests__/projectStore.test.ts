@@ -98,6 +98,28 @@ describe('projectStore', () => {
       expect(track.synthPreset).toBe('organ');
     });
 
+    it('stores sampler metadata on a piano roll track', () => {
+      const store = useProjectStore.getState();
+      const track = store.addTrack('keyboard', 'pianoRoll');
+
+      store.updateTrack(track.id, { synthPreset: 'sampler' });
+      store.setTrackSampler(track.id, {
+        audioKey: 'audio:test:sampler',
+        sampleName: 'LoFi Keys',
+        rootNote: 48,
+        sampleDuration: 1.25,
+      });
+
+      const updated = useProjectStore.getState().project!.tracks[0];
+      expect(updated.synthPreset).toBe('sampler');
+      expect(updated.sampler).toMatchObject({
+        audioKey: 'audio:test:sampler',
+        sampleName: 'LoFi Keys',
+        rootNote: 48,
+        sampleDuration: 1.25,
+      });
+    });
+
     it('increments order for each new track', () => {
       const t1 = useProjectStore.getState().addTrack('drums');
       const t2 = useProjectStore.getState().addTrack('bass');
@@ -218,6 +240,39 @@ describe('projectStore', () => {
         params: { rate: '1/16', pattern: 'up-down', octaves: 2 },
       });
       expect(useProjectStore.getState().project!.trackPresets).toHaveLength(1);
+    });
+
+    it('preserves sampler settings when saving and applying a track preset', () => {
+      const store = useProjectStore.getState();
+      const track = store.addTrack('keyboard', 'pianoRoll');
+
+      store.updateTrack(track.id, { synthPreset: 'sampler' });
+      store.setTrackSampler(track.id, {
+        audioKey: 'audio:test:sampler',
+        sampleName: 'Voice Chop',
+        rootNote: 57,
+        sampleDuration: 2.4,
+      });
+
+      const preset = store.saveTrackPreset(track.id, 'Chop Sampler');
+      expect(preset.settings).toMatchObject({
+        synthPreset: 'sampler',
+        sampler: {
+          audioKey: 'audio:test:sampler',
+          sampleName: 'Voice Chop',
+          rootNote: 57,
+          sampleDuration: 2.4,
+        },
+      });
+
+      const appliedTrack = store.applyTrackPreset(preset.id);
+      expect(appliedTrack?.synthPreset).toBe('sampler');
+      expect(appliedTrack?.sampler).toMatchObject({
+        audioKey: 'audio:test:sampler',
+        sampleName: 'Voice Chop',
+        rootNote: 57,
+        sampleDuration: 2.4,
+      });
     });
 
     it('applies a track preset to a new track with fresh ids and no clips', () => {

@@ -38,6 +38,7 @@ export function useAudioImport() {
   const addClip = useProjectStore((s) => s.addClip);
   const updateProject = useProjectStore((s) => s.updateProject);
   const updateTrack = useProjectStore((s) => s.updateTrack);
+  const setTrackSampler = useProjectStore((s) => s.setTrackSampler);
   const updateClipStatus = useProjectStore((s) => s.updateClipStatus);
 
   const maybeApplyImportedMidiMetadata = useCallback((fileName: string, bpm?: number, timeSignature?: number) => {
@@ -181,6 +182,32 @@ export function useAudioImport() {
     await importAudioBufferToTrack(audioBuffer, file.name, trackId, startTime);
   }, [importAudioBufferToTrack]);
 
+  const importAudioFileAsSampler = useCallback(async (file: File, trackId: string) => {
+    const project = useProjectStore.getState().project;
+    if (!project) return;
+
+    const engine = getAudioEngine();
+    await engine.resume();
+
+    const arrayBuffer = await file.arrayBuffer();
+    const audioBuffer = await engine.ctx.decodeAudioData(arrayBuffer);
+    const wavBlob = audioBufferToWavBlob(audioBuffer);
+    const audioKey = await saveAudioBlob(project.id, `sampler-${trackId}`, 'isolated', wavBlob);
+    const sampleName = file.name.replace(/\.[^.]+$/, '');
+
+    updateTrack(trackId, {
+      trackType: 'pianoRoll',
+      synthPreset: 'sampler',
+    });
+    setTrackSampler(trackId, {
+      audioKey,
+      sampleName,
+      sampleDuration: audioBuffer.duration,
+    });
+
+    toastSuccess(`Loaded sampler source: ${sampleName}`);
+  }, [setTrackSampler, updateTrack]);
+
   const importMidiFile = useCallback(async (file: File, startTime: number = 0) => {
     const project = useProjectStore.getState().project;
     if (!project) return;
@@ -253,6 +280,19 @@ export function useAudioImport() {
     };
     input.click();
   }, [importMultipleFiles]);
+
+  const openSamplerFilePicker = useCallback((trackId: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'audio/*';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (file) {
+        await importAudioFileAsSampler(file, trackId);
+      }
+    };
+    input.click();
+  }, [importAudioFileAsSampler]);
 
   const importLoopToTrack = useCallback(async (loopId: string, trackId: string, startTime: number) => {
     const project = useProjectStore.getState().project;
@@ -335,6 +375,7 @@ export function useAudioImport() {
     importMidiFile,
     importMultipleFiles,
     openFilePicker,
+    openSamplerFilePicker,
     importLoopToTrack,
     importAssetToTrack,
   };

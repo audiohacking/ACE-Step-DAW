@@ -10,10 +10,13 @@ type PickerStep = 'type' | 'instrument';
 export function InstrumentPicker() {
   const show = useUIStore((s) => s.showInstrumentPicker);
   const setShow = useUIStore((s) => s.setShowInstrumentPicker);
+  const setOpenPianoRoll = useUIStore((s) => s.setOpenPianoRoll);
   const addTrack = useProjectStore((s) => s.addTrack);
+  const updateTrack = useProjectStore((s) => s.updateTrack);
+  const setTrackSampler = useProjectStore((s) => s.setTrackSampler);
   const applyTrackPreset = useProjectStore((s) => s.applyTrackPreset);
   const project = useProjectStore((s) => s.project);
-  const { openFilePicker } = useAudioImport();
+  const { openFilePicker, openSamplerFilePicker } = useAudioImport();
 
   const [step, setStep] = useState<PickerStep>('type');
   const [selectedType, setSelectedType] = useState<TrackType>('stems');
@@ -237,6 +240,41 @@ export function InstrumentPicker() {
               <div>
                 <div className="text-sm font-medium">Piano Roll Track</div>
                 <div className="text-[11px] text-zinc-400">MIDI clips with built-in synth presets and note editing.</div>
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                const track = addTrack('keyboard', 'pianoRoll');
+                updateTrack(track.id, { displayName: 'Sampler', synthPreset: 'sampler' });
+                setTrackSampler(track.id, { rootNote: 60 });
+                close();
+                setOpenPianoRoll(track.id);
+              }}
+              className="flex items-center gap-3 p-3 rounded-lg bg-daw-surface-2 hover:bg-[#484848] transition-colors text-left"
+              style={{ borderLeft: `3px solid ${TRACK_TYPE_CATALOG.pianoRoll.color}` }}
+            >
+              <span className="text-xl">🎚️</span>
+              <div>
+                <div className="text-sm font-medium">Sampler Track</div>
+                <div className="text-[11px] text-zinc-400">Chromatic MIDI playback from a single loaded audio sample.</div>
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                const track = addTrack('keyboard', 'pianoRoll');
+                updateTrack(track.id, { displayName: 'Sampler', synthPreset: 'sampler' });
+                setTrackSampler(track.id, { rootNote: 60 });
+                close();
+                setOpenPianoRoll(track.id);
+                openSamplerFilePicker(track.id);
+              }}
+              className="flex items-center gap-3 p-3 rounded-lg bg-daw-surface-2 hover:bg-[#484848] transition-colors text-left"
+              style={{ borderLeft: `3px solid ${TRACK_TYPE_CATALOG.pianoRoll.color}` }}
+            >
+              <span className="text-xl">📥</span>
+              <div>
+                <div className="text-sm font-medium">Sampler From Audio File</div>
+                <div className="text-[11px] text-zinc-400">Create a sampler track and load a source sample immediately.</div>
               </div>
             </button>
             <button

@@ -1,6 +1,6 @@
 import { useProjectStore } from '../store/projectStore';
 import { loadAudioBlobByKey, saveAudioBlob } from './audioFileManager';
-import { renderMidiTrackOffline, renderSequencerTrackOffline } from '../engine/offlineRender';
+import { renderMidiTrackOffline, renderSamplerTrackOffline, renderSequencerTrackOffline } from '../engine/offlineRender';
 import { audioBufferToWavBlob } from '../utils/wav';
 import { computeWaveformPeaks } from '../utils/waveformPeaks';
 import { getAudioEngine } from '../hooks/useAudioEngine';
@@ -29,13 +29,29 @@ export async function freezeTrackToAudio(trackId: string): Promise<void> {
       })),
     );
     if (allNotes.length > 0) {
-      finalBuffer = await renderMidiTrackOffline(
-        allNotes,
-        0,
-        project.bpm,
-        (track.synthPreset ?? 'piano') as SynthPreset,
-        project.totalDuration,
-      );
+      if (track.synthPreset === 'sampler' && track.sampler?.audioKey) {
+        const samplerBlob = await loadAudioBlobByKey(track.sampler.audioKey);
+        if (samplerBlob) {
+          const engine = getAudioEngine();
+          const sampleBuffer = await engine.decodeAudioData(samplerBlob);
+          finalBuffer = await renderSamplerTrackOffline(
+            allNotes,
+            0,
+            project.bpm,
+            sampleBuffer,
+            track.sampler.rootNote,
+            project.totalDuration,
+          );
+        }
+      } else {
+        finalBuffer = await renderMidiTrackOffline(
+          allNotes,
+          0,
+          project.bpm,
+          (track.synthPreset ?? 'piano') as SynthPreset,
+          project.totalDuration,
+        );
+      }
     }
   } else if (track.trackType === 'sequencer' && track.sequencerPattern) {
     const hasReadyClips = track.clips.some((c) => c.generationStatus === 'ready');

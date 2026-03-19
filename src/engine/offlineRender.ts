@@ -71,6 +71,51 @@ export async function renderMidiTrackOffline(
   return toAudioBuffer(buffer);
 }
 
+export async function renderSamplerTrackOffline(
+  notes: MidiNote[],
+  clipStartTime: number,
+  bpm: number,
+  sampleBuffer: AudioBuffer,
+  rootNote: number,
+  totalDuration: number,
+  sampleRate: number = 48000,
+): Promise<AudioBuffer> {
+  const length = Math.max(1, Math.ceil(totalDuration * sampleRate));
+  const offlineCtx = new OfflineAudioContext(2, length, sampleRate);
+  const secondsPerBeat = 60 / bpm;
+
+  for (const note of notes) {
+    const noteDuration = Math.max(0, note.durationBeats * secondsPerBeat);
+    const noteStart = clipStartTime + note.startBeat * secondsPerBeat;
+    const noteEnd = noteStart + noteDuration;
+    if (noteDuration <= 0 || noteEnd <= 0 || noteStart >= totalDuration) continue;
+
+    const playbackRate = Math.pow(2, (note.pitch - rootNote) / 12);
+    const source = offlineCtx.createBufferSource();
+    source.buffer = sampleBuffer;
+    source.playbackRate.value = playbackRate;
+
+    const gain = offlineCtx.createGain();
+    const velocity = Math.max(0, Math.min(1, note.velocity));
+    const attack = 0.005;
+    const release = 0.03;
+    const naturalDuration = sampleBuffer.duration / Math.max(playbackRate, 0.001);
+    const stopTime = Math.min(totalDuration, noteStart + Math.min(naturalDuration, noteDuration + release));
+
+    gain.gain.setValueAtTime(0.0001, noteStart);
+    gain.gain.linearRampToValueAtTime(velocity, Math.min(stopTime, noteStart + attack));
+    gain.gain.setValueAtTime(velocity, Math.max(noteStart + attack, stopTime - release));
+    gain.gain.linearRampToValueAtTime(0.0001, stopTime);
+
+    source.connect(gain);
+    gain.connect(offlineCtx.destination);
+    source.start(noteStart);
+    source.stop(stopTime);
+  }
+
+  return offlineCtx.startRendering();
+}
+
 export async function renderSequencerTrackOffline(
   pattern: SequencerPattern,
   bpm: number,
