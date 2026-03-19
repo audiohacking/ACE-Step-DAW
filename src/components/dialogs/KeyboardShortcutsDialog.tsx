@@ -70,6 +70,7 @@ const SECTIONS: Section[] = [
       { keys: ['B'],                    description: 'Toggle Smart Controls' },
       { keys: ['O'],                    description: 'Toggle Loop Browser' },
       { keys: ['T'],                    description: 'Toggle Tempo Lane' },
+      { keys: [`${mod}`, '/'],           description: 'Toggle AI Assistant' },
     ],
   },
   {

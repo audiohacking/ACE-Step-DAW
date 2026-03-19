@@ -16,6 +16,7 @@ import { SettingsDialog } from '../dialogs/SettingsDialog';
 import { ProjectListDialog } from '../dialogs/ProjectListDialog';
 import { KeyboardShortcutsDialog } from '../dialogs/KeyboardShortcutsDialog';
 import { ShareDialog } from '../dialogs/ShareDialog';
+import { AIAssistantPanel } from '../dialogs/AIAssistantPanel';
 import { MixerPanel } from '../mixer/MixerPanel';
 import { AssetsPanel } from '../assets/AssetsPanel';
 import { LoopBrowser } from '../assets/LoopBrowser';
@@ -108,6 +109,7 @@ export function AppShell() {
       <AudioAnalysisPanel />
       <StemSeparationModal />
       <ShareDialog />
+      <AIAssistantPanel />
     </div>
   );
 }

@@ -51,7 +51,10 @@ export function useKeyboardShortcuts() {
       // Escape — close topmost modal in priority order
       // -----------------------------------------------------------------------
       if (e.code === 'Escape') {
-        if (ui.editingClipId !== null) {
+        if (ui.showAIAssistant) {
+          e.preventDefault();
+          ui.setShowAIAssistant(false);
+        } else if (ui.editingClipId !== null) {
           e.preventDefault();
           ui.setEditingClip(null);
         } else if (ui.batchGenerateMode !== null) {
@@ -141,6 +144,12 @@ export function useKeyboardShortcuts() {
                 ui.setBatchGenerateMode('silence');
               }
             }
+            return;
+
+          // AI Assistant toggle (Cmd+/)
+          case 'Slash':
+            e.preventDefault();
+            ui.toggleAIAssistant();
             return;
 
           // Export

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import type { AIChatMessage } from '../types/aiAssistant';
 
 interface UIState {
   pixelsPerSecond: number;
@@ -76,6 +77,11 @@ interface UIState {
   showGeneratePatternDialog: boolean;
   generatePatternClipId: string | null;
 
+  // AI Assistant
+  showAIAssistant: boolean;
+  aiChatMessages: AIChatMessage[];
+  aiAssistantStreaming: boolean;
+
   setPixelsPerSecond: (pps: number) => void;
   toggleSnap: () => void;
   zoomIn: () => void;
@@ -145,6 +151,13 @@ interface UIState {
   // Generate pattern dialog
   setShowGeneratePatternDialog: (v: boolean) => void;
   openGeneratePatternDialog: (clipId: string) => void;
+
+  // AI Assistant
+  toggleAIAssistant: () => void;
+  setShowAIAssistant: (v: boolean) => void;
+  addAIChatMessage: (msg: AIChatMessage) => void;
+  clearAIChatMessages: () => void;
+  setAIAssistantStreaming: (v: boolean) => void;
 }
 
 const ZOOM_LEVELS = [10, 25, 50, 100, 200, 500];
@@ -210,6 +223,10 @@ export const useUIStore = create<UIState>()(
 
   showGeneratePatternDialog: false,
   generatePatternClipId: null,
+
+  showAIAssistant: false,
+  aiChatMessages: [],
+  aiAssistantStreaming: false,
 
   setPixelsPerSecond: (pps) => set({ pixelsPerSecond: pps }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
@@ -311,6 +328,12 @@ export const useUIStore = create<UIState>()(
 
   setShowGeneratePatternDialog: (v) => set(v ? { showGeneratePatternDialog: v } : { showGeneratePatternDialog: false, generatePatternClipId: null }),
   openGeneratePatternDialog: (clipId) => set({ showGeneratePatternDialog: true, generatePatternClipId: clipId }),
+
+  toggleAIAssistant: () => set((s) => ({ showAIAssistant: !s.showAIAssistant })),
+  setShowAIAssistant: (v) => set({ showAIAssistant: v }),
+  addAIChatMessage: (msg) => set((s) => ({ aiChatMessages: [...s.aiChatMessages, msg] })),
+  clearAIChatMessages: () => set({ aiChatMessages: [] }),
+  setAIAssistantStreaming: (v) => set({ aiAssistantStreaming: v }),
 }),
     {
       name: 'ace-step-daw-ui',
@@ -337,6 +360,8 @@ export const useUIStore = create<UIState>()(
         showSpectrumAnalyzer: state.showSpectrumAnalyzer,
         // Loop Browser preference
         loopBrowserCategory: state.loopBrowserCategory,
+        // AI Assistant
+        showAIAssistant: state.showAIAssistant,
       }),
     },
   ),

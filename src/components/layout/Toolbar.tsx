@@ -81,6 +81,8 @@ export function Toolbar() {
   const setShowLibrary = useUIStore((s) => s.setShowLibrary);
   const showSmartControls = useUIStore((s) => s.showSmartControls);
   const setShowSmartControls = useUIStore((s) => s.setShowSmartControls);
+  const showAIAssistant = useUIStore((s) => s.showAIAssistant);
+  const toggleAIAssistant = useUIStore((s) => s.toggleAIAssistant);
   const setShowShareDialog = useCollaborationStore((s) => s.setShowShareDialog);
   const isViewerMode = useCollaborationStore((s) => s.isViewerMode);
   const { openFilePicker } = useAudioImport();
@@ -240,6 +242,17 @@ export function Toolbar() {
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4">
             <circle cx="6" cy="6" r="4" />
             <path d="M9 9l3.5 3.5" strokeLinecap="round" />
+          </svg>
+        </ControlBarButton>
+        <ControlBarButton
+          active={showAIAssistant}
+          onClick={toggleAIAssistant}
+          title="AI Assistant (Cmd+/)"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3">
+            <circle cx="7" cy="7" r="5.5" />
+            <path d="M5 6.5h4M5 8.5h2.5" strokeLinecap="round" />
+            <circle cx="7" cy="4.5" r="0.8" fill="currentColor" />
           </svg>
         </ControlBarButton>
       </div>
