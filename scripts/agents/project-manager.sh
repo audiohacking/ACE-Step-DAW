@@ -1,52 +1,79 @@
 #!/bin/bash
-# Project Manager — Intelligent Brain (no hardcoded thresholds)
+# Project Manager — Pure bash, zero AI cost
+# Runs deterministic logic: merge PRs, balance agents, launch work
 set -e
 cd /Users/junmingong/.openclaw/workspace/acestep-daw
 REPO="ace-step/ACE-Step-DAW"
+CONTEXT_FILE="scripts/agents/AGENT_CONTEXT.md"
 
-# Gather all context
-ISSUES=$(gh issue list --repo $REPO --state open --limit 30 --json number,title,labels,assignees 2>/dev/null)
-PRS=$(gh pr list --repo $REPO --state open --limit 20 --json number,title,isDraft,mergeable,statusCheckRollup 2>/dev/null)
-RECENT_MERGED=$(gh pr list --repo $REPO --state merged --limit 5 --json number,title 2>/dev/null)
-RUNNING_CLI=$(ps aux | grep 'claude.*print' | grep -v grep | wc -l | tr -d ' ')
-RECENT_LOG=$(git log --oneline -10 2>/dev/null)
-LAST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -1 2>/dev/null)
+echo "=== PM $(date '+%H:%M') ==="
 
-# Let the brain decide everything — pipe prompt via stdin to avoid shell escaping issues with JSON
-cat <<PROMPT | ~/.local/bin/claude --print --permission-mode bypassPermissions --allowedTools 'Edit,Write,Read,Bash' -
-You are the Project Manager brain for ACE-Step DAW. Make ALL decisions yourself — no hardcoded rules.
+# ── STEP 1: Merge ready PRs ──
+MERGED=0
+gh pr list --repo $REPO --state open --json number,isDraft,mergeable --jq '.[] | select(.isDraft==false and .mergeable=="MERGEABLE") | .number' 2>/dev/null | while read NUM; do
+  FAIL=$(gh pr checks $NUM --repo $REPO 2>&1 | grep -c "fail" || true)
+  PEND=$(gh pr checks $NUM --repo $REPO 2>&1 | grep -c "pending" || true)
+  if [ "$FAIL" = "0" ] && [ "$PEND" = "0" ]; then
+    gh pr merge $NUM --repo $REPO --squash --admin 2>/dev/null && echo "  ✅ Merged #$NUM" && MERGED=$((MERGED+1))
+  fi
+done
 
-CURRENT STATE:
-- Open issues: $ISSUES
-- Open PRs: $PRS
-- Recently merged: $RECENT_MERGED
-- Running CLI agents: $RUNNING_CLI
-- Recent commits: $RECENT_LOG
-- Last release tag: $LAST_TAG
-- Claude Code CLI: up to 5 concurrent (launch via: ~/.local/bin/claude --print --permission-mode bypassPermissions "task..." &)
-- Codex CLI: up to 5 concurrent (launch via: codex exec -s danger-full-access "task description")
-- Copilot: DO NOT assign issues for coding (rate limited). Only use for PR code review.
-- RULE: Load balance across all 3 channels. Do not put all tasks on one channel.
-- Repo: $REPO
-- Workspace: /Users/junmingong/.openclaw/workspace/acestep-daw
+# ── STEP 2: Count current state ──
+ISSUES=$(gh issue list --repo $REPO --state open --label "role: developer" --json number --jq length 2>/dev/null)
+CC=$(ps aux | grep 'claude.*print' | grep -v grep | wc -l | tr -d ' ')
+CX=$(ps aux | grep 'codex exec' | grep -v grep | wc -l | tr -d ' ')
+TOTAL=$((CC + CX))
 
-YOUR RESPONSIBILITIES (in priority order):
+echo "  Issues: $ISSUES | CC: $CC | Codex: $CX | Total: $TOTAL"
 
-1. MERGE: Check each open PR. If non-draft, CI all pass, mergeable — merge it now:
-   gh pr merge NUMBER --squash --admin --repo $REPO
+# ── STEP 3: Balance — prefer Codex, cap Claude Code ──
+MAX_CC=5
+MAX_CX=10
+NEED=$((ISSUES - TOTAL))
+[ "$NEED" -lt 0 ] && NEED=0
+[ "$NEED" -gt 5 ] && NEED=5
 
-2. FIX: If a PR has conflicts, rebase it. If CI failed, figure out why.
+# Fill Codex first (cheaper), then Claude Code
+CX_SLOTS=$((MAX_CX - CX))
+[ "$CX_SLOTS" -lt 0 ] && CX_SLOTS=0
+CX_LAUNCH=$NEED
+[ "$CX_LAUNCH" -gt "$CX_SLOTS" ] && CX_LAUNCH=$CX_SLOTS
 
-3. STAFF: Look at open issues vs running CLI agents. Decide how many more to launch.
-   Consider: are the issues simple (1 CLI enough) or complex (needs focused attention)?
-   Are there bugs (P0) that need urgent attention vs features that can wait?
-   To launch a dev: ~/.local/bin/claude --print --permission-mode bypassPermissions 'Implement issue #N ...' &
+CC_LAUNCH=$((NEED - CX_LAUNCH))
+CC_SLOTS=$((MAX_CC - CC))
+[ "$CC_SLOTS" -lt 0 ] && CC_SLOTS=0
+[ "$CC_LAUNCH" -gt "$CC_SLOTS" ] && CC_LAUNCH=$CC_SLOTS
 
-4. REVIEW: Check recently merged PRs. Do they have tests? If not, note it.
+echo "  Launch: Codex=$CX_LAUNCH, CC=$CC_LAUNCH"
 
-5. RELEASE: If enough meaningful work accumulated since last tag, consider triggering release.
+# ── STEP 4: Launch Codex agents ──
+if [ "$CX_LAUNCH" -gt 0 ]; then
+  IDX=0
+  gh issue list --repo $REPO --state open --label "role: developer" --json number,title --jq ".[$TOTAL:$((TOTAL+CX_LAUNCH))][] | \"\(.number)|\(.title)\"" 2>/dev/null | while IFS='|' read -r NUM TITLE; do
+    [ -z "$NUM" ] && continue
+    WT="/tmp/daw-worktrees/codex-pm-$NUM"
+    mkdir -p "$WT" 2>/dev/null
+    git worktree add "$WT" origin/main --detach 2>/dev/null || true
+    CONTEXT=$(cat "$CONTEXT_FILE" 2>/dev/null)
+    codex exec -s danger-full-access "cd $WT && git fetch origin && git checkout -B fix/issue-$NUM origin/main
+$CONTEXT
+---
+Implement issue #$NUM: $TITLE. Build, test, commit as ChuxiJ <junmin@acestudio.ai>, push, create PR." &
+    echo "  🚀 Codex → #$NUM"
+  done
+fi
 
-6. HEALTH: Are too many CLI agents fighting over the same files? Should some be killed?
+# ── STEP 5: Launch Claude Code agents (only if Codex slots full) ──
+if [ "$CC_LAUNCH" -gt 0 ]; then
+  OFFSET=$((TOTAL + CX_LAUNCH))
+  gh issue list --repo $REPO --state open --label "role: developer" --json number,title --jq ".[$OFFSET:$((OFFSET+CC_LAUNCH))][] | \"\(.number)|\(.title)\"" 2>/dev/null | while IFS='|' read -r NUM TITLE; do
+    [ -z "$NUM" ] && continue
+    WT="/tmp/daw-worktrees/cc-pm-$NUM"
+    mkdir -p "$WT" 2>/dev/null
+    git worktree add "$WT" origin/main --detach 2>/dev/null || true
+    bash scripts/agents/launch-dev.sh "$NUM" "$WT" claude &
+    echo "  🚀 CC → #$NUM"
+  done
+fi
 
-Think step by step. Explain your reasoning briefly. Then execute your decisions.
-PROMPT
+echo "=== PM Done ==="
