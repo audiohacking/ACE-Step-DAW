@@ -129,7 +129,8 @@ export function KeyboardShortcutsDialog() {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 grid grid-cols-2 gap-x-8 gap-y-5 min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0 px-5 py-4">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
           {SECTIONS.map((section) => (
             <div key={section.title}>
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
@@ -149,6 +150,7 @@ export function KeyboardShortcutsDialog() {
               </div>
             </div>
           ))}
+          </div>
         </div>
 
         {/* Footer */}
