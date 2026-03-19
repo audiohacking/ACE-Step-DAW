@@ -62,6 +62,12 @@ npm run build 2>/dev/null || {
   exit 0
 }
 
+# Check: did agent write tests? (SOP requires TDD)
+NEW_TEST_FILES=$(git diff --name-only origin/main | grep -c 'test\.ts\|spec\.ts' || true)
+if [ "$NEW_TEST_FILES" = "0" ]; then
+  echo 'NOTE: no new test files — SOP recommends TDD'
+fi
+
 # ENFORCED: rebase onto latest main
 git fetch origin main 2>/dev/null
 git rebase origin/main 2>/dev/null || {
