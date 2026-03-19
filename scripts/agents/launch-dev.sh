@@ -40,7 +40,7 @@ WRAPPER="#!/bin/bash
 cd $WT
 
 # Run the coding agent
-if [ '$TOOL' = 'codex' ]; then
+if [ "$TOOL" = 'codex' ]; then
   codex exec -C $WT -s danger-full-access \"$PROMPT\"
 else
   $HOME/.local/bin/claude --print --permission-mode bypassPermissions \"$PROMPT\"
