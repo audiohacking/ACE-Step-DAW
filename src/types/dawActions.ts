@@ -74,7 +74,14 @@ export interface DAWActions {
 /** A Zustand store reference with getState/setState/subscribe. */
 export type DAWStore<T> = StoreApi<T> & { getState: () => T };
 
-export type AgentProjectState = ProjectState & Pick<UIState, 'activePianoRollTool' | 'setActivePianoRollTool' | 'togglePianoRollPencilTool'>;
+export type AgentProjectState = ProjectState & Pick<
+  UIState,
+  'activePianoRollTool'
+  | 'setActivePianoRollTool'
+  | 'togglePianoRollPencilTool'
+  | 'zoomTimelineToSelection'
+  | 'zoomTimelineToProject'
+>;
 
 // ---------------------------------------------------------------------------
 // Global window augmentation for agent/automation access

@@ -21,6 +21,31 @@ test.describe('Project Lifecycle', () => {
     expect(storeExists).toBe(true);
   });
 
+  test('window.__store exposes arrangement zoom actions for agents', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const store = (window as any).__store;
+      const uiStore = (window as any).__uiStore;
+
+      store.getState().zoomTimelineToSelection();
+      const selectionRequest = uiStore.getState().timelineZoomRequest;
+
+      store.getState().zoomTimelineToProject();
+      const projectRequest = uiStore.getState().timelineZoomRequest;
+
+      return {
+        zoomToSelection: typeof store.getState().zoomTimelineToSelection,
+        zoomToProject: typeof store.getState().zoomTimelineToProject,
+        selectionRequest,
+        projectRequest,
+      };
+    });
+
+    expect(result.zoomToSelection).toBe('function');
+    expect(result.zoomToProject).toBe('function');
+    expect(result.selectionRequest).toMatchObject({ mode: 'selection' });
+    expect(result.projectRequest).toMatchObject({ mode: 'project' });
+  });
+
   test('can create a new project via store API', async ({ page }) => {
     const projectName = await page.evaluate(() => {
       const store = (window as any).__store;
