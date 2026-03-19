@@ -251,6 +251,8 @@ export interface Track {
   frozen?: boolean;
   /** IndexedDB key of the frozen audio bounce. */
   frozenAudioKey?: string;
+  /** Whether take lanes are visible for comping on this track. */
+  showTakeLanes?: boolean;
 }
 
 /** Persistent asset entry — survives clip/track removal. Only deleted explicitly from the Assets panel. */
