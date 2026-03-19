@@ -282,3 +282,49 @@ describe('projectStore', () => {
       expect(orderAfter).toEqual(orderBefore);
     });
   });
+
+describe('setClipFade', () => {
+  beforeEach(() => {
+    useProjectStore.getState().createProject();
+  });
+
+  it('sets fade in/out duration and curve on a clip', () => {
+    const track = useProjectStore.getState().addTrack('drums');
+    const clip = useProjectStore.getState().addClip(track.id, {
+      startTime: 0, duration: 10, prompt: 'beat', lyrics: '',
+    });
+
+    useProjectStore.getState().setClipFade(clip.id, {
+      fadeInDuration: 0.5,
+      fadeOutDuration: 1.0,
+      fadeInCurve: 'exponential',
+      fadeOutCurve: 'equal-power',
+    });
+
+    const updated = useProjectStore.getState().project!.tracks[0].clips[0];
+    expect(updated.fadeInDuration).toBe(0.5);
+    expect(updated.fadeOutDuration).toBe(1.0);
+    expect(updated.fadeInCurve).toBe('exponential');
+    expect(updated.fadeOutCurve).toBe('equal-power');
+  });
+
+  it('partially updates fade properties without overwriting others', () => {
+    const track = useProjectStore.getState().addTrack('drums');
+    const clip = useProjectStore.getState().addClip(track.id, {
+      startTime: 0, duration: 10, prompt: 'beat', lyrics: '',
+    });
+
+    useProjectStore.getState().setClipFade(clip.id, {
+      fadeInDuration: 0.3,
+      fadeInCurve: 'linear',
+    });
+    useProjectStore.getState().setClipFade(clip.id, {
+      fadeOutDuration: 0.8,
+    });
+
+    const updated = useProjectStore.getState().project!.tracks[0].clips[0];
+    expect(updated.fadeInDuration).toBe(0.3);
+    expect(updated.fadeInCurve).toBe('linear');
+    expect(updated.fadeOutDuration).toBe(0.8);
+  });
+});
