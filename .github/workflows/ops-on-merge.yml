@@ -1,0 +1,17 @@
+name: Ops — Post-Merge Dispatch
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  post-merge-ops:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Post-merge summary
+        run: |
+          echo "PR #${{ github.event.pull_request.number }} merged: ${{ github.event.pull_request.title }}"
+          echo "Trigger next ops cycle"
