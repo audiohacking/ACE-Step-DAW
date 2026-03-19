@@ -1,13 +1,29 @@
-import type { Project, Track, TrackEffectType, TrackName, TrackType } from '../types/project';
+import type { Project, ReverbParams, Track, TrackEffect, TrackEffectType, TrackName, TrackType } from '../types/project';
 
-export interface CommandPaletteCommand {
+export type CommandPaletteCommandKind = 'action' | 'setting' | 'parameter';
+
+export interface CommandPaletteRegistryEntry {
   id: string;
+  kind: CommandPaletteCommandKind;
   title: string;
   section: string;
   subtitle?: string;
   shortcut?: string[];
   keywords: string[];
   aliases: string[];
+  searchText: string;
+}
+
+export interface CommandPaletteCommand {
+  id: string;
+  kind: CommandPaletteCommandKind;
+  title: string;
+  section: string;
+  subtitle?: string;
+  shortcut?: string[];
+  keywords: string[];
+  aliases: string[];
+  searchText: string;
   execute: () => void | Promise<void>;
 }
 
@@ -54,6 +70,9 @@ export interface CommandPaletteContext {
     addTrack: (trackName: TrackName, trackType?: TrackType) => Track;
     addTrackEffect: (trackId: string, type: TrackEffectType) => string | undefined;
     updateProject: (updates: Partial<Pick<Project, 'bpm'>>) => void;
+    updateTrack: (trackId: string, updates: Partial<Pick<Track, 'volume' | 'muted' | 'soloed'>>) => void;
+    updateTrackMixer: (trackId: string, updates: Partial<Pick<Track, 'pan'>>) => void;
+    updateTrackEffect: (trackId: string, effectId: string, updates: Partial<TrackEffect>) => void;
     duplicateClip: (clipId: string) => void;
     splitClip: (clipId: string, splitTime: number) => void;
     removeClip: (clipId: string) => void;
@@ -77,13 +96,7 @@ function tokenize(value: string): string[] {
 }
 
 function buildSearchCorpus(command: CommandPaletteCommand): string {
-  return normalize([
-    command.title,
-    command.section,
-    command.subtitle ?? '',
-    ...command.keywords,
-    ...command.aliases,
-  ].join(' '));
+  return command.searchText;
 }
 
 function getTrackForSelection(context: CommandPaletteContext): Track | null {
@@ -110,6 +123,7 @@ function createTrackCommand(
   id: string,
   title: string,
   section: string,
+  kind: CommandPaletteCommandKind,
   keywords: string[],
   aliases: string[],
   execute: () => void | Promise<void>,
@@ -118,12 +132,20 @@ function createTrackCommand(
 ): CommandPaletteCommand {
   return {
     id,
+    kind,
     title,
     section,
     subtitle,
     shortcut,
     keywords,
     aliases,
+    searchText: normalize([
+      title,
+      section,
+      subtitle ?? '',
+      ...keywords,
+      ...aliases,
+    ].join(' ')),
     execute,
   };
 }
@@ -136,12 +158,194 @@ function buildTempoCommand(context: CommandPaletteContext, bpm: number): Command
     `project:set-tempo:${bpm}`,
     `Set Tempo to ${bpm} BPM`,
     'Project',
+    'setting',
     ['tempo', 'bpm', 'project setting', String(bpm)],
     [`tempo ${bpm}`, `bpm ${bpm}`, `set tempo to ${bpm}`, `set bpm to ${bpm}`],
     () => context.actions.updateProject({ bpm }),
     undefined,
     'Project setting',
   );
+}
+
+function createTrackParameterCommand(
+  id: string,
+  title: string,
+  keywords: string[],
+  aliases: string[],
+  execute: () => void | Promise<void>,
+  shortcut?: string[],
+  subtitle?: string,
+): CommandPaletteCommand {
+  return createTrackCommand(id, title, 'Parameters', 'parameter', keywords, aliases, execute, shortcut, subtitle);
+}
+
+function clampVolumePercent(percent: number): number {
+  return Math.max(0, Math.min(100, Math.round(percent)));
+}
+
+function clampPanValue(value: number): number {
+  return Math.max(-1, Math.min(1, value));
+}
+
+function formatPanLabel(value: number): string {
+  if (value <= -0.99) return 'Hard Left';
+  if (value >= 0.99) return 'Hard Right';
+  if (Math.abs(value) < 0.001) return 'Center';
+  return `${value < 0 ? 'Left' : 'Right'} ${Math.round(Math.abs(value) * 100)}%`;
+}
+
+function formatPanAlias(value: number): string {
+  if (value <= -0.99) return 'left';
+  if (value >= 0.99) return 'right';
+  if (Math.abs(value) < 0.001) return 'center';
+  return value < 0 ? `left ${Math.round(Math.abs(value) * 100)}` : `right ${Math.round(Math.abs(value) * 100)}`;
+}
+
+function buildTrackNameAliases(track: Track): string[] {
+  const normalizedDisplayName = normalize(track.displayName);
+  const collapsedDisplayName = normalizedDisplayName.replace(/\s+/g, '');
+  const normalizedTrackName = normalize(track.trackName.replace(/_/g, ' '));
+  return Array.from(new Set([track.displayName.toLowerCase(), normalizedDisplayName, collapsedDisplayName, normalizedTrackName].filter(Boolean)));
+}
+
+function trackMatchesQuery(track: Track, query: string): boolean {
+  const normalizedQuery = normalize(query);
+  return buildTrackNameAliases(track).some((alias) => normalizedQuery.includes(alias));
+}
+
+function getMatchedTracks(context: CommandPaletteContext, query: string): Track[] {
+  const tracks = context.project?.tracks ?? [];
+  const matches = tracks.filter((track) => trackMatchesQuery(track, query));
+  if (matches.length > 0) return matches;
+  const selectedTrack = getTrackForSelection(context);
+  return selectedTrack ? [selectedTrack] : [];
+}
+
+function ensureTrackEffect(
+  context: CommandPaletteContext,
+  trackId: string,
+  type: TrackEffectType,
+): { effectId: string; created: boolean } | null {
+  const track = context.project?.tracks.find((item) => item.id === trackId);
+  if (!track) return null;
+
+  const existing = (track.effects ?? []).find((effect) => effect.type === type);
+  if (existing) {
+    return { effectId: existing.id, created: false };
+  }
+
+  const effectId = context.actions.addTrackEffect(trackId, type);
+  if (!effectId) return null;
+  return { effectId, created: true };
+}
+
+function getReverbParamsForTrack(context: CommandPaletteContext, trackId: string, effectId: string): ReverbParams {
+  const track = context.project?.tracks.find((item) => item.id === trackId);
+  const effect = track?.effects?.find((item) => item.id === effectId && item.type === 'reverb');
+  if (effect?.type === 'reverb') {
+    return effect.params;
+  }
+  return { decay: 2.4, preDelay: 0.02, wet: 0.25 };
+}
+
+function buildDynamicTrackParameterCommands(query: string, context: CommandPaletteContext): CommandPaletteCommand[] {
+  const normalized = normalize(query);
+  const rawQuery = query.toLowerCase();
+  const tracks = getMatchedTracks(context, query);
+  if (!normalized || tracks.length === 0) return [];
+
+  const commands: CommandPaletteCommand[] = [];
+
+  if (normalized.includes('volume')) {
+    const volumeMatch = rawQuery.match(/\b(\d{1,3})(?:\s*(?:%|percent))?\b/);
+    if (volumeMatch) {
+      const volumePercent = clampVolumePercent(Number(volumeMatch[1]));
+      for (const track of tracks) {
+        commands.push(
+          createTrackParameterCommand(
+            `track:${track.id}:volume:${volumePercent}`,
+            `Set ${track.displayName} Volume to ${volumePercent}%`,
+            ['track', track.displayName, 'volume', `${volumePercent}%`, 'gain', 'level'],
+            [
+              `${track.displayName.toLowerCase()} volume ${volumePercent}`,
+              `set ${track.displayName.toLowerCase()} volume to ${volumePercent}`,
+              `${track.displayName.toLowerCase()} level ${volumePercent}`,
+            ],
+            () => context.actions.updateTrack(track.id, { volume: volumePercent / 100 }),
+            undefined,
+            'Track parameter',
+          ),
+        );
+      }
+    }
+  }
+
+  if (normalized.includes('pan')) {
+    const numericPanMatch = rawQuery.match(/\bpan(?:\s+to)?\s+(-?\d{1,3})\b/);
+    const leftMatch = normalized.includes('left');
+    const rightMatch = normalized.includes('right');
+    const centerMatch = normalized.includes('center') || normalized.includes('centre');
+    const derivedPan = numericPanMatch
+      ? clampPanValue(Number(numericPanMatch[1]) / 100)
+      : centerMatch
+        ? 0
+        : leftMatch
+          ? -1
+          : rightMatch
+            ? 1
+            : null;
+
+    if (derivedPan !== null) {
+      for (const track of tracks) {
+        const label = formatPanLabel(derivedPan);
+        commands.push(
+          createTrackParameterCommand(
+            `track:${track.id}:pan:${Math.round(derivedPan * 100)}`,
+            `Pan ${track.displayName} ${label}`,
+            ['track', track.displayName, 'pan', label.toLowerCase(), 'stereo'],
+            [
+              `${track.displayName.toLowerCase()} pan ${formatPanAlias(derivedPan)}`,
+              `pan ${track.displayName.toLowerCase()} ${formatPanAlias(derivedPan)}`,
+            ],
+            () => context.actions.updateTrackMixer(track.id, { pan: derivedPan }),
+            undefined,
+            'Track parameter',
+          ),
+        );
+      }
+    }
+  }
+
+  if (normalized.includes('reverb') && normalized.includes('decay')) {
+    const decayMatch = rawQuery.match(/\b(\d+(?:\.\d+)?)\b/);
+    if (decayMatch) {
+      const decay = Math.max(0.1, Math.min(20, Number(decayMatch[1])));
+      for (const track of tracks) {
+        commands.push(
+          createTrackParameterCommand(
+            `track:${track.id}:reverb-decay:${decay}`,
+            `Set ${track.displayName} Reverb Decay to ${decay}s`,
+            ['track', track.displayName, 'reverb', 'decay', `${decay}`],
+            [
+              `${track.displayName.toLowerCase()} reverb decay ${decay}`,
+              `set reverb decay on ${track.displayName.toLowerCase()} to ${decay}`,
+            ],
+            () => {
+              const resolved = ensureTrackEffect(context, track.id, 'reverb');
+              if (!resolved) return;
+              context.actions.updateTrackEffect(track.id, resolved.effectId, {
+                params: { ...getReverbParamsForTrack(context, track.id, resolved.effectId), decay },
+              });
+            },
+            undefined,
+            'Effect parameter',
+          ),
+        );
+      }
+    }
+  }
+
+  return commands;
 }
 
 function parseTempoCommand(query: string, context: CommandPaletteContext): CommandPaletteCommand[] {
@@ -162,6 +366,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'transport:play-pause',
       context.isPlaying ? 'Pause Playback' : 'Play Playback',
       'Transport',
+      'action',
       ['transport', 'play', 'pause', 'spacebar'],
       ['start playback', 'pause transport', 'toggle transport'],
       () => {
@@ -178,6 +383,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'transport:stop',
       'Stop Playback',
       'Transport',
+      'action',
       ['transport', 'stop', 'rewind'],
       ['stop transport', 'go to start', 'rewind to start'],
       () => {
@@ -190,6 +396,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'transport:toggle-loop',
       context.loopEnabled ? 'Disable Loop' : 'Enable Loop',
       'Transport',
+      'action',
       ['transport', 'loop', 'cycle'],
       ['toggle loop', 'toggle cycle', 'cycle playback'],
       context.actions.toggleLoop,
@@ -200,6 +407,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'transport:toggle-metronome',
       context.metronomeEnabled ? 'Disable Metronome' : 'Enable Metronome',
       'Transport',
+      'action',
       ['transport', 'metronome', 'click'],
       ['toggle metronome', 'click track', 'count in click'],
       context.actions.toggleMetronome,
@@ -213,6 +421,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'project:new',
       'New Project',
       'Project',
+      'action',
       ['project', 'new', 'create'],
       ['create project', 'start new song'],
       () => context.actions.setShowNewProjectDialog(true),
@@ -223,6 +432,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'project:open',
       'Open Project List',
       'Project',
+      'action',
       ['project', 'open', 'recent'],
       ['show projects', 'project browser', 'open recent project'],
       () => context.actions.setShowProjectListDialog(true),
@@ -233,6 +443,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'project:settings',
       'Open Settings',
       'Project',
+      'setting',
       ['settings', 'preferences', 'project'],
       ['preferences', 'project settings'],
       () => context.actions.setShowSettingsDialog(true),
@@ -243,6 +454,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'project:export',
       'Open Export Dialog',
       'Project',
+      'action',
       ['export', 'bounce', 'render'],
       ['export project', 'render mix', 'bounce song'],
       () => context.actions.setShowExportDialog(true),
@@ -253,6 +465,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'project:shortcuts',
       'Show Keyboard Shortcuts',
       'Project',
+      'action',
       ['shortcuts', 'help', 'keyboard'],
       ['shortcut help', 'show hotkeys', 'help overlay'],
       () => context.actions.setShowKeyboardShortcutsDialog(true),
@@ -266,6 +479,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'panel:library',
       context.showLibrary ? 'Hide Library' : 'Show Library',
       'Panels',
+      'action',
       ['panel', 'library', 'browser'],
       ['toggle library', 'open library'],
       () => context.actions.setShowLibrary(!context.showLibrary),
@@ -276,6 +490,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'panel:mixer',
       context.showMixer ? 'Hide Mixer' : 'Show Mixer',
       'Panels',
+      'action',
       ['panel', 'mixer', 'volume'],
       ['toggle mixer', 'open mixer', 'show levels'],
       () => context.actions.setShowMixer(!context.showMixer),
@@ -286,6 +501,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'panel:smart-controls',
       context.showSmartControls ? 'Hide Smart Controls' : 'Show Smart Controls',
       'Panels',
+      'action',
       ['panel', 'smart controls', 'controls'],
       ['toggle smart controls', 'open smart controls'],
       () => context.actions.setShowSmartControls(!context.showSmartControls),
@@ -296,6 +512,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'panel:loop-browser',
       context.loopBrowserOpen ? 'Hide Loop Browser' : 'Show Loop Browser',
       'Panels',
+      'action',
       ['panel', 'loop browser', 'loops', 'samples'],
       ['toggle loop browser', 'open loops', 'show sample browser'],
       context.actions.toggleLoopBrowser,
@@ -306,6 +523,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'panel:tempo-lane',
       context.showTempoLane ? 'Hide Tempo Lane' : 'Show Tempo Lane',
       'Panels',
+      'action',
       ['panel', 'tempo lane', 'tempo', 'automation'],
       ['toggle tempo lane', 'open tempo lane'],
       context.actions.toggleTempoLane,
@@ -316,6 +534,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'panel:ai-assistant',
       context.showAIAssistant ? 'Hide AI Assistant' : 'Show AI Assistant',
       'Panels',
+      'action',
       ['panel', 'assistant', 'ai', 'help'],
       ['toggle ai assistant', 'open ai assistant', 'assistant help'],
       context.actions.toggleAIAssistant,
@@ -329,6 +548,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'generation:silence',
       'Generate from Silence',
       'Generation',
+      'action',
       ['generate', 'ai', 'silence', 'clip'],
       ['generate clip', 'ai generate', 'create clip from silence'],
       () => context.actions.setBatchGenerateMode('silence'),
@@ -339,6 +559,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'generation:context',
       'Generate from Context',
       'Generation',
+      'action',
       ['generate', 'ai', 'context', 'clip'],
       ['generate from context', 'continue idea', 'ai continue region'],
       () => context.actions.setBatchGenerateMode('context'),
@@ -352,6 +573,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'track:add-drums',
       'Add Drums Track',
       'Tracks',
+      'action',
       ['track', 'add', 'drums', 'beat'],
       ['new drums track', 'add drum track', 'create drum track'],
       () => {
@@ -364,6 +586,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'track:add-bass',
       'Add Bass Track',
       'Tracks',
+      'action',
       ['track', 'add', 'bass'],
       ['new bass track', 'create bass track'],
       () => {
@@ -376,6 +599,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'track:add-piano',
       'Add Piano Track',
       'Tracks',
+      'action',
       ['track', 'add', 'piano', 'keys', 'midi'],
       ['new piano track', 'create piano track', 'add keyboard track'],
       () => {
@@ -388,6 +612,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'track:add-sampler',
       'Add Sampler Track',
       'Tracks',
+      'action',
       ['track', 'add', 'sampler', 'instrument'],
       ['new sampler track', 'create sampler track'],
       () => {
@@ -400,6 +625,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'track:add-drum-machine',
       'Add Drum Machine Track',
       'Tracks',
+      'action',
       ['track', 'add', 'drum machine', 'sequencer'],
       ['new drum machine', 'create drum machine track'],
       () => {
@@ -417,6 +643,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
         'clip:duplicate-selected',
         'Duplicate Selected Clip',
         'Clips',
+        'action',
         ['clip', 'duplicate', 'selected'],
         ['copy selected clip', 'duplicate current clip'],
         () => context.actions.duplicateClip(selectedClipId),
@@ -427,6 +654,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
         'clip:split-selected',
         'Split Selected Clip at Playhead',
         'Clips',
+        'action',
         ['clip', 'split', 'selected', 'playhead'],
         ['cut selected clip', 'split current clip'],
         () => context.actions.splitClip(selectedClipId, context.currentTime),
@@ -437,6 +665,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
         'clip:edit-selected',
         'Edit Selected Clip',
         'Clips',
+        'action',
         ['clip', 'edit', 'selected', 'piano roll'],
         ['open clip editor', 'edit current clip'],
         () => context.actions.setEditingClip(selectedClipId),
@@ -452,6 +681,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
         'clip:delete-selected',
         'Delete Selected Clips',
         'Clips',
+        'action',
         ['clip', 'delete', 'remove', 'selected'],
         ['remove selected clips', 'delete current clips'],
         () => {
@@ -499,6 +729,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
           `track:${track.id}:effect:${effect.type}`,
           `Add ${effect.label} to ${track.displayName}`,
           'Effects',
+          'action',
           ['effect', effect.label.toLowerCase(), track.displayName, trackName, 'track', ...selectedKeywords],
           effect.aliases,
           () => {
@@ -509,9 +740,109 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
         ),
       );
     }
+
+    commands.push(
+      createTrackParameterCommand(
+        `track:${track.id}:mute-toggle`,
+        `${track.muted ? 'Unmute' : 'Mute'} ${track.displayName}`,
+        ['track', track.displayName, 'mute', 'volume', 'parameter'],
+        [`mute ${trackName}`, `toggle mute ${trackName}`, `${trackName} mute`],
+        () => context.actions.updateTrack(track.id, { muted: !track.muted }),
+        ['M'],
+        'Track parameter',
+      ),
+      createTrackParameterCommand(
+        `track:${track.id}:solo-toggle`,
+        `${track.soloed ? 'Unsolo' : 'Solo'} ${track.displayName}`,
+        ['track', track.displayName, 'solo', 'audition', 'parameter'],
+        [`solo ${trackName}`, `toggle solo ${trackName}`, `${trackName} solo`],
+        () => context.actions.updateTrack(track.id, { soloed: !track.soloed }),
+        ['S'],
+        'Track parameter',
+      ),
+    );
+
+    for (const volumePercent of [25, 50, 80, 100]) {
+      commands.push(
+        createTrackParameterCommand(
+          `track:${track.id}:volume:${volumePercent}`,
+          `Set ${track.displayName} Volume to ${volumePercent}%`,
+          ['track', track.displayName, 'volume', `${volumePercent}%`, 'gain', 'level'],
+          [
+            `${trackName} volume ${volumePercent}`,
+            `set ${trackName} volume to ${volumePercent}`,
+            `${trackName} gain ${volumePercent}`,
+          ],
+          () => context.actions.updateTrack(track.id, { volume: volumePercent / 100 }),
+          undefined,
+          'Track parameter',
+        ),
+      );
+    }
+
+    for (const panValue of [-1, 0, 1]) {
+      const label = formatPanLabel(panValue);
+      commands.push(
+        createTrackParameterCommand(
+          `track:${track.id}:pan:${Math.round(panValue * 100)}`,
+          `Pan ${track.displayName} ${label}`,
+          ['track', track.displayName, 'pan', label.toLowerCase(), 'stereo'],
+          [
+            `${trackName} pan ${formatPanAlias(panValue)}`,
+            `pan ${trackName} ${formatPanAlias(panValue)}`,
+          ],
+          () => context.actions.updateTrackMixer(track.id, { pan: panValue }),
+          undefined,
+          'Track parameter',
+        ),
+      );
+    }
+
+    const reverbPresets = [
+      { label: 'Short', decay: 1.2 },
+      { label: 'Medium', decay: 2.4 },
+      { label: 'Long', decay: 4.8 },
+    ];
+    for (const preset of reverbPresets) {
+      commands.push(
+        createTrackParameterCommand(
+          `track:${track.id}:reverb-decay:${preset.decay}`,
+          `Set ${track.displayName} Reverb Decay to ${preset.label}`,
+          ['track', track.displayName, 'reverb', 'decay', preset.label.toLowerCase()],
+          [
+            `${trackName} reverb decay`,
+            `${trackName} ${preset.label.toLowerCase()} reverb`,
+            `reverb decay ${trackName}`,
+          ],
+          () => {
+            const resolved = ensureTrackEffect(context, track.id, 'reverb');
+            if (!resolved) return;
+            context.actions.updateTrackEffect(track.id, resolved.effectId, {
+              params: { ...getReverbParamsForTrack(context, track.id, resolved.effectId), decay: preset.decay },
+            });
+          },
+          undefined,
+          'Effect parameter',
+        ),
+      );
+    }
   }
 
   return commands;
+}
+
+export function buildCommandPaletteRegistry(
+  context: CommandPaletteContext,
+  query = '',
+): CommandPaletteRegistryEntry[] {
+  const commands = buildCommandPaletteCommands(context);
+  const extraCommands = [...parseTempoCommand(query, context), ...buildDynamicTrackParameterCommands(query, context)];
+  const seen = new Set<string>();
+  return [...commands, ...extraCommands].filter((command) => {
+    if (seen.has(command.id)) return false;
+    seen.add(command.id);
+    return true;
+  }).map(({ execute: _execute, ...entry }) => entry);
 }
 
 export function searchCommandPaletteCommands(
@@ -596,6 +927,6 @@ export function searchCommandsForQuery(
   limit = DEFAULT_RESULT_LIMIT,
 ): CommandPaletteSearchResult[] {
   const commands = buildCommandPaletteCommands(context);
-  const extraCommands = parseTempoCommand(query, context);
+  const extraCommands = [...parseTempoCommand(query, context), ...buildDynamicTrackParameterCommands(query, context)];
   return searchCommandPaletteCommands(query, commands, recentCommandIds, extraCommands, limit);
 }

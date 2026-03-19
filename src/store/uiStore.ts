@@ -10,7 +10,9 @@ import { buildAssistantContext } from '../utils/aiAssistantContext';
 import { getAssistantSuggestions, streamAssistantResponse } from '../services/aiAssistantService';
 import {
   buildCommandPaletteCommands,
+  buildCommandPaletteRegistry,
   searchCommandsForQuery,
+  type CommandPaletteRegistryEntry,
   type CommandPaletteSearchResult,
 } from '../services/commandPalette';
 
@@ -141,6 +143,7 @@ interface UIState {
   openCommandPalette: (query?: string) => void;
   closeCommandPalette: () => void;
   setCommandPaletteQuery: (query: string) => void;
+  getCommandPaletteRegistry: (query?: string) => CommandPaletteRegistryEntry[];
   searchCommandPalette: (query?: string) => CommandPaletteSearchResult[];
   executeCommandPaletteCommand: (commandId: string) => Promise<boolean>;
   setShowUndoHistoryPanel: (v: boolean) => void;
@@ -352,6 +355,10 @@ export const useUIStore = create<UIState>()(
   openCommandPalette: (query = '') => set({ showCommandPalette: true, commandPaletteQuery: query }),
   closeCommandPalette: () => set({ showCommandPalette: false, commandPaletteQuery: '' }),
   setCommandPaletteQuery: (query) => set({ commandPaletteQuery: query }),
+  getCommandPaletteRegistry: (query) => {
+    const state = get();
+    return buildCommandPaletteRegistry(buildCommandPaletteContext(state), query ?? state.commandPaletteQuery);
+  },
   searchCommandPalette: (query) => {
     const state = get();
     return searchCommandsForQuery(query ?? state.commandPaletteQuery, buildCommandPaletteContext(state), state.recentCommandIds);
@@ -610,6 +617,9 @@ function buildCommandPaletteContext(state: UIState) {
       addTrack: projectStore.addTrack,
       addTrackEffect: projectStore.addTrackEffect,
       updateProject: projectStore.updateProject,
+      updateTrack: projectStore.updateTrack,
+      updateTrackMixer: projectStore.updateTrackMixer,
+      updateTrackEffect: projectStore.updateTrackEffect,
       duplicateClip: (clipId: string) => {
         projectStore.duplicateClip(clipId);
       },
