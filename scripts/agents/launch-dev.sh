@@ -3,7 +3,7 @@
 ISSUE_NUM=$1
 TOOL=${2:-"codex"}
 REPO="ace-step/ACE-Step-DAW"
-DAW="/Users/junmingong/.openclaw/workspace/acestep-daw"
+DAW="$(cd "$(dirname "$0")/../.." && pwd)"
 WT="/tmp/daw-worktrees/agent-$ISSUE_NUM"
 LOCKDIR="/tmp/daw-claude-launch.lock"
 MAX_CLAUDE=3

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Product Manager — Review and accept completed work
 set -e
-cd /Users/junmingong/.openclaw/workspace/acestep-daw
+cd "$(dirname "$0")/../.."
 ~/.local/bin/claude --print --permission-mode bypassPermissions \
   "You are the Product Manager for ACE-Step DAW.
   1. Check recently merged PRs: gh pr list --repo ace-step/ACE-Step-DAW --state merged --limit 10

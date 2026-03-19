@@ -1,7 +1,7 @@
 #!/bin/bash
 # Researcher — Competitive gap analysis
 set -e
-cd /Users/junmingong/.openclaw/workspace/acestep-daw
+cd "$(dirname "$0")/../.."
 ~/.local/bin/claude --print --permission-mode bypassPermissions \
   "You are a DAW researcher. Compare ACE-Step DAW with Ableton/Logic/FL Studio.
   1. Read our features: cat README.md

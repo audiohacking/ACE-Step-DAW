@@ -32,4 +32,4 @@ Create PR via gh pr create --repo $REPO. Request copilot review."
 
 # Cleanup
 cd /tmp && rm -rf "$WT"
-git -C /Users/junmingong/.openclaw/workspace/acestep-daw worktree prune 2>/dev/null
+git -C "$DAW" worktree prune 2>/dev/null
