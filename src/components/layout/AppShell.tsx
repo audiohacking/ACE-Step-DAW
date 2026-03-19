@@ -18,6 +18,7 @@ import { ProjectListDialog } from '../dialogs/ProjectListDialog';
 import { KeyboardShortcutsDialog } from '../dialogs/KeyboardShortcutsDialog';
 import { ShortcutEditorDialog } from '../dialogs/ShortcutEditorDialog';
 import { CommandPalette } from '../dialogs/CommandPalette';
+import { BounceInPlaceDialog } from '../dialogs/BounceInPlaceDialog';
 import { ShareDialog } from '../dialogs/ShareDialog';
 import { AIAssistantPanel } from '../dialogs/AIAssistantPanel';
 import { MixerPanel } from '../mixer/MixerPanel';
@@ -29,6 +30,7 @@ import { SmartControlsPanel } from '../controls/SmartControlsPanel';
 import { PianoRoll } from '../pianoroll/PianoRoll';
 import { EffectChain } from '../mixer/EffectChain';
 import { ToastContainer } from '../ui/Toast';
+import { UndoHistoryPanel } from './UndoHistoryPanel';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
@@ -40,6 +42,7 @@ export function AppShell() {
   const { resumeOnGesture } = useAudioEngine();
   const project = useProjectStore((s) => s.project);
   const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
+  const setHistoryFocusScope = useUIStore((s) => s.setHistoryFocusScope);
   const [audioResumed, setAudioResumed] = useState(false);
 
   const handleClick = useCallback(async () => {
@@ -83,7 +86,7 @@ export function AppShell() {
       )}
       <Toolbar />
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0" onMouseDownCapture={() => setHistoryFocusScope('arrangement')}>
         {project && <TrackList />}
         <Timeline />
         {project && <LoopBrowser />}
@@ -99,6 +102,7 @@ export function AppShell() {
       {project && <GenerationSidePanel />}
       <StatusBar />
       <ToastContainer />
+      <UndoHistoryPanel />
 
       {/* Modals */}
       <NewProjectDialog />
@@ -109,6 +113,7 @@ export function AppShell() {
       <KeyboardShortcutsDialog />
       <CommandPalette />
       <ShortcutEditorDialog />
+      <BounceInPlaceDialog />
       <CoverModal />
       <RepaintModal />
       <Vocal2BGMModal />

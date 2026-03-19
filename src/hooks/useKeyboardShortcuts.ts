@@ -17,6 +17,27 @@ function isInputFocused(e: KeyboardEvent): boolean {
   );
 }
 
+function getBounceTargetTrackId(): string | null {
+  const ui = useUIStore.getState();
+  const projectState = useProjectStore.getState();
+  const project = projectState.project;
+  if (!project) return null;
+
+  const [selectedClipId] = [...ui.selectedClipIds];
+  if (selectedClipId) {
+    const track = projectState.getTrackForClip(selectedClipId);
+    if (track) return track.id;
+  }
+
+  return ui.openPianoRollTrackId
+    ?? ui.openSequencerTrackId
+    ?? ui.openDrumMachineTrackId
+    ?? ui.openEffectChainTrackId
+    ?? ui.expandedTrackId
+    ?? project.tracks[0]?.id
+    ?? null;
+}
+
 const NUDGE_SECONDS = 5;
 const DEFAULT_PIXELS_PER_SECOND = 50;
 
@@ -40,6 +61,7 @@ export function useKeyboardShortcuts() {
       const mod = e.metaKey || e.ctrlKey;
       const getCombo = useShortcutsStore.getState().getCombo;
       const ui = useUIStore.getState();
+      const activeHistoryScope = ui.historyFocusScope;
 
       if (mod && e.code === 'KeyK') {
         e.preventDefault();
@@ -56,16 +78,23 @@ export function useKeyboardShortcuts() {
         if (!isInputFocused(e)) {
           e.preventDefault();
           if (e.shiftKey) {
-            useProjectStore.getState().redo();
+            useProjectStore.getState().redo(activeHistoryScope);
           } else {
-            useProjectStore.getState().undo();
+            useProjectStore.getState().undo(activeHistoryScope);
           }
           return;
         }
       }
 
-      if (isInputFocused(e)) return;
+      if (mod && e.altKey && e.code === 'KeyZ') {
+        if (!isInputFocused(e)) {
+          e.preventDefault();
+          ui.setShowUndoHistoryPanel(!ui.showUndoHistoryPanel);
+          return;
+        }
+      }
 
+      if (isInputFocused(e)) return;
       const project = useProjectStore.getState();
       const transport = useTransportStore.getState();
       const gen = useGenerationStore.getState();
@@ -80,9 +109,15 @@ export function useKeyboardShortcuts() {
         if (ui.showCommandPalette) {
           e.preventDefault();
           ui.closeCommandPalette();
+        } else if (ui.showUndoHistoryPanel) {
+          e.preventDefault();
+          ui.setShowUndoHistoryPanel(false);
         } else if (ui.showAIAssistant) {
           e.preventDefault();
           ui.setShowAIAssistant(false);
+        } else if (ui.bounceInPlaceTrackId !== null) {
+          e.preventDefault();
+          ui.closeBounceInPlaceDialog();
         } else if (ui.editingClipId !== null) {
           e.preventDefault();
           ui.setEditingClip(null);
@@ -124,6 +159,7 @@ export function useKeyboardShortcuts() {
         ui.showCommandPalette ||
         ui.editingClipId !== null ||
         ui.batchGenerateMode !== null ||
+        ui.bounceInPlaceTrackId !== null ||
         ui.showKeyboardShortcutsDialog ||
         ui.showShortcutEditorDialog ||
         ui.showInstrumentPicker ||
@@ -148,6 +184,14 @@ export function useKeyboardShortcuts() {
       if (matches('project.export')) { e.preventDefault(); if (!anyModalOpen) ui.setShowExportDialog(true); return; }
       if (matches('project.addTrack')) { e.preventDefault(); if (!anyModalOpen) ui.setShowInstrumentPicker(true); return; }
       if (matches('project.help')) { e.preventDefault(); if (!anyModalOpen) ui.setShowKeyboardShortcutsDialog(true); return; }
+      if (matches('project.bounceInPlace')) {
+        e.preventDefault();
+        if (!anyModalOpen) {
+          const trackId = getBounceTargetTrackId();
+          if (trackId) ui.openBounceInPlaceDialog(trackId);
+        }
+        return;
+      }
 
       // Generation
       if (matches('generation.context')) {
