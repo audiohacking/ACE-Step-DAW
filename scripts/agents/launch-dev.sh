@@ -46,17 +46,36 @@ else
   $HOME/.local/bin/claude --print --permission-mode bypassPermissions \"$PROMPT\"
 fi
 
-# ENFORCED: rebase onto latest main before push
+# ── Safety checks before push ──
 cd $WT
-git fetch origin main 2>/dev/null
-git rebase origin/main 2>/dev/null || {
-  # If rebase fails, try to abort and just force the current state
-  git rebase --abort 2>/dev/null
-  echo 'WARN: rebase failed, pushing current state'
+
+# Check: did the agent actually commit anything?
+COMMITS_AHEAD=\$(git rev-list origin/main..HEAD --count 2>/dev/null)
+if [ "\$COMMITS_AHEAD" = "0" ] || [ -z "\$COMMITS_AHEAD" ]; then
+  echo 'SKIP: agent produced no commits, nothing to push'
+  exit 0
+fi
+
+# Check: does it build?
+npm run build 2>/dev/null || {
+  echo 'WARN: build failed, skipping push'
+  exit 0
 }
 
-# ENFORCED: push
-git -c user.name=ChuxiJ -c user.email=junmin@acestudio.ai push origin fix/issue-$ISSUE_NUM --force 2>/dev/null
+# ENFORCED: rebase onto latest main
+git fetch origin main 2>/dev/null
+git rebase origin/main 2>/dev/null || {
+  # Rebase conflict — let it stay, PM will detect and dispatch a fixer
+  git rebase --abort 2>/dev/null
+  echo 'WARN: rebase conflict, leaving for PM to handle'
+  exit 0
+}
+
+# ENFORCED: push (force-with-lease to not overwrite others)
+git -c user.name=ChuxiJ -c user.email=junmin@acestudio.ai push origin fix/issue-$ISSUE_NUM --force-with-lease 2>/dev/null || {
+  echo 'WARN: push failed (force-with-lease rejected)'
+  exit 0
+}
 
 # ENFORCED: create PR
 gh pr create --repo $REPO --title 'feat: #$ISSUE_NUM — $TITLE' --body 'Closes #$ISSUE_NUM' --base main --head fix/issue-$ISSUE_NUM 2>/dev/null || true
