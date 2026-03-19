@@ -6,6 +6,9 @@ import { Knob } from '../ui/Knob';
 import { LevelMeter } from './LevelMeter';
 import type { Track } from '../../types/project';
 
+const MIXER_FADER_MIN_HEIGHT = 112;
+const MIXER_TRACK_FADER_HEIGHT = 168;
+
 function volumeToDb(v: number): string {
   if (v <= 0) return '-inf';
   const db = 20 * Math.log10(v);
@@ -14,10 +17,9 @@ function volumeToDb(v: number): string {
 
 interface ChannelStripProps {
   track: Track;
-  faderHeight: number;
 }
 
-function ChannelStrip({ track, faderHeight }: ChannelStripProps) {
+function ChannelStrip({ track }: ChannelStripProps) {
   const updateTrack = useProjectStore((s) => s.updateTrack);
   const updateTrackMixer = useProjectStore((s) => s.updateTrackMixer);
 
@@ -32,63 +34,75 @@ function ChannelStrip({ track, faderHeight }: ChannelStripProps) {
   const isFrozen = track.frozen ?? false;
 
   return (
-    <div className={`flex flex-col items-center gap-1.5 px-3 py-2 bg-[#2a2a2a] border-r border-[#3a3a3a] min-w-[120px] ${isFrozen ? 'opacity-70' : ''}`}>
-      <div className="w-full h-1.5 rounded-full mb-0.5" style={{ backgroundColor: track.color }} />
-      <span className="text-xs text-zinc-300 font-medium leading-none truncate w-full text-center uppercase tracking-wide" title={track.displayName}>
-        {isFrozen && <span className="text-cyan-400 mr-0.5" title="Frozen">*</span>}
-        {track.displayName}
-      </span>
-
-      <div className="flex gap-2 mt-0.5">
-        <button
-          onClick={() => updateTrack(track.id, { muted: !track.muted })}
-          className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
-            track.muted ? 'bg-amber-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
-          }`}
-        >
-          M
-        </button>
-        <button
-          onClick={() => updateTrack(track.id, { soloed: !track.soloed })}
-          className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
-            track.soloed ? 'bg-emerald-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
-          }`}
-        >
-          S
-        </button>
-      </div>
-
-      <Knob value={pan} min={-1} max={1} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { pan: v })} label="Pan" size={36} step={0.01} disabled={isFrozen} />
-
-      <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5">EQ</div>
-      <div className="flex gap-1.5">
-        <Knob value={eqLow} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqLowGain: v })} label="Lo" unit="dB" size={34} step={0.5} disabled={isFrozen} />
-        <Knob value={eqMid} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqMidGain: v })} label="Mid" unit="dB" size={34} step={0.5} disabled={isFrozen} />
-        <Knob value={eqHigh} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqHighGain: v })} label="Hi" unit="dB" size={34} step={0.5} disabled={isFrozen} />
-      </div>
-
-      <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5">Comp</div>
-      <button
-        onClick={() => updateTrackMixer(track.id, { compressorEnabled: !compEnabled })}
-        className={`text-xs font-semibold px-2 py-1 rounded w-full transition-colors ${
-          compEnabled ? 'bg-daw-accent text-white' : 'bg-[#444] text-zinc-400 hover:bg-[#555]'
-        }`}
+    <div
+      data-testid={`mixer-channel-strip-${track.id}`}
+      className={`flex h-full flex-col items-center gap-1.5 self-stretch overflow-hidden px-3 py-2 bg-[#2a2a2a] border-r border-[#3a3a3a] min-w-[120px] ${isFrozen ? 'opacity-70' : ''}`}
+    >
+      <div
+        data-testid={`mixer-channel-controls-${track.id}`}
+        className="flex min-h-0 flex-1 flex-col items-center gap-1.5 overflow-y-auto overscroll-contain w-full pr-1"
       >
-        {compEnabled ? 'ON' : 'OFF'}
-      </button>
-      <div className="flex gap-1.5">
-        <Knob value={compThresh} min={-60} max={0} defaultValue={-24} onChange={(v) => updateTrackMixer(track.id, { compressorThreshold: v })} label="Thr" unit="dB" size={34} step={1} disabled={!compEnabled || isFrozen} />
-        <Knob value={compRatio} min={1} max={20} defaultValue={4} onChange={(v) => updateTrackMixer(track.id, { compressorRatio: v })} label="Rat" size={34} step={0.5} disabled={!compEnabled || isFrozen} />
+        <div className="w-full h-1.5 rounded-full mb-0.5 shrink-0" style={{ backgroundColor: track.color }} />
+        <span className="text-xs text-zinc-300 font-medium leading-none truncate w-full text-center uppercase tracking-wide shrink-0" title={track.displayName}>
+          {isFrozen && <span className="text-cyan-400 mr-0.5" title="Frozen">*</span>}
+          {track.displayName}
+        </span>
+
+        <div className="flex gap-2 mt-0.5 shrink-0">
+          <button
+            onClick={() => updateTrack(track.id, { muted: !track.muted })}
+            className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
+              track.muted ? 'bg-amber-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
+            }`}
+          >
+            M
+          </button>
+          <button
+            onClick={() => updateTrack(track.id, { soloed: !track.soloed })}
+            className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
+              track.soloed ? 'bg-emerald-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
+            }`}
+          >
+            S
+          </button>
+        </div>
+
+        <Knob value={pan} min={-1} max={1} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { pan: v })} label="Pan" size={36} step={0.01} disabled={isFrozen} />
+
+        <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5 shrink-0">EQ</div>
+        <div className="flex gap-1.5 shrink-0">
+          <Knob value={eqLow} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqLowGain: v })} label="Lo" unit="dB" size={34} step={0.5} disabled={isFrozen} />
+          <Knob value={eqMid} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqMidGain: v })} label="Mid" unit="dB" size={34} step={0.5} disabled={isFrozen} />
+          <Knob value={eqHigh} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqHighGain: v })} label="Hi" unit="dB" size={34} step={0.5} disabled={isFrozen} />
+        </div>
+
+        <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5 shrink-0">Comp</div>
+        <button
+          onClick={() => updateTrackMixer(track.id, { compressorEnabled: !compEnabled })}
+          className={`text-xs font-semibold px-2 py-1 rounded w-full shrink-0 transition-colors ${
+            compEnabled ? 'bg-daw-accent text-white' : 'bg-[#444] text-zinc-400 hover:bg-[#555]'
+          }`}
+        >
+          {compEnabled ? 'ON' : 'OFF'}
+        </button>
+        <div className="flex gap-1.5 shrink-0">
+          <Knob value={compThresh} min={-60} max={0} defaultValue={-24} onChange={(v) => updateTrackMixer(track.id, { compressorThreshold: v })} label="Thr" unit="dB" size={34} step={1} disabled={!compEnabled || isFrozen} />
+          <Knob value={compRatio} min={1} max={20} defaultValue={4} onChange={(v) => updateTrackMixer(track.id, { compressorRatio: v })} label="Rat" size={34} step={0.5} disabled={!compEnabled || isFrozen} />
+        </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center gap-1 mt-1 min-h-0 w-full">
-        <div className="relative flex items-stretch justify-center gap-2" style={{ height: faderHeight }}>
+      <div className="mt-2 flex flex-none flex-col items-center gap-1 w-full">
+        <div
+          data-testid={`mixer-channel-fader-area-${track.id}`}
+          className="relative flex items-stretch justify-center gap-2 self-stretch"
+          style={{ height: MIXER_TRACK_FADER_HEIGHT }}
+        >
           <LevelMeter trackId={track.id} />
           <input
             type="range" min={0} max={1} step={0.01} value={vol}
             onChange={(e) => updateTrack(track.id, { volume: parseFloat(e.target.value) })}
             className="appearance-none bg-transparent cursor-pointer"
-            style={{ writingMode: 'vertical-lr', direction: 'rtl', width: 28, height: faderHeight, accentColor: track.color }}
+            style={{ writingMode: 'vertical-lr', direction: 'rtl', width: 28, height: '100%', accentColor: track.color }}
           />
         </div>
         <span className="text-xs font-mono text-zinc-400">{volumeToDb(vol)}</span>
@@ -97,9 +111,7 @@ function ChannelStrip({ track, faderHeight }: ChannelStripProps) {
   );
 }
 
-interface MasterStripProps { faderHeight: number; }
-
-function MasterStrip({ faderHeight }: MasterStripProps) {
+function MasterStrip() {
   const project = useProjectStore((s) => s.project);
   const updateProject = useProjectStore((s) => s.updateProject);
   if (!project) return null;
@@ -109,13 +121,16 @@ function MasterStrip({ faderHeight }: MasterStripProps) {
   return (
     <div className="flex flex-col items-center gap-1.5 px-4 py-2 bg-[#252525] border-l-2 border-[#555] min-w-[120px]">
       <span className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Master</span>
-      <div className="flex-1 flex flex-col items-center justify-end gap-1 w-full">
-        <div className="relative flex justify-center" style={{ height: faderHeight }}>
+      <div className="flex-1 flex min-h-0 flex-col items-center gap-1 w-full">
+        <div
+          data-testid="mixer-master-fader-area"
+          className="relative flex min-h-[112px] flex-1 justify-center self-stretch"
+        >
           <input
             type="range" min={0} max={1.5} step={0.01} value={masterVol}
             onChange={(e) => handleChange(parseFloat(e.target.value))}
             className="appearance-none bg-transparent cursor-pointer"
-            style={{ writingMode: 'vertical-lr', direction: 'rtl', width: 32, height: faderHeight, accentColor: '#4a90d9' }}
+            style={{ writingMode: 'vertical-lr', direction: 'rtl', width: 32, height: '100%', accentColor: '#4a90d9' }}
           />
         </div>
         <span className="text-xs font-mono text-zinc-400">{volumeToDb(masterVol)}</span>
@@ -154,26 +169,28 @@ export function MixerPanel() {
 
   if (!showMixer || !project) return null;
 
-  const faderHeight = Math.max(60, mixerHeight - 300);
-
   return (
-    <div className="border-t border-[#1a1a1a] bg-[#2a2a2a] flex flex-col select-none shrink-0" style={{ height: mixerHeight }}>
+    <div
+      data-testid="mixer-panel"
+      className="border-t border-[#1a1a1a] bg-[#2a2a2a] flex flex-col select-none shrink-0"
+      style={{ height: mixerHeight, minHeight: MIXER_FADER_MIN_HEIGHT }}
+    >
       <div
         className="h-1.5 w-full cursor-ns-resize bg-[#444] hover:bg-daw-accent transition-colors flex-shrink-0"
         onMouseDown={onResizeMouseDown}
         title="Drag to resize mixer"
       />
-      <div className="flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="flex items-stretch h-full">
+      <div data-testid="mixer-panel-scroller" className="flex-1 overflow-x-auto overflow-y-auto">
+        <div className="flex min-h-full items-stretch">
           {project.tracks.length === 0 && (
             <div className="flex-1 flex items-center justify-center text-sm text-zinc-600">
               Add tracks to see mixer channels
             </div>
           )}
           {project.tracks.map((track) => (
-            <ChannelStrip key={track.id} track={track} faderHeight={faderHeight} />
+            <ChannelStrip key={track.id} track={track} />
           ))}
-          <MasterStrip faderHeight={faderHeight} />
+          <MasterStrip />
         </div>
       </div>
     </div>
