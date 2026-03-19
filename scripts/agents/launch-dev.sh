@@ -6,6 +6,12 @@ REPO="ace-step/ACE-Step-DAW"
 DAW="/Users/junmingong/.openclaw/workspace/acestep-daw"
 WT="/tmp/daw-worktrees/agent-$ISSUE_NUM"
 
+# CHECK: is an agent already running for this issue?
+if ps aux | grep -E "claude.*print|node.*codex exec" | grep -v grep | grep -q "issue-$ISSUE_NUM\|#$ISSUE_NUM"; then
+  echo "SKIP: agent already running for #$ISSUE_NUM"
+  exit 0
+fi
+
 TITLE=$(gh issue view $ISSUE_NUM --repo $REPO --json title --jq .title 2>/dev/null)
 BODY=$(gh issue view $ISSUE_NUM --repo $REPO --json body --jq .body 2>/dev/null | head -80)
 
