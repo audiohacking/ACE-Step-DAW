@@ -236,7 +236,7 @@ export function TrackLane({ track }: TrackLaneProps) {
         data-track-id={track.id}
         data-testid={`track-lane-${track.id}`}
         className={`relative border-b border-[#333] ${fileDragOver ? 'bg-blue-900/20' : ''}`}
-        style={{ width: totalWidth, height: laneHeight }}
+        style={{ width: totalWidth, height: laneHeight, opacity: track.muted ? 0.4 : 1 }}
         onContextMenu={handleContextMenu}
         onDoubleClick={handleDoubleClick}
         onDragOver={handleFileDragOver}
