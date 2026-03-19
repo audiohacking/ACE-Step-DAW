@@ -144,5 +144,17 @@ describe('uiStore', () => {
       const defaultResults = useUIStore.getState().searchCommandPalette('');
       expect(defaultResults[0]?.id).toBe(commandId);
     });
+
+    it('exposes a normalized command registry for agent search', () => {
+      useProjectStore.getState().createProject({ name: 'Palette Registry' });
+      const vocalsTrack = useProjectStore.getState().addTrack('vocals');
+
+      const registry = useUIStore.getState().getCommandPaletteRegistry('vocals volume 80');
+      const entry = registry.find((item) => item.id === `track:${vocalsTrack.id}:volume:80`);
+
+      expect(entry).toBeTruthy();
+      expect(entry?.kind).toBe('parameter');
+      expect(entry?.searchText).toContain('volume');
+    });
   });
 });

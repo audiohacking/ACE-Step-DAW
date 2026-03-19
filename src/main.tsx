@@ -22,6 +22,13 @@ import { getMidiCaptureService } from './services/midiCaptureService';
 (window as unknown as Record<string, unknown>).__generationStore = useGenerationStore;
 (window as unknown as Record<string, unknown>).__getAudioEngine = () => getAudioEngine();
 (window as unknown as Record<string, unknown>).__shortcutsStore = useShortcutsStore;
+(window as unknown as Record<string, unknown>).__commandPalette = {
+  list: (query?: string) => useUIStore.getState().getCommandPaletteRegistry(query),
+  search: (query?: string) => useUIStore.getState().searchCommandPalette(query),
+  execute: (commandId: string) => useUIStore.getState().executeCommandPaletteCommand(commandId),
+  open: (query?: string) => useUIStore.getState().openCommandPalette(query),
+  close: () => useUIStore.getState().closeCommandPalette(),
+};
 
 // Expose DAW state summary for LLM agents
 // Agents can call: window.__dawSummary() for natural language, window.__dawStructure() for JSON
