@@ -154,10 +154,10 @@ export function AppShell() {
       <ExportDialog />
       <SettingsDialog />
       <ProjectListDialog />
+      <BounceInPlaceDialog />
       <KeyboardShortcutsDialog />
       <CommandPalette />
       <ShortcutEditorDialog />
-      <BounceInPlaceDialog />
       <CoverModal />
       <RepaintModal />
       <Vocal2BGMModal />
