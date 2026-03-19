@@ -18,54 +18,54 @@
 ## P0 — Critical (Must Ship)
 
 ### Core Audio & Transport
-- ⬜ **Audio context management** — Resume AudioContext on first user gesture (click/tap). Show clear "Click to enable audio" overlay if context is suspended. *Ref: Web Audio autoplay policy*
+- ✅ **Audio context management** — Resume AudioContext on first user gesture (click/tap). Show clear "Click to enable audio" overlay if context is suspended. *Ref: Web Audio autoplay policy*
 - ⬜ **Latency calibration** — Auto-detect `audioContext.outputLatency + baseLatency` on first use. Display detected latency in settings. Allow manual override.
 - ⬜ **Lookahead scheduling** — Set Tone.js `lookAhead` to 0.1s (100ms). Schedule all audio events ahead of time. Visual playhead compensates for latency offset.
 - ⬜ **Glitch-free playback** — Use AudioWorklet for any custom DSP. Never run audio processing on main thread. Test with 20+ tracks playing simultaneously.
-- ⬜ **Transport controls** — Play (`Space`), Stop (`Space` × 2 or `Home`), Record (`R`), Loop toggle (`L`). All must respond in < 16ms visually.
+- ✅ **Transport controls** — Play (`Space`), Stop (`Space` × 2 or `Home`), Record (`R`), Loop toggle (`L`). All must respond in < 16ms visually.
 
 ### Undo System
 - ⬜ **Scoped undo stacks** — Implement separate undo stacks for: global arrangement, per-track, piano roll, mixer. Active scope = currently focused panel.
 - ⬜ **Undo for AI actions** — Every AI generation creates a single undo point. "Undo" reverts entire AI action (not individual notes).
 - ⬜ **Undo history panel** — Show list of named actions with timestamps. Click to jump to any point (branching undo tree, not just linear).
-- ⬜ **Cmd+Z / Cmd+Shift+Z** — Must always work, in every context, never fail silently.
+- ✅ **Cmd+Z / Cmd+Shift+Z** — Must always work, in every context, never fail silently.
 
 ### Dual-Surface API
 - ⬜ **Zustand action parity** — Every UI interaction dispatches the same Zustand action an agent would call. No direct DOM manipulation for state changes.
-- ⬜ **DAWState.summary** — Auto-generated natural language summary of project state (tracks, BPM, key, structure). Updated on every state change. Used by LLM agents for context.
+- ✅ **DAWState.summary** — Auto-generated natural language summary of project state (tracks, BPM, key, structure). Updated on every state change. Used by LLM agents for context.
 - ⬜ **Typed action API** — Full TypeScript interface for all DAW actions (see INTERACTION_DESIGN_GUIDE.md §5.1). Export as public API.
 - ⬜ **Error responses with suggestions** — When an action fails, return error code + context + actionable suggestions (not just "error occurred").
 
 ### Save & Data Persistence
-- ⬜ **Auto-save** — Every 30 seconds to IndexedDB. No data loss on crash/close.
-- ⬜ **beforeunload warning** — Warn user if unsaved changes when closing tab.
-- ⬜ **Project format** — JSON metadata + audio blobs in IndexedDB. Define and document format.
-- ⬜ **Export: WAV mix** — Full mixdown to WAV file via OfflineAudioContext.
+- ✅ **Auto-save** — Every 30 seconds to IndexedDB. No data loss on crash/close.
+- ✅ **beforeunload warning** — Warn user if unsaved changes when closing tab.
+- ✅ **Project format** — JSON metadata + audio blobs in IndexedDB. Define and document format.
+- ✅ **Export: WAV mix** — Full mixdown to WAV file via OfflineAudioContext.
 
 ---
 
 ## P1 — Important (Should Ship)
 
 ### Timeline & Navigation
-- ⬜ **Minimap** — Always-visible project overview strip at top of timeline. Shows all clips as colored blocks. Click to navigate.
-- ⬜ **Zoom gestures** — `Cmd+Scroll` = horizontal zoom, `Cmd+Shift+Scroll` = vertical zoom, pinch on trackpad/touch.
+- ✅ **Minimap** — Always-visible project overview strip at top of timeline. Shows all clips as colored blocks. Click to navigate.
+- ✅ **Zoom gestures** — `Cmd+Scroll` = horizontal zoom, `Cmd+Shift+Scroll` = vertical zoom, pinch on trackpad/touch.
 - ⬜ **Zoom to selection** — `Z` zooms to fit selected clips/region. `Shift+Z` zooms to fit entire project.
-- ⬜ **Adaptive grid** — Grid resolution auto-adjusts based on zoom level (zoomed out = bars, zoomed in = 16th notes).
-- ⬜ **Snap toggle** — `Cmd+G` toggles snap. Hold `Cmd` while dragging to temporarily disable snap.
+- ✅ **Adaptive grid** — Grid resolution auto-adjusts based on zoom level (zoomed out = bars, zoomed in = 16th notes).
+- ✅ **Snap toggle** — `Cmd+G` toggles snap. Hold `Cmd` while dragging to temporarily disable snap.
 - ⬜ **Scrubbing** — Click-drag on timeline ruler to scrub audio. Scrub speed ∝ drag velocity.
 
 ### Drag & Drop
-- ⬜ **OS file drop** — Handle native drag-drop of audio files from Finder/Explorer into timeline. Use File API + `dataTransfer`. Auto-decode and create clip at drop position.
-- ⬜ **Drag preview ghost** — Show translucent clip preview during drag with snapped position indicator.
-- ⬜ **Drag between tracks** — Drag clips between tracks (auto-convert MIDI↔audio if needed, or warn).
-- ⬜ **Drag from loop browser** — One-gesture drag from browser panel to timeline.
-- ⬜ **Drag reorder** — Reorder tracks via drag-handle on track header.
+- ✅ **OS file drop** — Handle native drag-drop of audio files from Finder/Explorer into timeline. Use File API + `dataTransfer`. Auto-decode and create clip at drop position.
+- ✅ **Drag preview ghost** — Show translucent clip preview during drag with snapped position indicator.
+- ✅ **Drag between tracks** — Drag clips between tracks (auto-convert MIDI↔audio if needed, or warn).
+- ✅ **Drag from loop browser** — One-gesture drag from browser panel to timeline.
+- ✅ **Drag reorder** — Reorder tracks via drag-handle on track header.
 
 ### Piano Roll (Learn from FL Studio)
-- ⬜ **Ghost notes** — Show notes from other tracks as 15% opacity background. Toggle with 👻 button.
+- ✅ **Ghost notes** — Show notes from other tracks as 15% opacity background. Toggle with 👻 button.
 - ⬜ **Draw/paint tools** — Pencil (single note), paint brush (repeat notes), select, erase. Number keys `1-4` to switch tools.
 - ⬜ **Velocity color** — Note color = velocity (light = soft, saturated = loud). Also show velocity bars below piano roll.
-- ⬜ **Quick quantize** — `Q` quantizes selected notes to current grid. `Cmd+Q` opens quantize dialog with strength slider.
+- ✅ **Quick quantize** — `Q` quantizes selected notes to current grid. `Cmd+Q` opens quantize dialog with strength slider.
 - ⬜ **Chord stamp** — Click to place common chord shapes (maj, min, 7th, dim, etc.). Shortcut: hold `Shift` + click.
 - ⬜ **Note resize** — Drag right edge to change duration. Drag left edge to change start (and duration).
 - ⬜ **Slide/portamento notes** — Special note type that bends between pitches. Visual: diagonal line between notes.
