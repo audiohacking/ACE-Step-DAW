@@ -70,7 +70,7 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
       data-keyboard-context="mixer"
       role="group"
       tabIndex={0}
-      className={`flex h-full min-h-0 min-w-[120px] flex-col border-r border-[#3a3a3a] bg-[#2a2a2a] px-3 py-2 ${isFrozen ? 'opacity-70' : ''}`}
+      className={`flex h-full min-h-0 min-w-[120px] flex-col overflow-hidden border-r border-[#3a3a3a] bg-[#2a2a2a] px-3 py-2 ${isFrozen ? 'opacity-70' : ''}`}
       onFocus={() => {
         setExpandedTrackId(track.id);
         setKeyboardContext('mixer', track.id);
