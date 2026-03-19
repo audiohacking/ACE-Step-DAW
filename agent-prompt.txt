@@ -49,29 +49,32 @@ You are a developer for ACE-Step DAW, a browser-based AI-native DAW.
 - This may happen multiple times. Each round, fix all issues and pass quality gates.
 - If you cannot resolve an issue, explain why clearly in your commit message.
 ---
-IMPLEMENT ISSUE #479: feat: add prompt autocomplete for genres, instruments, moods, and techniques
+IMPLEMENT ISSUE #382: feat: add playback latency calibration and manual override
 ## User Story
-As a user, I want prompt autocomplete suggestions while typing, so that I can build useful generation prompts faster and discover supported musical descriptors.
+As a user, I want ACE-Step DAW to detect and expose playback latency automatically, so that timing feels accurate on my device without manual guesswork.
+
+## Source
+- `docs/design/UX_IMPROVEMENT_CHECKLIST.md`
+- Section: `P0 — Critical (Must Ship) > Core Audio & Transport`
+- Checklist item: `Latency calibration`
 
 ## Problem
-Prompt autocomplete is called out in the UX checklist, but it is not yet tracked as a standalone implementation task.
+The app does not yet auto-detect output latency from the Web Audio stack or expose a manual correction path. That creates timing drift between what users hear and what they see, especially across different audio devices and browsers.
 
 ## Scope
-- Suggest genres, instruments, moods, and production techniques as the user types.
-- Support keyboard navigation and mouse selection.
-- Rank suggestions by prefix/fuzzy relevance.
-- Keep the suggestion model usable from both the UI and agent-facing APIs.
+- Detect `audioContext.outputLatency` and `audioContext.baseLatency` on first use when available
+- Surface detected latency in settings UI
+- Allow manual override when browser-reported values are missing or inaccurate
+- Persist the chosen latency value
+- Make the value available to playback and visual compensation systems
 
 ## Acceptance Criteria
-- Typing in the prompt field opens relevant autocomplete suggestions.
-- Arrow keys + Enter can select a suggestion without leaving the keyboard.
-- Suggestions do not interfere with normal text editing or IME input.
-- Suggestion state is testable through accessible DOM and/or store state.
-
-## Verification
-- `npm run build`
-- Browser test: type partial prompt tokens such as `lof`, `warm`, or `analog` and verify suggestions appear and insert correctly.
-- Agent test: drive the prompt input through automation and confirm autocomplete options are discoverable via accessibility labels.
+- On first audio-enabled session, the DAW captures available latency values
+- Settings displays detected latency in milliseconds
+- Users can manually override the value and save it
+- Reloading restores the saved override
+- Playback systems can consume a single normalized latency setting
+- Missing browser support degrades gracefully with a clear fallback state
 
 
-You are on branch fix/issue-479. Implement, then: npx tsc --noEmit && npm run build && npx vitest run tests/unit/ && git add -A && git commit -m 'feat: resolve #479'. Do NOT push.
+You are on branch fix/issue-382. Implement, then: npx tsc --noEmit && npm run build && npx vitest run tests/unit/ && git add -A && git commit -m 'feat: resolve #382'. Do NOT push.

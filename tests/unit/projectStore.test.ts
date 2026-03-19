@@ -104,17 +104,25 @@ describe('projectStore', () => {
 
       useProjectStore.getState().setProject(project);
 
-      expect(useProjectStore.getState().project).toMatchObject({
+      const storedProject = useProjectStore.getState().project;
+
+      expect(storedProject).toEqual(expect.objectContaining({
         ...project,
         mastering: createDefaultMasteringState(),
-      });
-      expect(useProjectStore.getState().project?.session).toMatchObject({
+      }));
+      expect(storedProject?.session).toMatchObject({
         quantization: '1 bar',
         slots: [],
         activeClipIdsByTrackId: {},
         pendingLaunches: [],
+        isRecordingToArrangement: false,
+        arrangementRecordStartTime: null,
+        arrangementRecordEndTime: null,
+        recordedLaunches: [],
+        lastLaunchedSceneId: null,
+        lastLaunchAt: null,
       });
-      expect(useProjectStore.getState().project?.session?.scenes).toHaveLength(4);
+      expect(storedProject?.session?.scenes).toHaveLength(4);
     });
   });
 

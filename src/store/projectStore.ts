@@ -1474,19 +1474,10 @@ function applyMasteringPreferences(mastering: MasteringState): MasteringState {
 }
 
 function detectPlaybackLatencyFromEngine() {
-  let getExistingAudioEngine:
-    | (() => { ctx: Pick<AudioContext, 'baseLatency' | 'outputLatency'> } | null)
-    | undefined;
-  try {
-    getExistingAudioEngine = (
-      audioEngineHooks as {
-        getExistingAudioEngine?: () => { ctx: Pick<AudioContext, 'baseLatency' | 'outputLatency'> } | null;
-      }
-    ).getExistingAudioEngine;
-  } catch {
-    return createDefaultPlaybackLatencySettings();
-  }
-  const engine = getExistingAudioEngine?.() ?? null;
+  const engine =
+    'getExistingAudioEngine' in audioEngineHooks
+      ? audioEngineHooks.getExistingAudioEngine?.() ?? null
+      : null;
   if (!engine) return createDefaultPlaybackLatencySettings();
   return detectPlaybackLatencySettings(undefined, {
     baseLatency: engine.ctx.baseLatency,

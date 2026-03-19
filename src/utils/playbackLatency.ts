@@ -11,6 +11,7 @@ interface AudioContextLatencyLike {
 }
 
 const MAX_PLAYBACK_LATENCY_MS = 500;
+const PLAYBACK_LATENCY_BROWSER_SUPPORT = new Set(['available', 'missing'] as const);
 
 function roundLatencyMs(value: number): number {
   return Math.round(value * 10) / 10;
@@ -18,6 +19,13 @@ function roundLatencyMs(value: number): number {
 
 function clampLatencyMs(value: number): number {
   return roundLatencyMs(Math.max(0, Math.min(MAX_PLAYBACK_LATENCY_MS, value)));
+}
+
+function sanitizeLatencyMs(value?: number | null): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+  return clampLatencyMs(value);
 }
 
 function toLatencyMs(value?: number | null): number | null {
@@ -44,8 +52,10 @@ export function normalizePlaybackLatencySettings(
   settings?: Partial<PlaybackLatencySettings> | null,
 ): PlaybackLatencySettings {
   const defaults = createDefaultPlaybackLatencySettings();
-  const detectedBaseLatencyMs = settings?.detectedBaseLatencyMs ?? defaults.detectedBaseLatencyMs;
-  const detectedOutputLatencyMs = settings?.detectedOutputLatencyMs ?? defaults.detectedOutputLatencyMs;
+  const detectedBaseLatencyMs =
+    sanitizeLatencyMs(settings?.detectedBaseLatencyMs) ?? defaults.detectedBaseLatencyMs;
+  const detectedOutputLatencyMs =
+    sanitizeLatencyMs(settings?.detectedOutputLatencyMs) ?? defaults.detectedOutputLatencyMs;
   const manualOverrideMs =
     typeof settings?.manualOverrideMs === 'number' && Number.isFinite(settings.manualOverrideMs)
       ? clampLatencyMs(settings.manualOverrideMs)
@@ -58,9 +68,9 @@ export function normalizePlaybackLatencySettings(
     ?? (detectedBaseLatencyMs !== null || detectedOutputLatencyMs !== null
       ? clampLatencyMs((detectedBaseLatencyMs ?? 0) + (detectedOutputLatencyMs ?? 0))
       : null);
-  const browserSupport =
-    settings?.browserSupport
-    ?? (detectedBaseLatencyMs !== null || detectedOutputLatencyMs !== null ? 'available' : 'missing');
+  const browserSupport = PLAYBACK_LATENCY_BROWSER_SUPPORT.has(settings?.browserSupport ?? 'missing')
+    ? settings?.browserSupport ?? 'missing'
+    : (detectedBaseLatencyMs !== null || detectedOutputLatencyMs !== null ? 'available' : 'missing');
   const source = manualOverrideMs !== null
     ? 'manual'
     : detectedLatencyMs !== null

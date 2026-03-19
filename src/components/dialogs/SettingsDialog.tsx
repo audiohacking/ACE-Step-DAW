@@ -181,6 +181,14 @@ export function SettingsDialog() {
   const selectedLmEntry = availableLmModels.find((m) => m.name === selectedLmModel);
   const playbackLatency = normalizePlaybackLatencySettings(project?.playbackLatency);
   const manualLatencyValue = manualLatencyText.trim() === '' ? null : Number.parseFloat(manualLatencyText);
+  const pendingManualOverrideMs =
+    manualLatencyValue !== null && Number.isFinite(manualLatencyValue)
+      ? normalizePlaybackLatencySettings({ manualOverrideMs: manualLatencyValue }).manualOverrideMs
+      : null;
+  const hasPendingManualOverride =
+    manualLatencyText.trim() !== ''
+    && pendingManualOverrideMs !== null
+    && pendingManualOverrideMs !== playbackLatency.manualOverrideMs;
 
   const handleInitSelectedModel = async () => {
     if (!model) return;
@@ -366,10 +374,13 @@ export function SettingsDialog() {
               </div>
             </div>
              <p className="text-[10px] text-zinc-500">
-               Active compensation: {playbackLatency.source === 'manual' && manualLatencyValue !== null && Number.isFinite(manualLatencyValue)
-                 ? `${manualLatencyValue.toFixed(1)} ms`
-                 : `${playbackLatency.compensationMs.toFixed(1)} ms`}
+               Active compensation: {playbackLatency.compensationMs.toFixed(1)} ms
              </p>
+             {hasPendingManualOverride ? (
+               <p className="text-[10px] text-zinc-500">
+                 Pending manual override after save: {pendingManualOverrideMs.toFixed(1)} ms
+               </p>
+             ) : null}
            </div>
 
           <h3 className="text-xs font-medium text-zinc-300 pt-2">Generation Parameters</h3>
