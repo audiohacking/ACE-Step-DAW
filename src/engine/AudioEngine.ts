@@ -1,6 +1,7 @@
 import * as Tone from 'tone';
 import { TrackNode } from './TrackNode';
 import type { SequencerPattern } from '../types/project';
+import { computeStretchedAudioParams } from '../utils/timeStretch';
 
 export interface ScheduledSource {
   source: AudioBufferSourceNode;
@@ -23,6 +24,7 @@ export interface ClipScheduleInfo {
   buffer: AudioBuffer;
   audioOffset: number;   // offset into the buffer (crop start)
   clipDuration: number;  // how long to play (crop length)
+  timeStretchRate?: number; // playback rate: 1 = original, 2 = double speed, 0.5 = half speed
 }
 
 /**
@@ -125,19 +127,32 @@ export class AudioEngine {
       source.buffer = clip.buffer;
       source.connect(trackNode.inputGain);
 
+      // Apply time-stretch playback rate
+      const rate = clip.timeStretchRate ?? 1;
+      source.playbackRate.value = rate;
+
       const clipEnd = clip.startTime + clip.clipDuration;
       if (clipEnd <= fromTime) continue;
 
       const contextNow = this.ctx.currentTime;
       if (clip.startTime >= fromTime) {
-        // Clip hasn't started: schedule with delay, start from audioOffset
         const delay = clip.startTime - fromTime;
-        source.start(contextNow + delay, clip.audioOffset, clip.clipDuration);
+        const stretched = computeStretchedAudioParams({
+          audioOffset: clip.audioOffset,
+          clipDuration: clip.clipDuration,
+          timeStretchRate: rate,
+          seekOffset: 0,
+        });
+        source.start(contextNow + delay, stretched.audioOffset, stretched.audioDuration);
       } else {
-        // Clip already started: seek into it
         const seekOffset = fromTime - clip.startTime;
-        const remaining = clip.clipDuration - seekOffset;
-        source.start(contextNow, clip.audioOffset + seekOffset, remaining);
+        const stretched = computeStretchedAudioParams({
+          audioOffset: clip.audioOffset,
+          clipDuration: clip.clipDuration,
+          timeStretchRate: rate,
+          seekOffset,
+        });
+        source.start(contextNow, stretched.audioOffset, stretched.audioDuration);
       }
 
       this.scheduledSources.push({

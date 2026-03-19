@@ -12,6 +12,7 @@ interface ClipContextMenuProps {
   onRepaint: () => void;
   onVocal2BGM: () => void;
   onAnalyze: () => void;
+  onTimeStretch: () => void;
   onClose: () => void;
   hasPrompt: boolean;
   isReady: boolean;
@@ -33,6 +34,7 @@ export function ClipContextMenu({
   onRepaint,
   onVocal2BGM,
   onAnalyze,
+  onTimeStretch,
   onClose,
   hasPrompt,
   isReady,
@@ -68,6 +70,9 @@ export function ClipContextMenu({
 
         {!isMidiClip && isReady && (
           <>
+            <button onClick={onTimeStretch} className="w-full text-left px-3 py-1.5 text-[11px] text-sky-300 hover:bg-daw-accent hover:text-white transition-colors">
+              Time Stretch…
+            </button>
             <button onClick={onCreateCover} className="w-full text-left px-3 py-1.5 text-[11px] text-amber-300 hover:bg-daw-accent hover:text-white transition-colors">
               Create Cover…
             </button>

@@ -9,6 +9,7 @@ import { snapToGrid } from '../../utils/time';
 import { AddLayerModal } from '../generation/AddLayerModal';
 import { regenerateClip } from '../../services/generationPipeline';
 import { ClipContextMenu } from './ClipContextMenu';
+import { TimeStretchDialog } from './TimeStretchDialog';
 import { ClipWaveform, ClipMidiThumbnail } from './ClipWaveform';
 import { ClipStatusOverlay } from './ClipStatusOverlay';
 
@@ -64,6 +65,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
 
   const [addLayerOpen, setAddLayerOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [timeStretchOpen, setTimeStretchOpen] = useState(false);
   const [dragGhost, setDragGhost] = useState<DragGhostInfo | null>(null);
 
   const editingClipId = useUIStore((s) => s.editingClipId);
@@ -439,6 +441,10 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
             closeCtxMenu();
             setAnalysisPanel(clip.id);
           }}
+          onTimeStretch={() => {
+            closeCtxMenu();
+            setTimeStretchOpen(true);
+          }}
           onClose={closeCtxMenu}
           hasPrompt={!!clip.prompt}
           isReady={clip.generationStatus === 'ready'}
@@ -465,6 +471,14 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
           contextWindow={contextWindow}
           clipId={clip.id}
           onClose={() => setEditModalOpen(false)}
+        />
+      )}
+
+      {timeStretchOpen && (
+        <TimeStretchDialog
+          clip={clip}
+          projectBpm={project?.bpm ?? 120}
+          onClose={() => setTimeStretchOpen(false)}
         />
       )}
 
