@@ -3,6 +3,12 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { DEFAULT_BPM, DEFAULT_DURATION, DEFAULT_KEY_SCALE, MAX_BPM, MAX_DURATION, MIN_BPM, MIN_DURATION } from '../constants/defaults';
 import type { GenerationPreset } from '../constants/generationPresets';
 import { useProjectStore } from './projectStore';
+import {
+  applyPromptAutocompleteSuggestion as applyPromptAutocompleteSuggestionToPrompt,
+  getPromptAutocompleteSuggestions as getPromptAutocompleteSuggestionsForPrompt,
+  type AppliedPromptAutocompleteSuggestion,
+  type PromptAutocompleteSuggestion,
+} from '../utils/promptAutocomplete';
 
 export interface GenerationJob {
   id: string;
@@ -353,6 +359,8 @@ export interface GenerationState {
   setGenerationLyrics: (lyrics: string) => void;
   setGenerationRequestError: (message: string | null) => void;
   applyGenerationPreset: (preset: GenerationPreset) => void;
+  getPromptAutocompleteSuggestions: (prompt?: string, caretIndex?: number, limit?: number) => PromptAutocompleteSuggestion[];
+  applyPromptAutocompleteSuggestion: (suggestion: string, caretIndex?: number) => AppliedPromptAutocompleteSuggestion | null;
   getGenerationValidationError: () => string | null;
   canSubmitGeneration: () => boolean;
   submitGenerationRequest: (context?: { globalCaption?: string | null }) => VariationSessionParams | null;
@@ -545,6 +553,19 @@ export const useGenerationStore = create<GenerationState>()(
           requestError: null,
         },
       })),
+
+      getPromptAutocompleteSuggestions: (prompt, caretIndex, limit) => {
+        const currentPrompt = prompt ?? get().generationForm.prompt;
+        return getPromptAutocompleteSuggestionsForPrompt(currentPrompt, caretIndex, limit);
+      },
+
+      applyPromptAutocompleteSuggestion: (suggestion, caretIndex) => {
+        const currentPrompt = get().generationForm.prompt;
+        const result = applyPromptAutocompleteSuggestionToPrompt(currentPrompt, suggestion, caretIndex);
+        if (!result) return null;
+        get().setGenerationPrompt(result.prompt);
+        return result;
+      },
 
       getGenerationValidationError: () => {
         const { generationForm } = get();

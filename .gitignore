@@ -18,6 +18,9 @@ scripts/metrics-latest.json
 # Codex artifacts
 .codex/
 
+# Agent session artifacts
+.agent-session-id
+
 # Test artifacts
 test-screenshots/
 playwright-report/

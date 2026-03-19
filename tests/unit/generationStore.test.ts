@@ -188,4 +188,28 @@ describe('generationStore', () => {
       expect(useGenerationStore.getState().promptHistory).toHaveLength(0);
     });
   });
+
+  describe('prompt autocomplete', () => {
+    it('returns ranked suggestions for the token at the caret', () => {
+      const suggestions = useGenerationStore.getState().getPromptAutocompleteSuggestions('warm ana pad', 8);
+
+      expect(suggestions[0]).toMatchObject({
+        value: 'analog',
+        category: 'technique',
+      });
+      expect(suggestions.some((suggestion) => suggestion.value === 'analog synth')).toBe(true);
+    });
+
+    it('replaces only the active token when applying a suggestion', () => {
+      useGenerationStore.getState().setGenerationPrompt('warm ana pad');
+
+      const result = useGenerationStore.getState().applyPromptAutocompleteSuggestion('analog', 8);
+
+      expect(result).toEqual({
+        prompt: 'warm analog pad',
+        caretIndex: 11,
+      });
+      expect(useGenerationStore.getState().generationForm.prompt).toBe('warm analog pad');
+    });
+  });
 });

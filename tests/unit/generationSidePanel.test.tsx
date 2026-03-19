@@ -184,4 +184,42 @@ describe('GenerationSidePanel', () => {
     expect(screen.getByTestId('generation-job-job-2')).toHaveTextContent('ETA pending');
     expect(screen.getByTestId('generation-job-job-2')).not.toHaveTextContent('ETA:');
   });
+
+  it('shows accessible autocomplete suggestions and applies the highlighted option from the keyboard', () => {
+    render(<GenerationSidePanel />);
+
+    const promptInput = screen.getByRole('textbox', { name: 'Generation prompt' });
+    fireEvent.change(promptInput, { target: { value: 'lof' } });
+    fireEvent.keyDown(promptInput, { key: 'ArrowDown' });
+    fireEvent.keyDown(promptInput, { key: 'Enter' });
+
+    expect(screen.getByRole('textbox', { name: 'Generation prompt' })).toHaveValue('lo-fi ');
+    expect(screen.queryByRole('listbox', { name: 'Prompt autocomplete suggestions' })).not.toBeInTheDocument();
+  });
+
+  it('supports mouse selection from autocomplete suggestions', () => {
+    render(<GenerationSidePanel />);
+
+    const promptInput = screen.getByRole('textbox', { name: 'Generation prompt' });
+    fireEvent.change(promptInput, { target: { value: 'warm ana' } });
+
+    fireEvent.click(screen.getByRole('option', { name: 'analog technique' }));
+
+    expect(screen.getByRole('textbox', { name: 'Generation prompt' })).toHaveValue('warm analog ');
+  });
+
+  it('does not open autocomplete while IME composition is active', () => {
+    render(<GenerationSidePanel />);
+
+    const promptInput = screen.getByRole('textbox', { name: 'Generation prompt' });
+    fireEvent.compositionStart(promptInput);
+    fireEvent.change(promptInput, { target: { value: 'lof' } });
+
+    expect(screen.queryByRole('listbox', { name: 'Prompt autocomplete suggestions' })).not.toBeInTheDocument();
+
+    fireEvent.compositionEnd(promptInput);
+    fireEvent.change(promptInput, { target: { value: 'lof' } });
+
+    expect(screen.getByRole('listbox', { name: 'Prompt autocomplete suggestions' })).toBeInTheDocument();
+  });
 });
