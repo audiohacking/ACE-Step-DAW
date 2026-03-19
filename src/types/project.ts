@@ -142,16 +142,10 @@ export interface Clip {
   source?: 'generated' | 'uploaded';
   /** User bookmark flag for quick access in the Assets panel. */
   starred?: boolean;
-  /** Fade in duration in seconds. */
-  fadeInDuration?: number;
-  /** Fade out duration in seconds. */
-  fadeOutDuration?: number;
-  /** Fade in curve shape. */
-  fadeInCurve?: 'linear' | 'exponential' | 'equal-power';
-  /** Fade out curve shape. */
-  fadeOutCurve?: 'linear' | 'exponential' | 'equal-power';
   /** Optional MIDI region data for piano roll tracks. */
   midiData?: MidiClipData;
+  /** Recording take lanes for comping workflow. */
+  takes?: { id: string; audioKey: string; selected: boolean }[];
 }
 
 export interface SequencerStep {
@@ -179,19 +173,6 @@ export interface SequencerPattern {
   swing: number;          // 0–1, 0 = straight, 0.67 = heavy swing
 }
 
-export interface Send {
-  returnTrackId: string;
-  amount: number;  // 0–1
-}
-
-export interface ReturnTrack {
-  id: string;
-  name: string;
-  effects: TrackEffect[];
-  volume: number;  // 0–1
-  pan: number;     // -1 (full left) to +1 (full right)
-}
-
 export interface Track {
   id: string;
   trackType?: TrackType;
@@ -204,10 +185,6 @@ export interface Track {
   soloed: boolean;
   armed?: boolean;
   clips: Clip[];
-  // Track grouping / folder tracks
-  parentTrackId?: string;
-  isGroup?: boolean;
-  collapsed?: boolean;
   sequencerPattern?: SequencerPattern;
   synthPreset?: SynthPreset;
   effects?: TrackEffect[];
@@ -228,8 +205,8 @@ export interface Track {
   localCaption?: string;
   /** Per-track lane height in pixels (default 64, min 40, max 200). */
   laneHeight?: number;
-  /** Sends to return tracks (mixer bus routing). */
-  sends?: Send[];
+  /** Whether take lanes are expanded in the UI for comping workflow. */
+  showTakeLanes?: boolean;
 }
 
 /** Persistent asset entry — survives clip/track removal. Only deleted explicitly from the Assets panel. */
@@ -276,8 +253,6 @@ export interface Project {
   assets?: AssetClip[];
   /** Per-track automation lanes. */
   automationLanes?: AutomationLane[];
-  /** Shared effect return tracks (mixer buses). */
-  returnTracks?: ReturnTrack[];
 }
 
 // ─── Automation Types ────────────────────────────────────────────────────────

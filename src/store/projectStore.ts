@@ -20,7 +20,6 @@ import type {
   AutomationParameter,
   AutomationPoint,
   AutomationLane,
-  ReturnTrack,
 } from '../types/project';
 import { automationParamEquals } from '../types/project';
 import { TRACK_CATALOG, DEFAULT_DRUM_KIT } from '../constants/tracks';
@@ -109,7 +108,6 @@ interface ProjectState {
   saveClipVersion: (clipId: string) => void;
   /** Restore clip audio fields from a version by index. */
   setActiveVersion: (clipId: string, idx: number) => void;
-  setClipFade: (clipId: string, fade: Partial<Pick<Clip, 'fadeInDuration' | 'fadeOutDuration' | 'fadeInCurve' | 'fadeOutCurve'>>) => void;
 
   splitClip: (clipId: string, splitTime: number) => void;
   toggleClipStar: (clipId: string) => void;
@@ -158,17 +156,10 @@ interface ProjectState {
   updateAutomationPoint: (trackId: string, parameter: AutomationParameter, pointIndex: number, updates: Partial<AutomationPoint>) => void;
   clearAutomationLane: (trackId: string, parameter: AutomationParameter) => void;
 
-  // Return tracks (sends/returns mixer buses)
-  addReturnTrack: (name?: string) => ReturnTrack;
-  removeReturnTrack: (returnTrackId: string) => void;
-  updateReturnTrack: (returnTrackId: string, updates: Partial<Pick<ReturnTrack, 'name' | 'volume' | 'pan' | 'effects'>>) => void;
-  updateTrackSend: (trackId: string, returnTrackId: string, amount: number) => void;
-
-  // Track grouping / folder tracks
-  createGroupTrack: (name: string) => Track;
-  moveTrackToGroup: (trackId: string, groupId: string | null) => void;
-  toggleGroupCollapse: (groupId: string) => void;
-  getGroupVolume: (groupId: string) => number;
+  // Comping / take lanes
+  addTake: (clipId: string, audioKey: string) => void;
+  selectTake: (clipId: string, takeId: string) => void;
+  toggleTakeLanes: (trackId: string) => void;
 
   getTrackById: (trackId: string) => Track | undefined;
   getClipById: (clipId: string) => Clip | undefined;
@@ -725,10 +716,6 @@ export const useProjectStore = create<ProjectState>()(
     });
 
     return newClip;
-  },
-
-  setClipFade: (clipId, fade) => {
-    get().updateClip(clipId, fade);
   },
 
   splitClip: (clipId, splitTime) => {
@@ -1937,160 +1924,47 @@ export const useProjectStore = create<ProjectState>()(
     set({ project: { ...state.project, updatedAt: Date.now(), automationLanes: lanes } });
   },
 
-  // -- Track grouping / folder tracks --
+  // ── Comping / Take Lanes ──────────────────────────────────────────────────
 
-  createGroupTrack: (name) => {
-    const state = get();
-    if (!state.project) throw new Error('No project');
-    _pushHistory(state.project);
-    const existingOrders = state.project.tracks.map((t) => t.order);
-    const maxOrder = existingOrders.length > 0 ? Math.max(...existingOrders) : 0;
-    const track: Track = {
-      id: uuidv4(),
-      trackName: 'custom',
-      displayName: name,
-      color: '#71717a',
-      order: maxOrder + 1,
-      volume: 0.8,
-      muted: false,
-      soloed: false,
-      clips: [],
-      isGroup: true,
-      collapsed: false,
-      effects: [],
-    };
-    const newTracks = [...state.project.tracks, track];
-    set({ project: { ...state.project, updatedAt: Date.now(), tracks: newTracks } });
-    return track;
-  },
-
-  moveTrackToGroup: (trackId, groupId) => {
-    const state = get();
-    if (!state.project) return;
-    if (groupId !== null) {
-      const group = state.project.tracks.find((t) => t.id === groupId);
-      if (!group || !group.isGroup) return;
-    }
-    const track = state.project.tracks.find((t) => t.id === trackId);
-    if (!track || track.isGroup) return;
-    _pushHistory(state.project);
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        tracks: state.project.tracks.map((t) =>
-          t.id === trackId ? { ...t, parentTrackId: groupId ?? undefined } : t,
-        ),
-      },
-    });
-  },
-
-  toggleGroupCollapse: (groupId) => {
-    const state = get();
-    if (!state.project) return;
-    const group = state.project.tracks.find((t) => t.id === groupId);
-    if (!group || !group.isGroup) return;
-    _pushHistory(state.project);
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        tracks: state.project.tracks.map((t) =>
-          t.id === groupId ? { ...t, collapsed: !t.collapsed } : t,
-        ),
-      },
-    });
-  },
-
-  getGroupVolume: (groupId) => {
-    const state = get();
-    if (!state.project) return 0;
-    const children = state.project.tracks.filter((t) => t.parentTrackId === groupId && !t.isGroup);
-    if (children.length === 0) return 0;
-    return children.reduce((sum, t) => sum + t.volume, 0) / children.length;
-  },
-
-  // ── Return tracks (sends/returns mixer buses) ─────────────────────────────
-
-  addReturnTrack: (name) => {
-    const state = get();
-    const returnTrack: ReturnTrack = {
-      id: uuidv4(),
-      name: name ?? `Return ${(state.project?.returnTracks?.length ?? 0) + 1}`,
-      effects: [],
-      volume: 1,
-      pan: 0,
-    };
-    if (state.project) {
-      _pushHistory(state.project);
-      set({
-        project: {
-          ...state.project,
-          updatedAt: Date.now(),
-          returnTracks: [...(state.project.returnTracks ?? []), returnTrack],
-        },
-      });
-    }
-    return returnTrack;
-  },
-
-  removeReturnTrack: (returnTrackId) => {
+  addTake: (clipId, audioKey) => {
     const state = get();
     if (!state.project) return;
     _pushHistory(state.project);
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        returnTracks: (state.project.returnTracks ?? []).filter((rt) => rt.id !== returnTrackId),
-        // Clean up sends referencing this return track from all tracks
-        tracks: state.project.tracks.map((track) => ({
-          ...track,
-          sends: (track.sends ?? []).filter((s) => s.returnTrackId !== returnTrackId),
-        })),
-      },
-    });
+    const tracks = state.project.tracks.map((track) => ({
+      ...track,
+      clips: track.clips.map((clip) => {
+        if (clip.id !== clipId) return clip;
+        const existingTakes = clip.takes ?? [];
+        const newTake = { id: uuidv4(), audioKey, selected: false };
+        return { ...clip, takes: [...existingTakes, newTake] };
+      }),
+    }));
+    set({ project: { ...state.project, updatedAt: Date.now(), tracks } });
   },
 
-  updateReturnTrack: (returnTrackId, updates) => {
+  selectTake: (clipId, takeId) => {
     const state = get();
     if (!state.project) return;
     _pushHistory(state.project);
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        returnTracks: (state.project.returnTracks ?? []).map((rt) =>
-          rt.id === returnTrackId ? { ...rt, ...updates } : rt,
-        ),
-      },
-    });
+    const tracks = state.project.tracks.map((track) => ({
+      ...track,
+      clips: track.clips.map((clip) => {
+        if (clip.id !== clipId || !clip.takes) return clip;
+        const takes = clip.takes.map((t) => ({ ...t, selected: t.id === takeId }));
+        return { ...clip, takes };
+      }),
+    }));
+    set({ project: { ...state.project, updatedAt: Date.now(), tracks } });
   },
 
-  updateTrackSend: (trackId, returnTrackId, amount) => {
+  toggleTakeLanes: (trackId) => {
     const state = get();
     if (!state.project) return;
     _pushHistory(state.project);
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        tracks: state.project.tracks.map((track) => {
-          if (track.id !== trackId) return track;
-          const sends = [...(track.sends ?? [])];
-          const existingIdx = sends.findIndex((s) => s.returnTrackId === returnTrackId);
-          if (amount <= 0) {
-            // Remove the send if amount is 0 or negative
-            if (existingIdx >= 0) sends.splice(existingIdx, 1);
-          } else if (existingIdx >= 0) {
-            sends[existingIdx] = { ...sends[existingIdx], amount };
-          } else {
-            sends.push({ returnTrackId, amount });
-          }
-          return { ...track, sends };
-        }),
-      },
-    });
+    const tracks = state.project.tracks.map((track) =>
+      track.id === trackId ? { ...track, showTakeLanes: !track.showTakeLanes } : track,
+    );
+    set({ project: { ...state.project, updatedAt: Date.now(), tracks } });
   },
 
   getTrackById: (trackId) => {
