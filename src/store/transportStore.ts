@@ -17,10 +17,13 @@ export interface SessionArrangementRecordEvent {
 export interface TransportState {
   isPlaying: boolean;
   isRecording: boolean;
+  isScrubbing: boolean;
   armedTrackIds: string[];
   countInActive: boolean;
   countInBeat: number; // 0 = not counting in, negative = beats remaining
   currentTime: number;
+  scrubAnchorTime: number | null;
+  scrubPreviewRate: number;
   loopEnabled: boolean;
   loopStart: number;
   loopEnd: number;
@@ -48,6 +51,9 @@ export interface TransportState {
   toggleArmTrack: (id: string, exclusive?: boolean) => void;
   seek: (time: number) => void;
   setCurrentTime: (time: number) => void;
+  startScrub: (time: number) => void;
+  updateScrub: (time: number, previewRate: number) => void;
+  endScrub: () => void;
   toggleLoop: () => void;
   setLoopRegion: (start: number, end: number) => void;
   toggleMetronome: () => void;
@@ -71,10 +77,13 @@ export interface TransportState {
 export const useTransportStore = create<TransportState>((set) => ({
   isPlaying: false,
   isRecording: false,
+  isScrubbing: false,
   armedTrackIds: [],
   countInActive: false,
   countInBeat: 0,
   currentTime: 0,
+  scrubAnchorTime: null,
+  scrubPreviewRate: 0,
   loopEnabled: false,
   loopStart: 0,
   loopEnd: 0,
@@ -93,7 +102,14 @@ export const useTransportStore = create<TransportState>((set) => ({
 
   play: () => set({ isPlaying: true }),
   pause: () => set({ isPlaying: false }),
-  stop: () => set({ isPlaying: false, currentTime: 0, loopCycleCount: 0 }),
+  stop: () => set({
+    isPlaying: false,
+    isScrubbing: false,
+    currentTime: 0,
+    scrubAnchorTime: null,
+    scrubPreviewRate: 0,
+    loopCycleCount: 0,
+  }),
   setIsRecording: (v) => set({ isRecording: v }),
   setCountIn: (active, beat = 0) => set({ countInActive: active, countInBeat: beat }),
   armTrack: (id) => set((s) => (
@@ -112,6 +128,22 @@ export const useTransportStore = create<TransportState>((set) => ({
   }),
   seek: (time) => set({ currentTime: Math.max(0, time) }),
   setCurrentTime: (time) => set({ currentTime: time }),
+  startScrub: (time) => set({
+    isScrubbing: true,
+    currentTime: Math.max(0, time),
+    scrubAnchorTime: Math.max(0, time),
+    scrubPreviewRate: 0,
+  }),
+  updateScrub: (time, previewRate) => set((s) => ({
+    isScrubbing: s.isScrubbing,
+    currentTime: Math.max(0, time),
+    scrubPreviewRate: Math.max(-1, Math.min(1, previewRate)),
+  })),
+  endScrub: () => set({
+    isScrubbing: false,
+    scrubAnchorTime: null,
+    scrubPreviewRate: 0,
+  }),
   toggleLoop: () => set((s) => ({ loopEnabled: !s.loopEnabled })),
   setLoopRegion: (start, end) => set({ loopStart: start, loopEnd: end }),
   toggleMetronome: () => set((s) => ({ metronomeEnabled: !s.metronomeEnabled })),

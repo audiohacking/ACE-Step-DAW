@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { useTransportStore } from '../../store/transportStore';
@@ -12,31 +12,65 @@ export function TimeRuler() {
   const loopEnabled = useTransportStore((s) => s.loopEnabled);
   const loopStart = useTransportStore((s) => s.loopStart);
   const loopEnd = useTransportStore((s) => s.loopEnd);
-  const { seek } = useTransport();
+  const isScrubbing = useTransportStore((s) => s.isScrubbing);
+  const currentTime = useTransportStore((s) => s.currentTime);
+  const { startScrub, scrubTo, endScrub } = useTransport();
+  const scrubStateRef = useRef<{ x: number; time: number; stamp: number } | null>(null);
 
-  const seekFromX = useCallback((clientX: number, container: HTMLElement) => {
+  const getTimeFromX = useCallback((clientX: number, container: HTMLElement) => {
     if (!project) return;
     const rect = container.getBoundingClientRect();
     const x = clientX - rect.left;
-    const time = Math.max(0, Math.min(x / pixelsPerSecond, project.totalDuration));
-    seek(time);
-  }, [project, pixelsPerSecond, seek]);
+    return Math.max(0, Math.min(x / pixelsPerSecond, project.totalDuration));
+  }, [project, pixelsPerSecond]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!project) return;
+  const getPreviewRate = useCallback((nextX: number, nextTime: number, stamp: number) => {
+    const prev = scrubStateRef.current;
+    if (!prev) return 0;
+
+    const dt = Math.max(16, stamp - prev.stamp);
+    const deltaX = nextX - prev.x;
+    const deltaTime = nextTime - prev.time;
+    const velocity = deltaX / dt;
+    const distanceBias = deltaTime * 0.35;
+    return Math.max(-1, Math.min(1, velocity * 0.22 + distanceBias));
+  }, []);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!project || e.button !== 0) return;
+    e.preventDefault();
     const container = e.currentTarget;
-    seekFromX(e.clientX, container);
+    const time = getTimeFromX(e.clientX, container);
+    if (time === undefined) return;
 
-    const onMouseMove = (ev: MouseEvent) => {
-      seekFromX(ev.clientX, container);
-    };
-    const onMouseUp = () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-  }, [project, seekFromX]);
+    scrubStateRef.current = { x: e.clientX, time, stamp: e.timeStamp };
+    void startScrub(time);
+
+    if ('setPointerCapture' in container) {
+      container.setPointerCapture(e.pointerId);
+    }
+  }, [getTimeFromX, project, startScrub]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!project || !isScrubbing) return;
+    const container = e.currentTarget;
+    const time = getTimeFromX(e.clientX, container);
+    if (time === undefined) return;
+
+    const previewRate = getPreviewRate(e.clientX, time, e.timeStamp);
+    scrubStateRef.current = { x: e.clientX, time, stamp: e.timeStamp };
+    scrubTo(time, previewRate);
+  }, [getPreviewRate, getTimeFromX, isScrubbing, project, scrubTo]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isScrubbing) return;
+    scrubStateRef.current = null;
+    endScrub();
+    const container = e.currentTarget;
+    if ('releasePointerCapture' in container && container.hasPointerCapture(e.pointerId)) {
+      container.releasePointerCapture(e.pointerId);
+    }
+  }, [endScrub, isScrubbing]);
 
   const markers = useMemo(() => {
     if (!project) return [];
@@ -83,7 +117,19 @@ export function TimeRuler() {
     <div
       className="relative h-6 bg-[#353535] border-b border-[#2a2a2a] overflow-hidden select-none cursor-pointer"
       style={{ width: totalWidth }}
-      onMouseDown={handleMouseDown}
+      role="slider"
+      aria-label="Timeline scrub ruler"
+      aria-valuemin={0}
+      aria-valuemax={project.totalDuration}
+      aria-valuenow={currentTime}
+      aria-valuetext={`${currentTime.toFixed(2)} seconds`}
+      tabIndex={0}
+      data-timeline-scrubber="true"
+      data-testid="timeline-scrub-ruler"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
     >
       {/* Cycle/loop region (yellow strip, GarageBand style) */}
       {loopEnabled && loopEnd > loopStart && (

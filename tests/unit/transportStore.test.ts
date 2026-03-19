@@ -32,6 +32,35 @@ describe('transportStore', () => {
     });
   });
 
+  describe('scrub mode', () => {
+    it('tracks scrub state and clamps preview rate', () => {
+      useTransportStore.getState().startScrub(2.5);
+
+      let state = useTransportStore.getState();
+      expect(state.isScrubbing).toBe(true);
+      expect(state.currentTime).toBe(2.5);
+      expect(state.scrubAnchorTime).toBe(2.5);
+      expect(state.scrubPreviewRate).toBe(0);
+
+      useTransportStore.getState().updateScrub(3.75, 0.42);
+      state = useTransportStore.getState();
+      expect(state.currentTime).toBe(3.75);
+      expect(state.scrubPreviewRate).toBeCloseTo(0.42);
+
+      useTransportStore.getState().updateScrub(1.25, 4);
+      expect(useTransportStore.getState().scrubPreviewRate).toBe(1);
+
+      useTransportStore.getState().updateScrub(0.5, -3);
+      expect(useTransportStore.getState().scrubPreviewRate).toBe(-1);
+
+      useTransportStore.getState().endScrub();
+      state = useTransportStore.getState();
+      expect(state.isScrubbing).toBe(false);
+      expect(state.scrubAnchorTime).toBeNull();
+      expect(state.scrubPreviewRate).toBe(0);
+    });
+  });
+
   describe('track arming', () => {
     it('supports exclusive arming by default', () => {
       useTransportStore.getState().armTrack('track-a');

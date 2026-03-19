@@ -512,6 +512,27 @@ export function useTransport() {
     }
   }, [play]);
 
+  const startScrub = useCallback(async (time: number) => {
+    const engine = getAudioEngine();
+    await engine.resume();
+    useTransportStore.getState().startScrub(time);
+    useTransportStore.getState().seek(time);
+    engine.startScrubPreview();
+  }, []);
+
+  const scrubTo = useCallback((time: number, previewRate: number) => {
+    const engine = getAudioEngine();
+    useTransportStore.getState().updateScrub(time, previewRate);
+    seek(time);
+    engine.updateScrubPreview(previewRate);
+  }, [seek]);
+
+  const endScrub = useCallback(() => {
+    const engine = getAudioEngine();
+    useTransportStore.getState().endScrub();
+    engine.stopScrubPreview();
+  }, []);
+
   const launchSessionClip = useCallback(async (trackId: string, clipId: string, sceneIndex: number) => {
     const transport = useTransportStore.getState();
     useTransportStore.getState().launchSessionClip(trackId, clipId, sceneIndex, transport.currentTime);
@@ -616,6 +637,9 @@ export function useTransport() {
     pause,
     stop,
     seek,
+    startScrub,
+    scrubTo,
+    endScrub,
     launchSessionClip,
     stopSessionTrack,
     stopAllSessionClips,

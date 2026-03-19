@@ -100,6 +100,9 @@ export class AudioEngine {
   // Metronome
   private _metronomeGain: GainNode;
   private _metronomeSources: OscillatorNode[] = [];
+  private readonly scrubGain: GainNode;
+  private scrubOscillator: OscillatorNode | null = null;
+  private scrubFilter: BiquadFilterNode | null = null;
 
   constructor() {
     this.ctx = new AudioContext({ sampleRate: 48000 });
@@ -190,6 +193,10 @@ export class AudioEngine {
     this._metronomeGain = this.ctx.createGain();
     this._metronomeGain.gain.value = 0.35;
     this._metronomeGain.connect(this.ctx.destination);
+
+    this.scrubGain = this.ctx.createGain();
+    this.scrubGain.gain.value = 0;
+    this.scrubGain.connect(this.ctx.destination);
   }
 
   async resume() {
@@ -204,6 +211,58 @@ export class AudioEngine {
 
   setOnEndedCallback(cb: () => void) {
     this._onEnded = cb;
+  }
+
+  startScrubPreview() {
+    if (this.scrubOscillator) return;
+
+    const oscillator = this.ctx.createOscillator();
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 900;
+    filter.Q.value = 0.7;
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.value = 900;
+    oscillator.connect(filter);
+    filter.connect(this.scrubGain);
+    oscillator.start();
+
+    this.scrubOscillator = oscillator;
+    this.scrubFilter = filter;
+  }
+
+  updateScrubPreview(rate: number) {
+    this.startScrubPreview();
+    const now = this.ctx.currentTime;
+    const magnitude = Math.min(1, Math.abs(rate));
+    const direction = rate >= 0 ? 1 : -1;
+    const frequency = 480 + magnitude * 1900 + (direction < 0 ? -120 : 0);
+    const gain = magnitude > 0.02 ? 0.015 + magnitude * 0.07 : 0;
+
+    this.scrubOscillator?.frequency.cancelScheduledValues(now);
+    this.scrubOscillator?.frequency.linearRampToValueAtTime(frequency, now + 0.02);
+    this.scrubFilter?.frequency.cancelScheduledValues(now);
+    this.scrubFilter?.frequency.linearRampToValueAtTime(700 + magnitude * 2400, now + 0.02);
+    this.scrubGain.gain.cancelScheduledValues(now);
+    this.scrubGain.gain.linearRampToValueAtTime(gain, now + 0.015);
+  }
+
+  stopScrubPreview() {
+    const now = this.ctx.currentTime;
+    this.scrubGain.gain.cancelScheduledValues(now);
+    this.scrubGain.gain.linearRampToValueAtTime(0, now + 0.02);
+
+    if (this.scrubOscillator) {
+      const oscillator = this.scrubOscillator;
+      const filter = this.scrubFilter;
+      this.scrubOscillator = null;
+      this.scrubFilter = null;
+      try { oscillator.stop(now + 0.03); } catch { /* already stopped */ }
+      globalThis.setTimeout(() => {
+        oscillator.disconnect();
+        filter?.disconnect();
+      }, 60);
+    }
   }
 
   getOrCreateTrackNode(trackId: string): TrackNode {
@@ -688,6 +747,7 @@ export class AudioEngine {
     }
     this.stopAllSources();
     this.stopMetronome();
+    this.stopScrubPreview();
     this.clearMidiEvents();
   }
 
