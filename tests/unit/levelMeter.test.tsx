@@ -77,4 +77,28 @@ describe('LevelMeter', () => {
     expect(engine.resetTrackClip).toHaveBeenCalledWith('track-1');
     expect(screen.queryByRole('button', { name: 'Reset clip indicator for track-1' })).not.toBeInTheDocument();
   });
+
+  it('peak hold line turns red when clipping', () => {
+    engine.getTrackMeter
+      .mockReturnValueOnce({ level: 1, clipped: true })
+      .mockReturnValue({ level: 0.5, clipped: false });
+
+    render(<LevelMeter trackId="track-1" />);
+
+    runFrame();
+
+    const peakHold = screen.getByTestId('meter-peak-hold');
+    expect(peakHold.className).toMatch(/bg-red/);
+  });
+
+  it('peak hold line is white when not clipping', () => {
+    engine.getTrackMeter.mockReturnValue({ level: 0.5, clipped: false });
+
+    render(<LevelMeter trackId="track-1" />);
+
+    runFrame();
+
+    const peakHold = screen.getByTestId('meter-peak-hold');
+    expect(peakHold.className).toMatch(/bg-white/);
+  });
 });

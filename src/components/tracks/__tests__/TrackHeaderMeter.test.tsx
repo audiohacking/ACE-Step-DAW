@@ -3,11 +3,13 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { TrackHeaderMeter } from '../TrackHeaderMeter';
 
 // Mock the audio engine
-let mockLevel = 0;
+const engine = {
+  getTrackMeter: vi.fn().mockReturnValue({ level: 0, clipped: false }),
+  resetTrackClip: vi.fn(),
+};
+
 vi.mock('../../../hooks/useAudioEngine', () => ({
-  getAudioEngine: () => ({
-    getTrackLevel: () => mockLevel,
-  }),
+  getAudioEngine: () => engine,
 }));
 
 describe('TrackHeaderMeter', () => {
@@ -15,7 +17,8 @@ describe('TrackHeaderMeter', () => {
   let rafId: number;
 
   beforeEach(() => {
-    mockLevel = 0;
+    engine.getTrackMeter.mockReset().mockReturnValue({ level: 0, clipped: false });
+    engine.resetTrackClip.mockReset();
     rafCallbacks = [];
     rafId = 1;
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
@@ -29,8 +32,8 @@ describe('TrackHeaderMeter', () => {
     vi.restoreAllMocks();
   });
 
-  function tickFrame(level?: number) {
-    if (level !== undefined) mockLevel = level;
+  function tickFrame(level: number, clipped = false) {
+    engine.getTrackMeter.mockReturnValue({ level, clipped });
     const cbs = [...rafCallbacks];
     rafCallbacks = [];
     cbs.forEach((cb) => cb(performance.now()));
@@ -50,7 +53,6 @@ describe('TrackHeaderMeter', () => {
     const meter = screen.getByLabelText('Track header level meter for track-1');
     const levelBar = meter.querySelector('[data-testid="meter-level"]') as HTMLElement;
     expect(levelBar).toBeTruthy();
-    // Width should reflect the level (50%)
     expect(levelBar.style.width).toBe('50%');
   });
 
@@ -61,50 +63,46 @@ describe('TrackHeaderMeter', () => {
     const meter = screen.getByLabelText('Track header level meter for track-1');
     const peakHold = meter.querySelector('[data-testid="meter-peak"]') as HTMLElement;
     expect(peakHold).toBeTruthy();
-    // Peak should be at 80%
     expect(peakHold.style.left).toBe('80%');
   });
 
   it('holds the peak after level drops', () => {
     render(<TrackHeaderMeter trackId="track-1" />);
-    // Spike to 0.9
     act(() => tickFrame(0.9));
-    // Drop to 0.2
     act(() => tickFrame(0.2));
 
     const meter = screen.getByLabelText('Track header level meter for track-1');
     const peakHold = meter.querySelector('[data-testid="meter-peak"]') as HTMLElement;
-    // Peak should still be at 90% (held)
     expect(peakHold.style.left).toBe('90%');
   });
 
-  it('shows clip indicator when level exceeds threshold', () => {
+  it('shows clip indicator when engine reports clipping', () => {
     render(<TrackHeaderMeter trackId="track-1" />);
-    act(() => tickFrame(0.97));
+    act(() => tickFrame(1.0, true));
 
     const clipIndicator = screen.getByTestId('clip-indicator');
-    expect(clipIndicator).toBeInTheDocument();
-    // Should have red color when clipping
     expect(clipIndicator.className).toMatch(/bg-red/);
   });
 
   it('clip indicator stays lit after level drops below threshold', () => {
     render(<TrackHeaderMeter trackId="track-1" />);
-    act(() => tickFrame(0.97));
+    act(() => tickFrame(1.0, true));
     act(() => tickFrame(0.3));
 
     const clipIndicator = screen.getByTestId('clip-indicator');
     expect(clipIndicator.className).toMatch(/bg-red/);
   });
 
-  it('clip indicator resets on click', () => {
+  it('clip indicator resets on click and calls engine.resetTrackClip', () => {
     render(<TrackHeaderMeter trackId="track-1" />);
-    act(() => tickFrame(0.97));
+    act(() => tickFrame(1.0, true));
 
     const clipIndicator = screen.getByTestId('clip-indicator');
     expect(clipIndicator.className).toMatch(/bg-red/);
 
     fireEvent.click(clipIndicator);
+
+    expect(engine.resetTrackClip).toHaveBeenCalledWith('track-1');
 
     // After click + level below threshold, clip indicator should be inactive
     act(() => tickFrame(0.3));
@@ -112,13 +110,21 @@ describe('TrackHeaderMeter', () => {
     expect(resetIndicator.className).not.toMatch(/bg-red/);
   });
 
+  it('peak hold line turns red when clipping', () => {
+    render(<TrackHeaderMeter trackId="track-1" />);
+    act(() => tickFrame(1.0, true));
+
+    const meter = screen.getByLabelText('Track header level meter for track-1');
+    const peakHold = meter.querySelector('[data-testid="meter-peak"]') as HTMLElement;
+    expect(peakHold.className).toMatch(/bg-red/);
+  });
+
   it('uses green color for normal levels', () => {
     render(<TrackHeaderMeter trackId="track-1" />);
-    act(() => tickFrame(0.15)); // ~-16 dB, below -12 dB threshold
+    act(() => tickFrame(0.15));
 
     const meter = screen.getByLabelText('Track header level meter for track-1');
     const levelBar = meter.querySelector('[data-testid="meter-level"]') as HTMLElement;
-    // jsdom converts hex to rgb
     expect(levelBar.style.background).toContain('rgb(34, 197, 94)');
   });
 

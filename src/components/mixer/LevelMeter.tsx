@@ -105,7 +105,11 @@ export function LevelMeter({ trackId, masterStage }: LevelMeterProps) {
         />
         <div
           data-testid="meter-peak-hold"
-          className="absolute inset-x-0 h-[2px] bg-white/90 shadow-[0_0_4px_rgba(255,255,255,0.45)]"
+          className={`absolute inset-x-0 h-[2px] ${
+            clipped
+              ? 'bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.6)]'
+              : 'bg-white/90 shadow-[0_0_4px_rgba(255,255,255,0.45)]'
+          }`}
           style={{ bottom: `calc(${Math.max(0, Math.min(1, peakLevel)) * 100}% - 1px)` }}
         />
       </div>

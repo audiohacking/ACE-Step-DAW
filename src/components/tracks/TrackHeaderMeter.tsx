@@ -3,7 +3,6 @@ import { getAudioEngine } from '../../hooks/useAudioEngine';
 
 const FALL_RATE_PER_FRAME = 0.012;
 const PEAK_HOLD_FRAMES = 18;
-const CLIP_THRESHOLD = 0.95;
 
 function levelToDb(level: number): number {
   if (level <= 0) return -Infinity;
@@ -28,14 +27,17 @@ export function TrackHeaderMeter({ trackId }: TrackHeaderMeterProps) {
   const [level, setLevel] = useState(0);
   const [peakLevel, setPeakLevel] = useState(0);
   const [clipping, setClipping] = useState(false);
-  const clippingRef = useRef(false);
 
   useEffect(() => {
     const engine = getAudioEngine();
 
     const tick = () => {
-      const nextLevel = engine.getTrackLevel(trackId);
+      const meter = engine.getTrackMeter(trackId);
+      const nextLevel = meter.level;
       setLevel(nextLevel);
+
+      // Clip detection — uses engine's clipped flag (> 0dB), latches until reset
+      setClipping((wasClipping) => wasClipping || meter.clipped);
 
       // Peak hold logic
       if (nextLevel >= peakLevelRef.current) {
@@ -51,12 +53,6 @@ export function TrackHeaderMeter({ trackId }: TrackHeaderMeterProps) {
       }
       setPeakLevel(peakLevelRef.current);
 
-      // Clip detection — latches on until manually reset
-      if (nextLevel >= CLIP_THRESHOLD && !clippingRef.current) {
-        clippingRef.current = true;
-        setClipping(true);
-      }
-
       rafRef.current = requestAnimationFrame(tick);
     };
 
@@ -65,7 +61,8 @@ export function TrackHeaderMeter({ trackId }: TrackHeaderMeterProps) {
   }, [trackId]);
 
   const resetClip = () => {
-    clippingRef.current = false;
+    const engine = getAudioEngine();
+    engine.resetTrackClip(trackId);
     setClipping(false);
   };
 
@@ -87,10 +84,12 @@ export function TrackHeaderMeter({ trackId }: TrackHeaderMeterProps) {
             background: getMeterColor(level),
           }}
         />
-        {/* Peak hold indicator */}
+        {/* Peak hold indicator — turns red when clipping */}
         <div
           data-testid="meter-peak"
-          className="absolute top-0 bottom-0 w-[2px] bg-white/80"
+          className={`absolute top-0 bottom-0 w-[2px] ${
+            clipping ? 'bg-red-500' : 'bg-white/80'
+          }`}
           style={{ left: `${clampedPeak * 100}%` }}
         />
       </div>
