@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { useTransportStore } from '../../store/transportStore';
@@ -73,6 +74,7 @@ export function Toolbar() {
   const setShowExportDialog = useUIStore((s) => s.setShowExportDialog);
   const setShowProjectListDialog = useUIStore((s) => s.setShowProjectListDialog);
   const setShowKeyboardShortcutsDialog = useUIStore((s) => s.setShowKeyboardShortcutsDialog);
+  const openCommandPalette = useUIStore((s) => s.openCommandPalette);
   const showMixer = useUIStore((s) => s.showMixer);
   const setShowMixer = useUIStore((s) => s.setShowMixer);
   const loopBrowserOpen = useUIStore((s) => s.loopBrowserOpen);
@@ -96,6 +98,18 @@ export function Toolbar() {
   const toggleMetronome = useTransportStore((s) => s.toggleMetronome);
   const zoomIn = useUIStore((s) => s.zoomIn);
   const zoomOut = useUIStore((s) => s.zoomOut);
+
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>).__commandPaletteRuntime = {
+      play,
+      pause,
+      stop,
+    };
+
+    return () => {
+      delete (window as unknown as Record<string, unknown>).__commandPaletteRuntime;
+    };
+  }, [pause, play, stop]);
 
   return (
     <div className="flex items-center h-11 px-2 gap-1 bg-gradient-to-b from-[#3a3a3a] to-[#2d2d2d] border-b border-[#1a1a1a] shrink-0 select-none">
@@ -261,6 +275,21 @@ export function Toolbar() {
 
       {/* Settings + Shortcuts */}
       <div className="flex items-center gap-0.5">
+        <button
+          onClick={() => openCommandPalette()}
+          className="flex items-center gap-2 rounded px-2 py-1 text-[11px] text-zinc-300 transition-colors hover:bg-daw-surface-2 hover:text-white"
+          title="Command Palette (Cmd/Ctrl+K)"
+          aria-label="Open command palette"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3">
+            <circle cx="6" cy="6" r="3.75" />
+            <path d="M8.8 8.8L12 12" strokeLinecap="round" />
+          </svg>
+          <span>Command</span>
+          <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-400">
+            Cmd+K
+          </span>
+        </button>
         <button
           onClick={() => setShowSettingsDialog(true)}
           className="px-2 py-1 text-[11px] text-zinc-400 hover:text-white hover:bg-daw-surface-2 rounded transition-colors"

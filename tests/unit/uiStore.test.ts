@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useUIStore } from '../../src/store/uiStore';
+import { useProjectStore } from '../../src/store/projectStore';
+import { useTransportStore } from '../../src/store/transportStore';
 
 describe('uiStore', () => {
   beforeEach(() => {
     localStorage.clear();
     useUIStore.setState(useUIStore.getInitialState(), true);
+    useProjectStore.setState(useProjectStore.getInitialState(), true);
+    useTransportStore.setState(useTransportStore.getInitialState(), true);
   });
 
   describe('pixelsPerSecond zoom', () => {
@@ -98,6 +102,35 @@ describe('uiStore', () => {
 
       useUIStore.getState().setPianoRollHeight(760);
       expect(useUIStore.getState().pianoRollHeight).toBe(700);
+    });
+  });
+
+  describe('command palette', () => {
+    it('opens, executes commands, and promotes recent commands', async () => {
+      useProjectStore.getState().createProject({ name: 'Palette Project' });
+      const vocalsTrack = useProjectStore.getState().addTrack('vocals');
+
+      const ui = useUIStore.getState();
+      ui.openCommandPalette('add reverb to vocals');
+
+      const results = useUIStore.getState().searchCommandPalette();
+      const commandId = results[0]?.id;
+
+      expect(commandId).toBe(`track:${vocalsTrack.id}:effect:reverb`);
+      if (!commandId) {
+        throw new Error('Expected a command palette result');
+      }
+
+      const executed = await useUIStore.getState().executeCommandPaletteCommand(commandId);
+
+      expect(executed).toBe(true);
+      expect(useUIStore.getState().showCommandPalette).toBe(false);
+      expect(useUIStore.getState().recentCommandIds[0]).toBe(commandId);
+      expect(useProjectStore.getState().project?.tracks[0].effects?.[0]?.type).toBe('reverb');
+
+      useUIStore.getState().openCommandPalette();
+      const defaultResults = useUIStore.getState().searchCommandPalette('');
+      expect(defaultResults[0]?.id).toBe(commandId);
     });
   });
 });

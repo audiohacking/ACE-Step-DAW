@@ -76,6 +76,7 @@ const SECTIONS: Section[] = [
   {
     title: 'Project',
     rows: [
+      { keys: [`${mod}`, 'K'],         description: 'Open command palette' },
       { keys: [`${mod}`, 'N'],         description: 'New project' },
       { keys: [`${mod}`, 'O'],         description: 'Open project list' },
       { keys: [`${mod}`, ','],         description: 'Settings' },
@@ -129,6 +130,7 @@ export function KeyboardShortcutsDialog() {
           <h2 className="text-sm font-semibold text-zinc-100">Keyboard Shortcuts</h2>
           <button
             onClick={() => setShow(false)}
+            aria-label="Close keyboard shortcuts"
             className="text-zinc-500 hover:text-zinc-200 transition-colors text-lg leading-none"
           >
             ×

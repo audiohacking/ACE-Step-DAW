@@ -39,6 +39,17 @@ export function useKeyboardShortcuts() {
     const handler = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       const getCombo = useShortcutsStore.getState().getCombo;
+      const ui = useUIStore.getState();
+
+      if (mod && e.code === 'KeyK') {
+        e.preventDefault();
+        if (ui.showCommandPalette) {
+          ui.closeCommandPalette();
+        } else {
+          ui.openCommandPalette();
+        }
+        return;
+      }
 
       // Undo/Redo are always available — even when an input field is focused
       if (mod && e.code === 'KeyZ' && !e.altKey) {
@@ -55,7 +66,6 @@ export function useKeyboardShortcuts() {
 
       if (isInputFocused(e)) return;
 
-      const ui = useUIStore.getState();
       const project = useProjectStore.getState();
       const transport = useTransportStore.getState();
       const gen = useGenerationStore.getState();
@@ -67,7 +77,10 @@ export function useKeyboardShortcuts() {
       // Escape — close topmost modal in priority order (not rebindable)
       // -----------------------------------------------------------------------
       if (e.code === 'Escape') {
-        if (ui.showAIAssistant) {
+        if (ui.showCommandPalette) {
+          e.preventDefault();
+          ui.closeCommandPalette();
+        } else if (ui.showAIAssistant) {
           e.preventDefault();
           ui.setShowAIAssistant(false);
         } else if (ui.editingClipId !== null) {
@@ -108,6 +121,7 @@ export function useKeyboardShortcuts() {
 
       // Don't fire any other shortcut when a modal is open (except Escape above)
       const anyModalOpen =
+        ui.showCommandPalette ||
         ui.editingClipId !== null ||
         ui.batchGenerateMode !== null ||
         ui.showKeyboardShortcutsDialog ||

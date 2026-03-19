@@ -7,6 +7,11 @@ import { useTransportStore } from './transportStore';
 import type { AIChatContext } from '../utils/aiAssistantContext';
 import { buildAssistantContext } from '../utils/aiAssistantContext';
 import { getAssistantSuggestions, streamAssistantResponse } from '../services/aiAssistantService';
+import {
+  buildCommandPaletteCommands,
+  searchCommandsForQuery,
+  type CommandPaletteSearchResult,
+} from '../services/commandPalette';
 
 function createAssistantMessage(role: AIChatMessage['role'], content: string): AIChatMessage {
   return {
@@ -35,6 +40,9 @@ interface UIState {
   batchGenerateInitialRange: { startTime: number; duration: number } | null;
   showKeyboardShortcutsDialog: boolean;
   showShortcutEditorDialog: boolean;
+  showCommandPalette: boolean;
+  commandPaletteQuery: string;
+  recentCommandIds: string[];
   showMixer: boolean;
   mixerHeight: number;
   showAssetsPanel: boolean;
@@ -124,6 +132,11 @@ interface UIState {
   setBatchGenerateInitialRange: (v: { startTime: number; duration: number } | null) => void;
   setShowKeyboardShortcutsDialog: (v: boolean) => void;
   setShowShortcutEditorDialog: (v: boolean) => void;
+  openCommandPalette: (query?: string) => void;
+  closeCommandPalette: () => void;
+  setCommandPaletteQuery: (query: string) => void;
+  searchCommandPalette: (query?: string) => CommandPaletteSearchResult[];
+  executeCommandPaletteCommand: (commandId: string) => Promise<boolean>;
   setShowMixer: (v: boolean) => void;
   setMixerHeight: (v: number) => void;
   setShowAssetsPanel: (v: boolean) => void;
@@ -214,6 +227,9 @@ export const useUIStore = create<UIState>()(
   batchGenerateInitialRange: null,
   showKeyboardShortcutsDialog: false,
   showShortcutEditorDialog: false,
+  showCommandPalette: false,
+  commandPaletteQuery: '',
+  recentCommandIds: [],
   showMixer: false,
   mixerHeight: 420,
   showAssetsPanel: false,
@@ -316,6 +332,33 @@ export const useUIStore = create<UIState>()(
   setBatchGenerateInitialRange: (v) => set({ batchGenerateInitialRange: v }),
   setShowKeyboardShortcutsDialog: (v) => set({ showKeyboardShortcutsDialog: v }),
   setShowShortcutEditorDialog: (v) => set({ showShortcutEditorDialog: v }),
+  openCommandPalette: (query = '') => set({ showCommandPalette: true, commandPaletteQuery: query }),
+  closeCommandPalette: () => set({ showCommandPalette: false, commandPaletteQuery: '' }),
+  setCommandPaletteQuery: (query) => set({ commandPaletteQuery: query }),
+  searchCommandPalette: (query) => {
+    const state = get();
+    return searchCommandsForQuery(query ?? state.commandPaletteQuery, buildCommandPaletteContext(state), state.recentCommandIds);
+  },
+  executeCommandPaletteCommand: async (commandId) => {
+    const state = get();
+    const commands = buildCommandPaletteCommands(buildCommandPaletteContext(state));
+    const extraCommands = searchCommandsForQuery(state.commandPaletteQuery, buildCommandPaletteContext(state), state.recentCommandIds);
+    const command =
+      commands.find((item) => item.id === commandId)
+      ?? extraCommands.find((item) => item.id === commandId);
+
+    if (!command) return false;
+
+    await command.execute();
+
+    set((current) => ({
+      showCommandPalette: false,
+      commandPaletteQuery: '',
+      recentCommandIds: [commandId, ...current.recentCommandIds.filter((id) => id !== commandId)].slice(0, 8),
+    }));
+
+    return true;
+  },
   setShowMixer: (v) => set({ showMixer: v }),
   setMixerHeight: (v) => set({ mixerHeight: Math.min(500, Math.max(160, v)) }),
   setShowAssetsPanel: (v) => set({ showAssetsPanel: v }),
@@ -486,6 +529,8 @@ export const useUIStore = create<UIState>()(
         showAIAssistant: state.showAIAssistant,
         // Inline suggestions
         suggestionFrequency: state.suggestionFrequency,
+        // Command palette
+        recentCommandIds: state.recentCommandIds,
       }),
     },
   ),
@@ -493,4 +538,60 @@ export const useUIStore = create<UIState>()(
 
 function getAssistantContext(state: UIState): AIChatContext {
   return buildAssistantContext(useProjectStore.getState().project, state, useTransportStore.getState());
+}
+
+function buildCommandPaletteContext(state: UIState) {
+  const projectStore = useProjectStore.getState();
+  const transportStore = useTransportStore.getState();
+  const runtime = (window as unknown as Record<string, unknown>).__commandPaletteRuntime as
+    | { play?: () => void | Promise<void>; pause?: () => void | Promise<void>; stop?: () => void | Promise<void> }
+    | undefined;
+
+  return {
+    project: projectStore.project,
+    selectedClipIds: [...state.selectedClipIds],
+    currentTime: transportStore.currentTime,
+    isPlaying: transportStore.isPlaying,
+    showMixer: state.showMixer,
+    showLibrary: state.showLibrary,
+    showSmartControls: state.showSmartControls,
+    showAIAssistant: state.showAIAssistant,
+    loopBrowserOpen: state.loopBrowserOpen,
+    showTempoLane: state.showTempoLane,
+    loopEnabled: transportStore.loopEnabled,
+    metronomeEnabled: transportStore.metronomeEnabled,
+    expandedTrackId: state.expandedTrackId,
+    openPianoRollTrackId: state.openPianoRollTrackId,
+    openSequencerTrackId: state.openSequencerTrackId,
+    openDrumMachineTrackId: state.openDrumMachineTrackId,
+    actions: {
+      play: runtime?.play ?? transportStore.play,
+      pause: runtime?.pause ?? transportStore.pause,
+      stop: runtime?.stop ?? transportStore.stop,
+      toggleLoop: transportStore.toggleLoop,
+      toggleMetronome: transportStore.toggleMetronome,
+      setShowNewProjectDialog: state.setShowNewProjectDialog,
+      setShowProjectListDialog: state.setShowProjectListDialog,
+      setShowSettingsDialog: state.setShowSettingsDialog,
+      setShowExportDialog: state.setShowExportDialog,
+      setShowKeyboardShortcutsDialog: state.setShowKeyboardShortcutsDialog,
+      setShowLibrary: state.setShowLibrary,
+      setShowMixer: state.setShowMixer,
+      setShowSmartControls: state.setShowSmartControls,
+      toggleLoopBrowser: state.toggleLoopBrowser,
+      toggleTempoLane: state.toggleTempoLane,
+      toggleAIAssistant: state.toggleAIAssistant,
+      setBatchGenerateMode: state.setBatchGenerateMode,
+      addTrack: projectStore.addTrack,
+      addTrackEffect: projectStore.addTrackEffect,
+      updateProject: projectStore.updateProject,
+      duplicateClip: (clipId: string) => {
+        projectStore.duplicateClip(clipId);
+      },
+      splitClip: projectStore.splitClip,
+      removeClip: projectStore.removeClip,
+      setEditingClip: state.setEditingClip,
+      deselectAll: state.deselectAll,
+    },
+  };
 }
