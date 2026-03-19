@@ -7,8 +7,22 @@
 # other agents' uncommitted work.
 
 ROLE=${1:?"Usage: source ensure-worktree.sh <role-name>"}
-DAW="/Users/junmingong/.openclaw/workspace/acestep-daw"
+
+# Sanitize ROLE: only allow alphanumeric, hyphen, underscore
+if [[ ! "$ROLE" =~ ^[A-Za-z0-9_-]+$ ]]; then
+  echo "ERROR: invalid role name '$ROLE' (only [A-Za-z0-9_-] allowed)" >&2
+  exit 1
+fi
+
+# Derive DAW root from this script's location (scripts/agents/ensure-worktree.sh → repo root)
+DAW="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WT="/tmp/daw-worktrees/${ROLE}"
+
+# Safety guard before rm -rf
+if [[ "$WT" != /tmp/daw-worktrees/* ]]; then
+  echo "ERROR: refusing to delete '$WT' — not under /tmp/daw-worktrees/" >&2
+  exit 1
+fi
 
 # Clean stale worktree
 [ -d "$WT" ] && rm -rf "$WT"

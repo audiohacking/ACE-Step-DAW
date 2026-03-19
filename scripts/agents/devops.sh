@@ -1,7 +1,7 @@
 #!/bin/bash
 # DevOps Agent — Monitor CI health, optimize pipeline, fix infrastructure
 set -e
-cd /Users/junmingong/.openclaw/workspace/acestep-daw
+cd "$(dirname "$0")/../.."
 REPO="ace-step/ACE-Step-DAW"
 
 ~/.local/bin/claude --print --permission-mode bypassPermissions \

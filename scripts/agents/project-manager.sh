@@ -1,7 +1,7 @@
 #!/bin/bash
 # Project Manager — Wake, see everything, decide, dispatch, EXIT
 set -e
-cd /Users/junmingong/.openclaw/workspace/acestep-daw
+cd "$(dirname "$0")/../.."
 REPO="ace-step/ACE-Step-DAW"
 
 # ── Gather FULL team status ──

@@ -40,4 +40,4 @@ If NOT ready: print what's missing and what needs to happen first."
 
 # Cleanup
 cd /tmp && rm -rf "$WT"
-git -C /Users/junmingong/.openclaw/workspace/acestep-daw worktree prune 2>/dev/null
+git -C "$DAW" worktree prune 2>/dev/null
