@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type SetStateAction } from 'react';
 import { useAudioImport } from '../../hooks/useAudioImport';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
@@ -27,7 +27,6 @@ export function PianoRoll() {
   const [showGhostNotes, setShowGhostNotes] = useState(false);
   const [gridSize, setGridSize] = useState<PianoRollGrid>('1/16');
   const [prZoomX, setPrZoomX] = useState(1);
-  const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
   const [samplerDropActive, setSamplerDropActive] = useState(false);
 
   const project = useProjectStore((s) => s.project);
@@ -43,11 +42,13 @@ export function PianoRoll() {
 
   const openTrackId = useUIStore((s) => s.openPianoRollTrackId);
   const openClipId = useUIStore((s) => s.openPianoRollClipId);
+  const selectedPianoRollNoteIds = useUIStore((s) => s.selectedPianoRollNoteIds);
   const activeTool = useUIStore((s) => s.activePianoRollTool);
   const activeChordShapeAbbr = useUIStore((s) => s.activePianoRollChordShape);
   const pianoRollHeight = useUIStore((s) => s.pianoRollHeight);
   const setPianoRollHeight = useUIStore((s) => s.setPianoRollHeight);
   const setOpenPianoRoll = useUIStore((s) => s.setOpenPianoRoll);
+  const setSelectedPianoRollNoteIds = useUIStore((s) => s.setSelectedPianoRollNoteIds);
   const setActivePianoRollTool = useUIStore((s) => s.setActivePianoRollTool);
   const setActivePianoRollChordShape = useUIStore((s) => s.setActivePianoRollChordShape);
   const togglePianoRollPencilTool = useUIStore((s) => s.togglePianoRollPencilTool);
@@ -111,10 +112,20 @@ export function PianoRoll() {
   }, [showGhostNotes, project, track]);
 
   const samplerConfig = track?.samplerConfig ?? null;
+  const selectedNoteIds = useMemo(() => new Set(selectedPianoRollNoteIds), [selectedPianoRollNoteIds]);
   const sampleDuration = Math.max(0.01, track?.sampler?.sampleDuration ?? samplerConfig?.trimEnd ?? 1);
   const activeToolLabel = PIANO_ROLL_TOOL_BUTTONS.find(({ tool }) => tool === activeTool)?.label
     ?? (activeTool === 'slide' ? 'Slide' : 'Select');
   const activeChordShape = getChordShapeByAbbr(activeChordShapeAbbr) ?? getChordShapeByAbbr(DEFAULT_CHORD_SHAPE_ABBR)!;
+  const selectedNoteCount = selectedNoteIds.size;
+  const navigationSummary = selectedNoteCount === 0
+    ? 'No note selected'
+    : `${selectedNoteCount} note${selectedNoteCount === 1 ? '' : 's'} selected`;
+
+  const handleSelectedNoteIdsChange = useCallback((next: SetStateAction<Set<string>>) => {
+    const resolved = typeof next === 'function' ? next(new Set(selectedPianoRollNoteIds)) : next;
+    setSelectedPianoRollNoteIds(Array.from(resolved));
+  }, [selectedPianoRollNoteIds, setSelectedPianoRollNoteIds]);
 
   const applySamplerConfig = useCallback((updates: Partial<SamplerConfig>) => {
     if (!track?.sampler?.audioKey || !samplerConfig) return;
@@ -226,12 +237,22 @@ export function PianoRoll() {
         })}
 
         <div
+          aria-label="Piano roll tool status"
           role="status"
           aria-live="polite"
           data-active-tool={activeTool}
           className="px-2 py-1 rounded bg-black/20 border border-white/5 text-[10px] text-zinc-300"
         >
           Tool: <span className="text-zinc-100">{activeToolLabel}</span>
+        </div>
+
+        <div
+          aria-label="Piano roll navigation status"
+          role="status"
+          aria-live="polite"
+          className="px-2 py-1 rounded bg-black/20 border border-white/5 text-[10px] text-zinc-300"
+        >
+          Scope: <span className="text-zinc-100">Piano Roll</span> · {navigationSummary}
         </div>
 
         <select
@@ -376,7 +397,7 @@ export function PianoRoll() {
           onZoomXChange={setPrZoomX}
           ghostNotes={ghostNotes}
           selectedNoteIds={selectedNoteIds}
-          onSelectedNoteIdsChange={setSelectedNoteIds}
+          onSelectedNoteIdsChange={handleSelectedNoteIdsChange}
         />
       ) : (
         <PianoRollEmptyState />

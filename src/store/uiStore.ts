@@ -76,6 +76,7 @@ export interface UIState {
   openDrumMachineTrackId: string | null;
   openPianoRollTrackId: string | null;
   openPianoRollClipId: string | null;
+  selectedPianoRollNoteIds: string[];
   activePianoRollTool: PianoRollTool;
   activePianoRollChordShape: string;
   openEffectChainTrackId: string | null;
@@ -193,6 +194,7 @@ export interface UIState {
   setOpenSequencerTrackId: (id: string | null) => void;
   setOpenDrumMachineTrackId: (id: string | null) => void;
   setOpenPianoRoll: (trackId: string | null, clipId?: string | null) => void;
+  setSelectedPianoRollNoteIds: (noteIds: string[]) => void;
   setActivePianoRollTool: (tool: PianoRollTool) => void;
   setActivePianoRollChordShape: (shape: string) => void;
   togglePianoRollPencilTool: () => void;
@@ -358,6 +360,7 @@ export const useUIStore = create<UIState>()(
   openDrumMachineTrackId: null,
   openPianoRollTrackId: null,
   openPianoRollClipId: null,
+  selectedPianoRollNoteIds: [],
   activePianoRollTool: 'select',
   activePianoRollChordShape: DEFAULT_CHORD_SHAPE_ABBR,
   openEffectChainTrackId: null,
@@ -566,11 +569,13 @@ export const useUIStore = create<UIState>()(
     keyboardContext: trackId ? { scope: 'pianoRoll', trackId } : state.keyboardContext,
     openPianoRollTrackId: trackId,
     openPianoRollClipId: clipId,
+    selectedPianoRollNoteIds: [],
     activeBottomPanel: trackId ? 'pianoRoll' : null,
     historyFocusScope: trackId ? 'pianoRoll' : 'arrangement',
     historyFocusTrackId: trackId,
     historyFocusClipId: clipId,
   })),
+  setSelectedPianoRollNoteIds: (noteIds) => set({ selectedPianoRollNoteIds: [...noteIds] }),
   setActivePianoRollTool: (tool) => set({ activePianoRollTool: tool }),
   setActivePianoRollChordShape: (shape) => set({ activePianoRollChordShape: shape }),
   togglePianoRollPencilTool: () => set((state) => ({

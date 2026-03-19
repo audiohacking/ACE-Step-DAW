@@ -72,6 +72,104 @@ describe('useKeyboardShortcuts', () => {
     expect(updatedDrums?.muted).toBe(false);
   });
 
+  it('navigates timeline clip selection with arrow keys without touching text inputs', () => {
+    const drums = useProjectStore.getState().addTrack('drums');
+    const bass = useProjectStore.getState().addTrack('bass');
+    const introClip = useProjectStore.getState().addClip(drums.id, {
+      startTime: 0,
+      duration: 4,
+      prompt: 'intro',
+      lyrics: '',
+      source: 'generated',
+    });
+    const chorusClip = useProjectStore.getState().addClip(drums.id, {
+      startTime: 8,
+      duration: 4,
+      prompt: 'chorus',
+      lyrics: '',
+      source: 'generated',
+    });
+    const bassClip = useProjectStore.getState().addClip(bass.id, {
+      startTime: 8,
+      duration: 4,
+      prompt: 'bass',
+      lyrics: '',
+      source: 'generated',
+    });
+
+    useUIStore.getState().setKeyboardContext('timeline', drums.id);
+    render(<Harness />);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight' }));
+    expect(Array.from(useUIStore.getState().selectedClipIds)).toEqual([introClip.id]);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight' }));
+    expect(Array.from(useUIStore.getState().selectedClipIds)).toEqual([chorusClip.id]);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowDown' }));
+    expect(Array.from(useUIStore.getState().selectedClipIds)).toEqual([bassClip.id]);
+    expect(useUIStore.getState().keyboardContext.trackId).toBe(bass.id);
+
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft', bubbles: true }));
+
+    expect(Array.from(useUIStore.getState().selectedClipIds)).toEqual([bassClip.id]);
+    input.remove();
+  });
+
+  it('navigates mixer channels with left and right arrows', () => {
+    const drums = useProjectStore.getState().addTrack('drums');
+    const bass = useProjectStore.getState().addTrack('bass');
+    const keys = useProjectStore.getState().addTrack('keyboard');
+    useUIStore.getState().setShowMixer(true);
+    useUIStore.getState().setKeyboardContext('mixer', bass.id);
+    render(<Harness />);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight' }));
+    expect(useUIStore.getState().keyboardContext).toEqual({ scope: 'mixer', trackId: keys.id });
+    expect(useUIStore.getState().expandedTrackId).toBe(keys.id);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft' }));
+    expect(useUIStore.getState().keyboardContext).toEqual({ scope: 'mixer', trackId: bass.id });
+    expect(useUIStore.getState().expandedTrackId).toBe(bass.id);
+
+    expect(useProjectStore.getState().project?.tracks.map((track) => track.id)).toContain(drums.id);
+  });
+
+  it('navigates piano roll notes with arrow keys while leaving shift+arrows available for editing', () => {
+    const keys = useProjectStore.getState().addTrack('keyboard', 'pianoRoll');
+    const clip = useProjectStore.getState().ensureMidiClip(keys.id);
+    useProjectStore.getState().addMidiNote(clip.id, {
+      id: 'note-c4',
+      pitch: 60,
+      startBeat: 0,
+      durationBeats: 1,
+      velocity: 0.8,
+    });
+    useProjectStore.getState().addMidiNote(clip.id, {
+      id: 'note-e4',
+      pitch: 64,
+      startBeat: 1,
+      durationBeats: 1,
+      velocity: 0.8,
+    });
+
+    useUIStore.getState().setOpenPianoRoll(keys.id, clip.id);
+    useUIStore.getState().setKeyboardContext('pianoRoll', keys.id);
+    render(<Harness />);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight' }));
+    expect(useUIStore.getState().selectedPianoRollNoteIds).toEqual(['note-c4']);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight' }));
+    expect(useUIStore.getState().selectedPianoRollNoteIds).toEqual(['note-e4']);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft' }));
+    expect(useUIStore.getState().selectedPianoRollNoteIds).toEqual(['note-c4']);
+  });
+
   it('defers piano-roll tool keys while keeping global panel toggles available', () => {
     const keys = useProjectStore.getState().addTrack('keyboard', 'pianoRoll');
     useUIStore.getState().setKeyboardContext('pianoRoll', keys.id);

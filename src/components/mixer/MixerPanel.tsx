@@ -62,6 +62,7 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
   const isFrozen = track.frozen ?? false;
   const effects = track.effects ?? [];
   const sends = track.sends ?? [];
+  const isSelected = useUIStore((s) => s.keyboardContext.scope === 'mixer' && s.keyboardContext.trackId === track.id);
 
   return (
     <div
@@ -69,8 +70,10 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
       data-track-id={track.id}
       data-keyboard-context="mixer"
       role="group"
+      aria-label={`Mixer channel ${track.displayName}`}
+      aria-selected={isSelected ? 'true' : 'false'}
       tabIndex={0}
-      className={`flex h-full min-h-0 min-w-[120px] flex-col overflow-hidden border-r border-[#3a3a3a] bg-[#2a2a2a] px-3 py-2 ${isFrozen ? 'opacity-70' : ''}`}
+      className={`flex h-full min-h-0 min-w-[120px] flex-col overflow-hidden border-r border-[#3a3a3a] bg-[#2a2a2a] px-3 py-2 ${isSelected ? 'ring-1 ring-inset ring-daw-accent' : ''} ${isFrozen ? 'opacity-70' : ''}`}
       onFocus={() => {
         setExpandedTrackId(track.id);
         setKeyboardContext('mixer', track.id);
@@ -278,6 +281,7 @@ export function MixerPanel() {
   const setMixerHeight = useUIStore((s) => s.setMixerHeight);
   const setHistoryFocusScope = useUIStore((s) => s.setHistoryFocusScope);
   const setKeyboardContext = useUIStore((s) => s.setKeyboardContext);
+  const keyboardContext = useUIStore((s) => s.keyboardContext);
   const project = useProjectStore((s) => s.project);
 
   const dragState = useRef<{ startY: number; startH: number } | null>(null);
@@ -306,6 +310,7 @@ export function MixerPanel() {
 
   const returnTracks = project.returnTracks ?? [];
   const visibleMixerHeight = Math.max(mixerHeight, MIXER_MIN_VISIBLE_HEIGHT);
+  const focusedTrackName = project.tracks.find((track) => track.id === keyboardContext.trackId)?.displayName ?? 'None';
   const faderHeight = Math.max(
     FADER_MIN_HEIGHT,
     visibleMixerHeight - MIXER_RESIZE_HANDLE_HEIGHT - CHANNEL_STRIP_RESERVED_HEIGHT - CHANNEL_STRIP_BOTTOM_PADDING,
@@ -328,6 +333,14 @@ export function MixerPanel() {
         onMouseDown={onResizeMouseDown}
         title="Drag to resize mixer"
       />
+      <div
+        aria-label="Mixer navigation status"
+        role="status"
+        aria-live="polite"
+        className="px-3 py-1 text-[10px] text-zinc-300 border-b border-[#333] bg-[#252525]"
+      >
+        Scope: <span className="text-zinc-100">Mixer</span> · Channel: <span className="text-zinc-100">{focusedTrackName}</span>
+      </div>
       <div className="flex-1 overflow-x-auto overflow-y-hidden pb-3">
         <div className="flex items-stretch h-full">
           {project.tracks.length === 0 && (

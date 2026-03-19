@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MixerPanel } from '../../src/components/mixer/MixerPanel';
 import { useProjectStore } from '../../src/store/projectStore';
@@ -59,5 +59,19 @@ describe('MixerPanel', () => {
     // Master fader region must also not shrink
     const masterFaderRegion = screen.getByTestId('master-fader-region');
     expect(masterFaderRegion).toHaveClass('shrink-0');
+  });
+
+  it('surfaces the active mixer scope and selected channel strip', () => {
+    const bass = useProjectStore.getState().addTrack('bass');
+    useUIStore.getState().setKeyboardContext('mixer', bass.id);
+
+    render(<MixerPanel />);
+
+    const bassStrip = screen.getByRole('group', { name: 'Mixer channel Bass' });
+    fireEvent.focus(bassStrip);
+
+    expect(screen.getByLabelText('Mixer navigation status')).toHaveTextContent('Scope: Mixer');
+    expect(screen.getByLabelText('Mixer navigation status')).toHaveTextContent('Bass');
+    expect(bassStrip).toHaveAttribute('aria-selected', 'true');
   });
 });

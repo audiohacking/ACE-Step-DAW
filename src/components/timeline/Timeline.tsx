@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState, useEffect } from 'react';
+import { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { TimeRuler } from './TimeRuler';
@@ -73,6 +73,7 @@ export function Timeline() {
   const selectWindow = useUIStore((s) => s.selectWindow);
   const setSelectWindow = useUIStore((s) => s.setSelectWindow);
   const selectedClipIds = useUIStore((s) => s.selectedClipIds);
+  const keyboardContext = useUIStore((s) => s.keyboardContext);
   const timelineZoomRequest = useUIStore((s) => s.timelineZoomRequest);
   const setScrollX = useUIStore((s) => s.setScrollX);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -169,6 +170,18 @@ export function Timeline() {
   const sortedTracks = project ? getVisibleTracks() : [];
 
   const totalWidth = project ? project.totalDuration * pixelsPerSecond : 0;
+  const selectedClipLabel = useMemo(() => {
+    if (!project || selectedClipIds.size === 0) return 'No clip selected';
+    const selectedId = Array.from(selectedClipIds)[0];
+    const selectedClip = project.tracks.flatMap((track) => track.clips).find((clip) => clip.id === selectedId);
+    if (!selectedClip) return 'No clip selected';
+    const trackName = project.tracks.find((track) => track.id === selectedClip.trackId)?.displayName ?? 'Unknown track';
+    return `${trackName} @ ${selectedClip.startTime.toFixed(2)}s`;
+  }, [project, selectedClipIds]);
+  const focusedTrackLabel = useMemo(() => {
+    if (!project || !keyboardContext.trackId) return 'Project';
+    return project.tracks.find((track) => track.id === keyboardContext.trackId)?.displayName ?? 'Project';
+  }, [keyboardContext.trackId, project]);
 
   useEffect(() => {
     if (!project || !timelineZoomRequest || !scrollRef.current) return;
@@ -424,6 +437,14 @@ export function Timeline() {
             </div>
           </div>
         )}
+        <div
+          aria-label="Timeline navigation status"
+          role="status"
+          aria-live="polite"
+          className="absolute right-3 top-3 z-30 rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-200"
+        >
+          Scope: <span className="text-white">Timeline</span> · Focus: <span className="text-white">{focusedTrackLabel}</span> · Clip: <span className="text-white">{selectedClipLabel}</span>
+        </div>
         <div className="relative" style={{ width: totalWidth, minWidth: '100%' }}>
           <TimeRuler />
           <ArrangementMarkers />

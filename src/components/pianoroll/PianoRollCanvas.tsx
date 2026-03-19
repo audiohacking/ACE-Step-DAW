@@ -1026,7 +1026,7 @@ export function PianoRollCanvas({
         return;
       }
 
-      if (selectedNoteIds.size > 0) {
+      if (selectedNoteIds.size > 0 && e.shiftKey) {
         if (e.key === 'ArrowUp') {
           e.preventDefault();
           for (const noteId of selectedNoteIds) {

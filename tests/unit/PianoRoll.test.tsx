@@ -14,11 +14,20 @@ vi.mock('../../src/hooks/useAudioImport', () => ({
 }));
 
 vi.mock('../../src/components/pianoroll/PianoRollCanvas', () => ({
-  PianoRollCanvas: ({ activeTool, activeChordShapeAbbr }: { activeTool: string; activeChordShapeAbbr: string }) => (
+  PianoRollCanvas: ({
+    activeTool,
+    activeChordShapeAbbr,
+    selectedNoteIds,
+  }: {
+    activeTool: string;
+    activeChordShapeAbbr: string;
+    selectedNoteIds: Set<string>;
+  }) => (
     <div
       aria-label="Piano roll canvas stub"
       data-active-tool={activeTool}
       data-active-chord-shape={activeChordShapeAbbr}
+      data-selected-note-ids={Array.from(selectedNoteIds).join(',')}
     >
       canvas
     </div>
@@ -66,7 +75,7 @@ describe('PianoRoll', () => {
     fireEvent.click(screen.getByLabelText('Activate paint tool'));
 
     expect(useUIStore.getState().activePianoRollTool).toBe('paint');
-    expect(screen.getByRole('status')).toHaveTextContent('Paint');
+    expect(screen.getByLabelText('Piano roll tool status')).toHaveTextContent('Paint');
     expect(screen.getByLabelText('Piano roll canvas stub')).toHaveAttribute('data-active-tool', 'paint');
   });
 
@@ -99,5 +108,31 @@ describe('PianoRoll', () => {
     expect(useUIStore.getState().activePianoRollChordShape).toBe('7');
     expect(screen.getByText('Chord stamp:', { exact: false })).toBeInTheDocument();
     expect(screen.getByLabelText('Piano roll canvas stub')).toHaveAttribute('data-active-chord-shape', '7');
+  });
+
+  it('shows the active piano roll scope and selected notes from store state', () => {
+    const clipId = useUIStore.getState().openPianoRollClipId!;
+    useProjectStore.getState().addMidiNote(clipId, {
+      id: 'note-c4',
+      pitch: 60,
+      startBeat: 0,
+      durationBeats: 1,
+      velocity: 0.8,
+    });
+    useProjectStore.getState().addMidiNote(clipId, {
+      id: 'note-e4',
+      pitch: 64,
+      startBeat: 1,
+      durationBeats: 1,
+      velocity: 0.8,
+    });
+    useUIStore.getState().setSelectedPianoRollNoteIds(['note-c4']);
+
+    render(<PianoRoll />);
+
+    expect(screen.getByLabelText('Piano roll tool status')).toHaveTextContent('Tool: Select');
+    expect(screen.getByLabelText('Piano roll navigation status')).toHaveTextContent('Scope: Piano Roll');
+    expect(screen.getByLabelText('Piano roll navigation status')).toHaveTextContent('1 note selected');
+    expect(screen.getByLabelText('Piano roll canvas stub')).toHaveAttribute('data-selected-note-ids', 'note-c4');
   });
 });

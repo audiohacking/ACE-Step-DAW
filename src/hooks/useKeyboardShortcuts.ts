@@ -13,6 +13,11 @@ import {
   registerCoreDawShortcutRuntime,
 } from '../services/coreDawShortcuts';
 import { executeCoreKeyboardAction } from '../services/coreKeyboardActions';
+import {
+  navigateMixerByArrow,
+  navigatePianoRollByArrow,
+  navigateTimelineByArrow,
+} from '../services/arrowKeyNavigation';
 import { resolveFocusedTrackId } from '../services/focusResolution';
 import type { KeyCombo } from '../types/shortcuts';
 
@@ -342,6 +347,27 @@ export function useKeyboardShortcuts() {
         event.preventDefault();
         void executeCoreKeyboardAction('tracks.solo', { play, pause, toggleRecord, toggleArmTrack });
         return;
+      }
+
+      if (!event.shiftKey && !event.altKey) {
+        if (ui.keyboardContext.scope === 'timeline') {
+          if (event.code === 'ArrowLeft' && navigateTimelineByArrow('left')) { event.preventDefault(); return; }
+          if (event.code === 'ArrowRight' && navigateTimelineByArrow('right')) { event.preventDefault(); return; }
+          if (event.code === 'ArrowUp' && navigateTimelineByArrow('up')) { event.preventDefault(); return; }
+          if (event.code === 'ArrowDown' && navigateTimelineByArrow('down')) { event.preventDefault(); return; }
+        }
+
+        if (ui.keyboardContext.scope === 'mixer') {
+          if (event.code === 'ArrowLeft' && navigateMixerByArrow('left')) { event.preventDefault(); return; }
+          if (event.code === 'ArrowRight' && navigateMixerByArrow('right')) { event.preventDefault(); return; }
+        }
+
+        if (ui.keyboardContext.scope === 'pianoRoll') {
+          if (event.code === 'ArrowLeft' && navigatePianoRollByArrow('left')) { event.preventDefault(); return; }
+          if (event.code === 'ArrowRight' && navigatePianoRollByArrow('right')) { event.preventDefault(); return; }
+          if (event.code === 'ArrowUp' && navigatePianoRollByArrow('up')) { event.preventDefault(); return; }
+          if (event.code === 'ArrowDown' && navigatePianoRollByArrow('down')) { event.preventDefault(); return; }
+        }
       }
 
       if (matches('navigation.previousTrack')) { event.preventDefault(); focusTrack(-1); return; }
