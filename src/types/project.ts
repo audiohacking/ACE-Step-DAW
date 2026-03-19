@@ -302,6 +302,8 @@ export interface Take {
   id: string;
   audioKey: string;
   selected: boolean;
+  /** Waveform peaks for visual display in take lanes. */
+  waveformPeaks: number[] | null;
 }
 
 /** A point in a clip-level gain envelope (non-destructive volume automation). */
