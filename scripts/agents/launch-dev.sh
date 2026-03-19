@@ -83,19 +83,7 @@ git rebase origin/main 2>/dev/null || {
   exit 0
 }
 
-# Screenshot for visual verification (if playwright available)
-npx playwright test --list 2>/dev/null && {
-  echo 'Taking visual verification screenshot...'
-  node -e "
-const { chromium } = require('playwright');
-(async () => {
-  const b = await chromium.launch();
   const p = await b.newPage();
-  await p.goto('http://127.0.0.1:5174');
-  await p.waitForTimeout(3000);
-  await p.screenshot({ path: '/tmp/agent-logs/screenshot-$ISSUE_NUM.png', fullPage: true });
-  await b.close();
-})().catch(() => {});
 " 2>/dev/null || true
 }
 
