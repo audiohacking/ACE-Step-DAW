@@ -23,7 +23,6 @@ import type {
   AutomationLane,
   ReturnTrack,
   Take,
-  Marker,
 } from '../types/project';
 import { automationParamEquals } from '../types/project';
 import { TRACK_CATALOG, DEFAULT_DRUM_KIT } from '../constants/tracks';
