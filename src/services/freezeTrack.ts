@@ -35,6 +35,8 @@ export async function freezeTrackToAudio(trackId: string): Promise<void> {
         project.bpm,
         (track.synthPreset ?? 'piano') as SynthPreset,
         project.totalDuration,
+        48000,
+        project.tempoMap,
       );
     }
   } else if (track.trackType === 'sequencer' && track.sequencerPattern) {
@@ -45,6 +47,8 @@ export async function freezeTrackToAudio(trackId: string): Promise<void> {
         project.bpm,
         project.totalDuration,
         (track.drumKit ?? '808') as DrumKitName,
+        48000,
+        project.tempoMap,
       );
     }
   }

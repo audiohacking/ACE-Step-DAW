@@ -3259,7 +3259,7 @@ export const useProjectStore = create<ProjectState>()(
           if (notes.length === 0) continue;
           const buffer = await renderMidiTrackOffline(
             notes, clip.startTime, project.bpm,
-            track.synthPreset ?? 'piano', totalDuration,
+            track.synthPreset ?? 'piano', totalDuration, 48000, project.tempoMap,
           );
           clips.push({ startTime: 0, buffer, volume: track.volume, pan: track.pan ?? 0, effects: track.effects });
         }
@@ -3267,7 +3267,7 @@ export const useProjectStore = create<ProjectState>()(
 
       if (track.trackType === 'sequencer' && track.sequencerPattern) {
         const buffer = await renderSequencerTrackOffline(
-          track.sequencerPattern, project.bpm, totalDuration, track.drumKit ?? '808',
+          track.sequencerPattern, project.bpm, totalDuration, track.drumKit ?? '808', 48000, project.tempoMap,
         );
         clips.push({ startTime: 0, buffer, volume: track.volume, pan: track.pan ?? 0, effects: track.effects });
       }

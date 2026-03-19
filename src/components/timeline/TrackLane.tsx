@@ -134,7 +134,7 @@ export function TrackLane({ track }: TrackLaneProps) {
     const rect = e.currentTarget.getBoundingClientRect();
     const laneX = e.clientX - rect.left;
     const rawTime = laneX / pixelsPerSecond;
-    const startTime = Math.max(0, snapToGrid(rawTime, project.bpm, 1));
+    const startTime = Math.max(0, snapToGrid(rawTime, project.bpm, 1, project.tempoMap));
     const remaining = project.totalDuration - startTime;
     const duration = Math.max(10, Math.min(30, remaining));
     setCtxMenu({ x: e.clientX, y: e.clientY, startTime, duration });
@@ -155,7 +155,7 @@ export function TrackLane({ track }: TrackLaneProps) {
       const rect = e.currentTarget.getBoundingClientRect();
       const laneX = e.clientX - rect.left;
       const rawTime = laneX / pixelsPerSecond;
-      const startTime = Math.max(0, snapToGrid(rawTime, project.bpm, 1));
+      const startTime = Math.max(0, snapToGrid(rawTime, project.bpm, 1, project.tempoMap));
       const clip = ensureMidiClip(track.id, startTime, Math.max(4, getBarDurationSec(project.bpm, project.timeSignature)));
       setOpenPianoRoll(track.id, clip.id);
       return;
@@ -167,7 +167,7 @@ export function TrackLane({ track }: TrackLaneProps) {
     const clickTime = laneX / pixelsPerSecond;
     if (hitsClip(clickTime)) return;
     const rawTime = laneX / pixelsPerSecond;
-    const startTime = Math.max(0, snapToGrid(rawTime, project.bpm, 1));
+    const startTime = Math.max(0, snapToGrid(rawTime, project.bpm, 1, project.tempoMap));
     const remaining = project.totalDuration - startTime;
     const duration = Math.max(10, Math.min(30, remaining));
     setCtxMenu({ x: e.clientX, y: e.clientY, startTime, duration });
@@ -201,7 +201,7 @@ export function TrackLane({ track }: TrackLaneProps) {
     const rect = e.currentTarget.getBoundingClientRect();
     const laneX = e.clientX - rect.left;
     const rawTime = laneX / pixelsPerSecond;
-    const startTime = Math.max(0, snapToGrid(rawTime, project.bpm, 1));
+    const startTime = Math.max(0, snapToGrid(rawTime, project.bpm, 1, project.tempoMap));
 
     // Handle preset loop drop
     const loopId = e.dataTransfer.getData('application/x-loop-id');

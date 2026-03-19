@@ -2,7 +2,8 @@ import * as Tone from 'tone';
 import type { ToneAudioBuffer } from 'tone';
 import { createDrumVoicesForKit } from './DrumEngine';
 import { createSynthForPreset } from './SynthEngine';
-import type { DrumKitName, MidiNote, SequencerPattern, SynthPreset } from '../types/project';
+import type { DrumKitName, MidiNote, SequencerPattern, SynthPreset, TempoEvent } from '../types/project';
+import { beatToTime, getTempoAtBeat } from '../utils/tempoMap';
 
 const DRUM_PAD_INDEX_BY_SAMPLE_KEY: Record<string, number> = {
   kick: 0,
@@ -43,6 +44,7 @@ export async function renderMidiTrackOffline(
   synthPreset: SynthPreset,
   totalDuration: number,
   sampleRate: number = 48000,
+  tempoMap?: TempoEvent[],
 ): Promise<AudioBuffer> {
   const buffer = await Tone.Offline(({ transport }) => {
     const synth = createSynthForPreset(synthPreset);
@@ -77,6 +79,7 @@ export async function renderSequencerTrackOffline(
   totalDuration: number,
   drumKit: DrumKitName = '808',
   sampleRate: number = 48000,
+  tempoMap?: TempoEvent[],
 ): Promise<AudioBuffer> {
   let voices: ReturnType<typeof createDrumVoicesForKit> = [];
 
