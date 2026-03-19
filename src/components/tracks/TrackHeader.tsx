@@ -210,7 +210,7 @@ export function TrackHeader({
       </div>
 
       {/* Name + controls column */}
-      <div className="flex-1 min-w-0 flex flex-col gap-1 py-1">
+      <div className="flex-1 min-w-[48px] flex flex-col gap-1 py-1">
         {/* Name */}
         {isEditing ? (
           <input
@@ -318,7 +318,7 @@ export function TrackHeader({
           className={`flex items-center gap-0.5 rounded-lg border border-[#404040] bg-[#1f1f1f]/90 p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all ${
             showSecondaryActions
               ? 'opacity-100 translate-x-0'
-              : 'opacity-0 pointer-events-none translate-x-1 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-x-0'
+              : 'opacity-0 pointer-events-none translate-x-1 max-w-0 overflow-hidden group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:max-w-none group-hover:overflow-visible'
           }`}
         >
           <button

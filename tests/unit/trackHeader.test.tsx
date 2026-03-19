@@ -170,4 +170,36 @@ describe('TrackHeader — icon bar cleanup (#267)', () => {
       expect(screen.getByTitle(/automation/i)).toBeInTheDocument();
     });
   });
+
+  describe('track name visibility (#297)', () => {
+    it('track display name text is visible in the DOM', () => {
+      renderHeader({ displayName: 'My Cool Track' });
+      expect(screen.getByText('My Cool Track')).toBeInTheDocument();
+    });
+
+    it('hidden secondary actions collapse layout space (max-w-0 overflow-hidden)', () => {
+      renderHeader({ inputMonitoring: 'off', frozen: false });
+      const monitorBtn = screen.getByTitle(/Input monitoring/);
+      const container = monitorBtn.parentElement!;
+      // When secondary actions are hidden, they must not consume layout width
+      expect(container.classList.contains('max-w-0')).toBe(true);
+      expect(container.classList.contains('overflow-hidden')).toBe(true);
+    });
+
+    it('visible secondary actions have layout space restored', () => {
+      renderHeader({ inputMonitoring: 'on' });
+      const monitorBtn = screen.getByTitle(/Input monitoring/);
+      const container = monitorBtn.parentElement!;
+      expect(container.classList.contains('max-w-0')).toBe(false);
+      expect(container.classList.contains('overflow-hidden')).toBe(false);
+    });
+
+    it('name column has a minimum width to prevent complete collapse', () => {
+      renderHeader();
+      const nameSpan = screen.getByText('Drums');
+      const nameColumn = nameSpan.parentElement!;
+      // The name+controls column must enforce a minimum width
+      expect(nameColumn.className).toMatch(/min-w-\[/);
+    });
+  });
 });
