@@ -71,6 +71,22 @@ git rebase origin/main 2>/dev/null || {
   exit 0
 }
 
+# Screenshot for visual verification (if playwright available)
+npx playwright test --list 2>/dev/null && {
+  echo 'Taking visual verification screenshot...'
+  node -e "
+const { chromium } = require('playwright');
+(async () => {
+  const b = await chromium.launch();
+  const p = await b.newPage();
+  await p.goto('http://127.0.0.1:5174');
+  await p.waitForTimeout(3000);
+  await p.screenshot({ path: '/tmp/agent-logs/screenshot-$ISSUE_NUM.png', fullPage: true });
+  await b.close();
+})().catch(() => {});
+" 2>/dev/null || true
+}
+
 # ENFORCED: push (force-with-lease to not overwrite others)
 git -c user.name=ChuxiJ -c user.email=junmin@acestudio.ai push origin fix/issue-$ISSUE_NUM --force-with-lease 2>/dev/null || {
   echo 'WARN: push failed (force-with-lease rejected)'
