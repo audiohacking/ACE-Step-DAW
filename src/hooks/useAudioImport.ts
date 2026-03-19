@@ -4,7 +4,8 @@ import { getAudioEngine } from './useAudioEngine';
 import { saveAudioBlob, loadAudioBlobByKey } from '../services/audioFileManager';
 import { computeWaveformPeaks } from '../utils/waveformPeaks';
 import { audioBufferToWavBlob } from '../utils/wav';
-import { toastSuccess } from './useToast';
+import { parseMidiFile } from '../utils/midi';
+import { toastError, toastInfo, toastSuccess } from './useToast';
 import { LOOP_DEFINITIONS, loadLoop } from '../engine/LoopLibrary';
 
 function trimAudioBuffer(
@@ -35,7 +36,51 @@ function trimAudioBuffer(
 export function useAudioImport() {
   const addTrack = useProjectStore((s) => s.addTrack);
   const addClip = useProjectStore((s) => s.addClip);
+  const updateProject = useProjectStore((s) => s.updateProject);
+  const updateTrack = useProjectStore((s) => s.updateTrack);
   const updateClipStatus = useProjectStore((s) => s.updateClipStatus);
+
+  const maybeApplyImportedMidiMetadata = useCallback((fileName: string, bpm?: number, timeSignature?: number) => {
+    const project = useProjectStore.getState().project;
+    if (!project) return { bpm: 120, timeSignature: 4 };
+
+    const shouldPrompt = (
+      (bpm !== undefined && Math.round(project.bpm) !== Math.round(bpm))
+      || (timeSignature !== undefined && project.timeSignature !== timeSignature)
+    );
+
+    let effectiveBpm = project.bpm;
+    let effectiveTimeSignature = project.timeSignature;
+
+    if (shouldPrompt) {
+      const promptMessage = [
+        `${fileName} includes MIDI metadata.`,
+        bpm !== undefined ? `Tempo: ${Math.round(bpm * 100) / 100} BPM` : null,
+        timeSignature !== undefined ? `Time signature: ${timeSignature}/4` : null,
+        'Apply this to the project?',
+      ].filter(Boolean).join('\n');
+
+      const confirmed = typeof window !== 'undefined' && typeof window.confirm === 'function'
+        ? window.confirm(promptMessage)
+        : false;
+
+      if (confirmed) {
+        const updates: { bpm?: number; timeSignature?: number } = {};
+        if (bpm !== undefined) {
+          effectiveBpm = bpm;
+          updates.bpm = bpm;
+        }
+        if (timeSignature !== undefined) {
+          effectiveTimeSignature = timeSignature;
+          updates.timeSignature = timeSignature;
+        }
+        updateProject(updates);
+        toastInfo('Imported MIDI tempo and time signature applied');
+      }
+    }
+
+    return { bpm: effectiveBpm, timeSignature: effectiveTimeSignature };
+  }, [updateProject]);
 
   const importAudioBufferToTrack = useCallback(async (
     audioBuffer: AudioBuffer,
@@ -136,18 +181,70 @@ export function useAudioImport() {
     await importAudioBufferToTrack(audioBuffer, file.name, trackId, startTime);
   }, [importAudioBufferToTrack]);
 
+  const importMidiFile = useCallback(async (file: File, startTime: number = 0) => {
+    const project = useProjectStore.getState().project;
+    if (!project) return;
+
+    try {
+      const parsed = parseMidiFile(await file.arrayBuffer());
+      if (parsed.tracks.length === 0) {
+        toastError('No MIDI note data found in file');
+        return;
+      }
+
+      const applied = maybeApplyImportedMidiMetadata(
+        file.name,
+        parsed.bpm,
+        parsed.timeSignature?.denominator === 4 ? parsed.timeSignature.numerator : undefined,
+      );
+      const baseName = file.name.replace(/\.(mid|midi)$/i, '');
+
+      parsed.tracks.forEach((parsedTrack, index) => {
+        const track = addTrack('keyboard', 'pianoRoll');
+        updateTrack(track.id, {
+          displayName: parsedTrack.name || (parsed.tracks.length === 1 ? baseName : `${baseName} ${index + 1}`),
+        });
+
+        const clipBeats = parsedTrack.notes.reduce(
+          (max, note) => Math.max(max, note.startBeat + note.durationBeats),
+          applied.timeSignature,
+        );
+        const clipDurationSeconds = Math.max((clipBeats * 60) / applied.bpm, (applied.timeSignature * 60) / applied.bpm);
+
+        addClip(track.id, {
+          startTime,
+          duration: clipDurationSeconds,
+          prompt: `Imported MIDI: ${file.name}`,
+          lyrics: '',
+          source: 'uploaded',
+          midiData: {
+            notes: parsedTrack.notes.map((note) => ({ ...note, id: crypto.randomUUID() })),
+            grid: '1/16',
+          },
+        });
+      });
+
+      toastSuccess(`Imported MIDI into ${parsed.tracks.length} piano roll track${parsed.tracks.length === 1 ? '' : 's'}`);
+    } catch (error) {
+      console.error(error);
+      toastError(`Failed to import MIDI file: ${file.name}`);
+    }
+  }, [addClip, addTrack, maybeApplyImportedMidiMetadata, updateTrack]);
+
   const importMultipleFiles = useCallback(async (files: FileList | File[]) => {
     for (const file of Array.from(files)) {
       if (file.type.startsWith('audio/') || /\.(wav|mp3|ogg|flac|aac|m4a|webm)$/i.test(file.name)) {
         await importAudioFile(file);
+      } else if (/\.(mid|midi)$/i.test(file.name)) {
+        await importMidiFile(file);
       }
     }
-  }, [importAudioFile]);
+  }, [importAudioFile, importMidiFile]);
 
   const openFilePicker = useCallback(() => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'audio/*';
+    input.accept = 'audio/*,.mid,.midi';
     input.multiple = true;
     input.onchange = async () => {
       if (input.files && input.files.length > 0) {
@@ -235,6 +332,7 @@ export function useAudioImport() {
     importAudioFile,
     importAudioBufferToTrack,
     importAudioToTrack,
+    importMidiFile,
     importMultipleFiles,
     openFilePicker,
     importLoopToTrack,

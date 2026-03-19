@@ -140,8 +140,8 @@ export function InstrumentPicker() {
             >
               <span className="text-xl">📁</span>
               <div>
-                <div className="text-sm font-medium">Import Audio File</div>
-                <div className="text-[11px] text-zinc-400">Pick a file from your computer to create a track with audio</div>
+                <div className="text-sm font-medium">Import Audio or MIDI File</div>
+                <div className="text-[11px] text-zinc-400">Pick files from your computer to create sample or piano roll tracks</div>
               </div>
             </button>
           </div>
@@ -188,6 +188,17 @@ export function InstrumentPicker() {
               <div>
                 <div className="text-sm font-medium">Piano Roll Track</div>
                 <div className="text-[11px] text-zinc-400">MIDI clips with built-in synth presets and note editing.</div>
+              </div>
+            </button>
+            <button
+              onClick={() => { close(); openFilePicker(); }}
+              className="flex items-center gap-3 p-3 rounded-lg bg-daw-surface-2 hover:bg-[#484848] transition-colors text-left"
+              style={{ borderLeft: `3px solid ${TRACK_TYPE_CATALOG.pianoRoll.color}` }}
+            >
+              <span className="text-xl">📥</span>
+              <div>
+                <div className="text-sm font-medium">Import MIDI File</div>
+                <div className="text-[11px] text-zinc-400">Load .mid files and create piano roll tracks from their note data.</div>
               </div>
             </button>
           </div>

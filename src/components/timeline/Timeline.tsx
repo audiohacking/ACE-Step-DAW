@@ -76,7 +76,7 @@ export function Timeline() {
   const [normalDrag, setNormalDrag] = useState<DragRect | null>(null);
   const [fileDragOver, setFileDragOver] = useState(false);
   const dragCounterRef = useRef(0);
-  const { importAudioBufferToTrack, importMultipleFiles, importLoopToTrack, importAssetToTrack } = useAudioImport();
+  const { importMultipleFiles, importLoopToTrack, importAssetToTrack } = useAudioImport();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     const types = e.dataTransfer.types;

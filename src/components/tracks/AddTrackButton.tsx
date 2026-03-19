@@ -16,7 +16,7 @@ export function AddTrackButton() {
       <button
         onClick={openFilePicker}
         className="flex items-center justify-center gap-1 h-7 px-2 text-[11px] font-medium text-zinc-400 hover:text-white bg-[#3a3a3a] hover:bg-[#484848] rounded transition-colors"
-        title="Import audio file"
+        title="Import audio or MIDI file"
       >
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
           <path d="M6 1v7M3 5l3 3 3-3" />
