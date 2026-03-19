@@ -57,16 +57,19 @@ describe('coreDawShortcuts', () => {
     expect(updatedTrack?.soloed).toBe(true);
 
     expect(await executeCoreDawShortcut('view.zoomToSelection')).toBe(true);
-    expect(useUIStore.getState().timelineZoomRequest).toEqual({
-      id: 1,
+    const selectionZoomRequest = useUIStore.getState().timelineZoomRequest;
+    expect(selectionZoomRequest).toEqual({
+      id: expect.any(Number),
       mode: 'selection',
     });
 
     expect(await executeCoreDawShortcut('view.zoomToFit')).toBe(true);
-    expect(useUIStore.getState().timelineZoomRequest).toEqual({
-      id: 2,
+    const projectZoomRequest = useUIStore.getState().timelineZoomRequest;
+    expect(projectZoomRequest).toEqual({
+      id: expect.any(Number),
       mode: 'project',
     });
+    expect(projectZoomRequest!.id).toBeGreaterThan(selectionZoomRequest!.id);
 
     unregister();
   });

@@ -13,6 +13,39 @@ function createContext(): CommandPaletteContext {
   const projectStore = useProjectStore.getState();
   const transportStore = useTransportStore.getState();
   const uiStore = useUIStore.getState();
+  const actions: CommandPaletteContext['actions'] = {
+    play: transportStore.play,
+    pause: transportStore.pause,
+    stop: transportStore.stop,
+    toggleLoop: transportStore.toggleLoop,
+    toggleMetronome: transportStore.toggleMetronome,
+    setShowNewProjectDialog: () => {},
+    setShowProjectListDialog: () => {},
+    setShowSettingsDialog: () => {},
+    setShowExportDialog: () => {},
+    setShowKeyboardShortcutsDialog: () => {},
+    setShowLibrary: () => {},
+    setShowMixer: () => {},
+    setShowSmartControls: () => {},
+    toggleLoopBrowser: () => {},
+    toggleTempoLane: () => {},
+    toggleAIAssistant: () => {},
+    zoomTimelineToSelection: uiStore.zoomTimelineToSelection,
+    zoomTimelineToProject: uiStore.zoomTimelineToProject,
+    setBatchGenerateMode: () => {},
+    addTrack: projectStore.addTrack,
+    addTrackEffect: projectStore.addTrackEffect,
+    updateProject: projectStore.updateProject,
+    updateTrack: projectStore.updateTrack,
+    updateTrackMixer: projectStore.updateTrackMixer,
+    updateTrackEffect: projectStore.updateTrackEffect,
+    duplicateClip: () => {},
+    splitClip: () => {},
+    splitClipAtZeroCrossing: async () => {},
+    removeClip: () => {},
+    setEditingClip: () => {},
+    deselectAll: () => {},
+  };
 
   return {
     project: projectStore.project,
@@ -31,39 +64,7 @@ function createContext(): CommandPaletteContext {
     openPianoRollTrackId: null,
     openSequencerTrackId: null,
     openDrumMachineTrackId: null,
-    actions: {
-      play: transportStore.play,
-      pause: transportStore.pause,
-      stop: transportStore.stop,
-      toggleLoop: transportStore.toggleLoop,
-      toggleMetronome: transportStore.toggleMetronome,
-      setShowNewProjectDialog: () => {},
-      setShowProjectListDialog: () => {},
-      setShowSettingsDialog: () => {},
-      setShowExportDialog: () => {},
-      setShowKeyboardShortcutsDialog: () => {},
-      setShowLibrary: () => {},
-      setShowMixer: () => {},
-      setShowSmartControls: () => {},
-      toggleLoopBrowser: () => {},
-      toggleTempoLane: () => {},
-      toggleAIAssistant: () => {},
-      zoomTimelineToSelection: uiStore.zoomTimelineToSelection,
-      zoomTimelineToProject: uiStore.zoomTimelineToProject,
-      setBatchGenerateMode: () => {},
-      addTrack: projectStore.addTrack,
-      addTrackEffect: projectStore.addTrackEffect,
-      updateProject: projectStore.updateProject,
-      updateTrack: projectStore.updateTrack,
-      updateTrackMixer: projectStore.updateTrackMixer,
-      updateTrackEffect: projectStore.updateTrackEffect,
-      duplicateClip: () => {},
-      splitClip: () => {},
-      splitClipAtZeroCrossing: async () => {},
-      removeClip: () => {},
-      setEditingClip: () => {},
-      deselectAll: () => {},
-    },
+    actions,
   };
 }
 
@@ -177,15 +178,18 @@ describe('commandPalette', () => {
     expect(fitProject).toBeTruthy();
 
     await zoomSelection?.execute();
-    expect(useUIStore.getState().timelineZoomRequest).toEqual({
-      id: 1,
+    const selectionZoomRequest = useUIStore.getState().timelineZoomRequest;
+    expect(selectionZoomRequest).toEqual({
+      id: expect.any(Number),
       mode: 'selection',
     });
 
     await fitProject?.execute();
-    expect(useUIStore.getState().timelineZoomRequest).toEqual({
-      id: 2,
+    const projectZoomRequest = useUIStore.getState().timelineZoomRequest;
+    expect(projectZoomRequest).toEqual({
+      id: expect.any(Number),
       mode: 'project',
     });
+    expect(projectZoomRequest!.id).toBeGreaterThan(selectionZoomRequest!.id);
   });
 });

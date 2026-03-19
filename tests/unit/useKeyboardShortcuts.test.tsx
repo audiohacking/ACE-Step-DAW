@@ -113,16 +113,19 @@ describe('useKeyboardShortcuts', () => {
     render(<Harness />);
 
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyZ' }));
-    expect(useUIStore.getState().timelineZoomRequest).toEqual({
-      id: 1,
+    const selectionZoomRequest = useUIStore.getState().timelineZoomRequest;
+    expect(selectionZoomRequest).toEqual({
+      id: expect.any(Number),
       mode: 'selection',
     });
 
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyZ', shiftKey: true }));
-    expect(useUIStore.getState().timelineZoomRequest).toEqual({
-      id: 2,
+    const projectZoomRequest = useUIStore.getState().timelineZoomRequest;
+    expect(projectZoomRequest).toEqual({
+      id: expect.any(Number),
       mode: 'project',
     });
+    expect(projectZoomRequest!.id).toBeGreaterThan(selectionZoomRequest!.id);
   });
 
   it('suppresses single-key shortcuts while typing in editable controls', () => {

@@ -14,13 +14,15 @@ A complete reference of all keyboard shortcuts in ACE-Step DAW.
 
 ## Zoom & Navigation
 
+These shortcuts apply only when the arrangement timeline has focus; other contexts such as beat pads and the piano roll use some letter keys differently.
+
 | Shortcut | Action |
 |---|---|
 | `Cmd/Ctrl + =` | Zoom in |
 | `Cmd/Ctrl + -` | Zoom out |
 | `Cmd/Ctrl + 0` | Reset zoom (50 px/s) |
-| `Z` | Zoom to the selected clips or selected time region |
-| `Shift + Z` | Fit the full project in view |
+| `Z` | In the arrangement timeline, zoom to the selected clips or selected time region |
+| `Shift + Z` | In the arrangement timeline, fit the full project in view |
 
 ## Clips
 
