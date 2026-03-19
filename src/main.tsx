@@ -20,6 +20,8 @@ const agentProjectStore = {
     activePianoRollTool: useUIStore.getState().activePianoRollTool,
     setActivePianoRollTool: useUIStore.getState().setActivePianoRollTool,
     togglePianoRollPencilTool: useUIStore.getState().togglePianoRollPencilTool,
+    zoomTimelineToSelection: useUIStore.getState().zoomTimelineToSelection,
+    zoomTimelineToProject: useUIStore.getState().zoomTimelineToProject,
   }),
   setState: useProjectStore.setState,
   subscribe: useProjectStore.subscribe,
@@ -28,6 +30,8 @@ const agentProjectStore = {
     activePianoRollTool: useUIStore.getInitialState().activePianoRollTool,
     setActivePianoRollTool: useUIStore.getInitialState().setActivePianoRollTool,
     togglePianoRollPencilTool: useUIStore.getInitialState().togglePianoRollPencilTool,
+    zoomTimelineToSelection: useUIStore.getInitialState().zoomTimelineToSelection,
+    zoomTimelineToProject: useUIStore.getInitialState().zoomTimelineToProject,
   }),
 };
 
