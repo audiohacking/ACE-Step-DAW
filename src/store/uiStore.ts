@@ -26,7 +26,7 @@ function createAssistantMessage(role: AIChatMessage['role'], content: string): A
   };
 }
 
-interface UIState {
+export interface UIState {
   mainView: 'arrangement' | 'session';
   keyboardContext: { scope: ShortcutContext; trackId: string | null };
   arrangementView: 'arrangement' | 'session';
