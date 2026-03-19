@@ -103,8 +103,9 @@ interface ProjectState {
   setDualMonoPan: (trackId: string, left: number, right: number) => void;
   setTrackLocalCaption: (trackId: string, caption: string) => void;
   setTrackReverb: (trackId: string, mix: number, roomSize: number) => void;
-  freezeTrack: (trackId: string) => void;
+  freezeTrack: (trackId: string, frozenAudioKey?: string) => void;
   unfreezeTrack: (trackId: string) => void;
+  flattenTrack: (trackId: string, audioKey: string, waveformPeaks?: number[], duration?: number) => void;
 
   addTrack: (trackName: TrackName, trackType?: TrackType) => Track;
   removeTrack: (trackId: string) => void;
@@ -489,7 +490,7 @@ export const useProjectStore = create<ProjectState>()(
     });
   },
 
-  freezeTrack: (trackId) => {
+  freezeTrack: (trackId, frozenAudioKey?) => {
     const state = get();
     if (!state.project) return;
     _pushHistory(state.project);
@@ -498,7 +499,7 @@ export const useProjectStore = create<ProjectState>()(
         ...state.project,
         updatedAt: Date.now(),
         tracks: state.project.tracks.map((t) =>
-          t.id === trackId ? { ...t, frozen: true } : t,
+          t.id === trackId ? { ...t, frozen: true, ...(frozenAudioKey ? { frozenAudioKey } : {}) } : t,
         ),
       },
     });
@@ -514,6 +515,48 @@ export const useProjectStore = create<ProjectState>()(
         updatedAt: Date.now(),
         tracks: state.project.tracks.map((t) =>
           t.id === trackId ? { ...t, frozen: false, frozenAudioKey: undefined } : t,
+        ),
+      },
+    });
+  },
+
+  flattenTrack: (trackId, audioKey, waveformPeaks?, duration?) => {
+    const state = get();
+    if (!state.project) return;
+    const track = state.project.tracks.find((t) => t.id === trackId);
+    if (!track) return;
+    _pushHistory(state.project);
+
+    const newClip: Clip = {
+      id: uuidv4(),
+      trackId,
+      startTime: 0,
+      duration: duration ?? state.project.totalDuration,
+      prompt: '',
+      lyrics: '',
+      generationStatus: 'ready',
+      generationJobId: null,
+      cumulativeMixKey: null,
+      isolatedAudioKey: audioKey,
+      waveformPeaks: waveformPeaks ?? null,
+    };
+
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((t) =>
+          t.id === trackId
+            ? {
+                ...t,
+                trackType: 'sample' as TrackType,
+                frozen: false,
+                frozenAudioKey: undefined,
+                sequencerPattern: undefined,
+                synthPreset: undefined,
+                clips: [newClip],
+              }
+            : t,
         ),
       },
     });
