@@ -278,6 +278,7 @@ export function ExportDialog() {
           <button
             onClick={handleExport}
             disabled={exporting || !hasExportableContent}
+            aria-label={`Export ${exportOptions.format.toUpperCase()}`}
             className="px-4 py-1.5 text-xs font-medium bg-daw-accent text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed enabled:hover:bg-daw-accent-hover"
           >
             {exporting ? `Exporting... ${progress}%` : `Export ${exportOptions.format.toUpperCase()}`}
