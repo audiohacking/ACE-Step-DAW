@@ -203,6 +203,10 @@ export interface Track {
   localCaption?: string;
   /** Per-track lane height in pixels (default 64, min 40, max 200). */
   laneHeight?: number;
+  /** Whether the track is frozen (rendered to audio for CPU savings). */
+  frozen?: boolean;
+  /** IndexedDB key of the frozen audio bounce. */
+  frozenAudioKey?: string;
 }
 
 /** Persistent asset entry — survives clip/track removal. Only deleted explicitly from the Assets panel. */

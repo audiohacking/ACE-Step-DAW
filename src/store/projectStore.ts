@@ -150,6 +150,10 @@ interface ProjectState {
   removeTrackEffect: (trackId: string, effectId: string) => void;
   reorderTrackEffect: (trackId: string, fromIndex: number, toIndex: number) => void;
 
+  // Track freeze
+  freezeTrack: (trackId: string) => void;
+  unfreezeTrack: (trackId: string) => void;
+
   // Automation
   addAutomationPoint: (trackId: string, parameter: AutomationParameter, point: AutomationPoint) => void;
   removeAutomationPoint: (trackId: string, parameter: AutomationParameter, pointIndex: number) => void;
@@ -1917,6 +1921,38 @@ export const useProjectStore = create<ProjectState>()(
       (l: AutomationLane) => !(l.trackId === trackId && automationParamEquals(l.parameter, parameter)),
     );
     set({ project: { ...state.project, updatedAt: Date.now(), automationLanes: lanes } });
+  },
+
+  // ─── Track Freeze ──────────────────────────────────────────────────────────
+
+  freezeTrack: (trackId) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((t) =>
+          t.id === trackId ? { ...t, frozen: true } : t,
+        ),
+      },
+    });
+  },
+
+  unfreezeTrack: (trackId) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((t) =>
+          t.id === trackId ? { ...t, frozen: false, frozenAudioKey: undefined } : t,
+        ),
+      },
+    });
   },
 
   getTrackById: (trackId) => {
