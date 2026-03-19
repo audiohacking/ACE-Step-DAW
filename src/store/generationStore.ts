@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { DEFAULT_BPM, DEFAULT_DURATION, DEFAULT_KEY_SCALE, MAX_BPM, MAX_DURATION, MIN_BPM, MIN_DURATION } from '../constants/defaults';
 import type { GenerationPreset } from '../constants/generationPresets';
+import { useProjectStore } from './projectStore';
 
 export interface GenerationJob {
   id: string;
@@ -520,16 +521,29 @@ export const useGenerationStore = create<GenerationState>()(
         };
       }),
 
-      setActiveVariation: (index) => set((s) => {
-        if (!s.variationSession) return s;
+      setActiveVariation: (index) => {
+        const s = get();
+        if (!s.variationSession) return;
         const max = s.variationSession.variations.length - 1;
-        return {
+        const clamped = Math.max(0, Math.min(max, index));
+
+        set({
           variationSession: {
             ...s.variationSession,
-            activeVariationIndex: Math.max(0, Math.min(max, index)),
+            activeVariationIndex: clamped,
           },
-        };
-      }),
+        });
+
+        // Mute/unmute variation clips in the project store
+        const projState = useProjectStore.getState();
+        if (!projState.project) return;
+
+        for (const variation of s.variationSession.variations) {
+          if (!variation.clipId) continue;
+          const shouldMute = variation.index !== clamped;
+          projState.updateClip(variation.clipId, { muted: shouldMute });
+        }
+      },
 
       clearVariationSession: () => set({ variationSession: null }),
 
