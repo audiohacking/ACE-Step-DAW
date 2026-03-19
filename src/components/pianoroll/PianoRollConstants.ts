@@ -7,6 +7,25 @@ export const PIANO_ROLL_KEY_HEIGHT = 14;
 export const PIANO_KEYBOARD_WIDTH = 56;
 export const VELOCITY_LANE_HEIGHT = 60;
 
+interface PianoRollVisualState {
+  isSelected: boolean;
+  isSlide: boolean;
+}
+
+interface PianoRollNoteVisualStyle {
+  fillStyle: string;
+  strokeStyle: string;
+  strokeWidth: number;
+  globalAlpha: number;
+  velocityAccentOpacity: number;
+}
+
+interface VelocityLaneBarVisualStyle {
+  fillStyle: string;
+  globalAlpha: number;
+  highlightAlpha: number;
+}
+
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const BLACK_KEY_INDICES = new Set([1, 3, 6, 8, 10]);
 
@@ -52,6 +71,46 @@ export function velocityToBarColor(velocity: number): string {
   const b = Math.round(214 - t * 124);
   return `rgba(${r},${g},${b},0.8)`;
 }
+
+export function getPianoRollNoteVisualStyle(
+  velocity: number,
+  { isSelected, isSlide }: PianoRollVisualState,
+): PianoRollNoteVisualStyle {
+  const normalizedVelocity = normalizeMidiVelocity(velocity);
+  const velocityRatio = normalizedVelocity / 127;
+
+  if (isSlide) {
+    return {
+      fillStyle: 'rgba(251, 191, 36, 0.92)',
+      strokeStyle: isSelected ? '#fff7d6' : 'rgba(251,191,36,0.9)',
+      strokeWidth: isSelected ? 1.5 : 0.5,
+      globalAlpha: isSelected ? 1 : 0.8,
+      velocityAccentOpacity: 0,
+    };
+  }
+
+  return {
+    fillStyle: velocityToColor(velocity),
+    strokeStyle: isSelected ? '#fff' : 'rgba(255,255,255,0.3)',
+    strokeWidth: isSelected ? 1.5 : 0.5,
+    globalAlpha: isSelected ? 1 : 0.8,
+    velocityAccentOpacity: 0.35 + velocityRatio * 0.2,
+  };
+}
+
+export function getVelocityLaneBarVisualStyle(
+  velocity: number,
+  { isSelected, isSlide }: PianoRollVisualState,
+): VelocityLaneBarVisualStyle {
+  return {
+    fillStyle: isSlide ? 'rgba(251,191,36,0.85)' : velocityToBarColor(velocity),
+    globalAlpha: isSelected ? 1 : 0.6,
+    highlightAlpha: isSelected ? 0.95 : 0.45,
+  };
+}
+
+export const getPianoRollNoteVisuals = getPianoRollNoteVisualStyle;
+export const getVelocityLaneBarVisuals = getVelocityLaneBarVisualStyle;
 
 export function getPianoRollToolShortcut(tool: PianoRollTool): string {
   switch (tool) {

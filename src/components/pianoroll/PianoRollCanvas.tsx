@@ -11,6 +11,7 @@ import { DEFAULT_CHORD_SHAPE_ABBR, getChordShapeByAbbr } from '../../utils/chord
 import {
   generateNoteId,
   getPianoRollToolShortcut,
+  getPianoRollNoteVisualStyle,
   gridSizeToBeats,
   isBlackKey,
   MIDI_MAX_NOTE,
@@ -19,7 +20,6 @@ import {
   PIANO_KEYBOARD_WIDTH,
   PIANO_ROLL_KEY_HEIGHT,
   type PianoRollTool,
-  velocityToColor,
   VELOCITY_LANE_HEIGHT,
 } from './PianoRollConstants';
 
@@ -404,6 +404,7 @@ export function PianoRollCanvas({
       const isSlide = note.isSlide === true;
       const normalizedVelocity = normalizeMidiVelocity(note.velocity);
       const velocityRatio = normalizedVelocity / 127;
+      const noteVisualStyle = getPianoRollNoteVisualStyle(note.velocity, { isSelected, isSlide });
 
       // Draw ghost of original position when preview is active
       if (hasPreview) {
@@ -424,14 +425,14 @@ export function PianoRollCanvas({
         ctx.globalAlpha = 1.0;
       }
 
-      ctx.fillStyle = isSlide ? 'rgba(251, 191, 36, 0.92)' : velocityToColor(note.velocity);
-      ctx.globalAlpha = isSelected ? 1.0 : 0.8;
+      ctx.fillStyle = noteVisualStyle.fillStyle;
+      ctx.globalAlpha = noteVisualStyle.globalAlpha;
       ctx.beginPath();
       ctx.roundRect(noteX, noteY, Math.max(noteWidth, 3), noteHeight, 2);
       ctx.fill();
 
-      ctx.strokeStyle = isSlide ? (isSelected ? '#fff7d6' : 'rgba(251,191,36,0.9)') : (isSelected ? '#fff' : 'rgba(255,255,255,0.3)');
-      ctx.lineWidth = isSelected ? 1.5 : 0.5;
+      ctx.strokeStyle = noteVisualStyle.strokeStyle;
+      ctx.lineWidth = noteVisualStyle.strokeWidth;
       ctx.beginPath();
       ctx.roundRect(noteX, noteY, Math.max(noteWidth, 3), noteHeight, 2);
       ctx.stroke();
@@ -455,7 +456,7 @@ export function PianoRollCanvas({
       }
 
       if (!isSlide && noteWidth > 8 && noteHeight > 6) {
-        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.fillStyle = `rgba(255,255,255,${noteVisualStyle.velocityAccentOpacity})`;
         ctx.fillRect(noteX + 2, noteY + noteHeight - 3, Math.max((noteWidth - 4) * velocityRatio, 2), 1.5);
       }
 

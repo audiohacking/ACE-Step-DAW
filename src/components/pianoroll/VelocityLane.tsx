@@ -1,5 +1,9 @@
 import type { MidiNote } from '../../types/project';
-import { normalizeMidiVelocity, PIANO_KEYBOARD_WIDTH, velocityToBarColor } from './PianoRollConstants';
+import {
+  getVelocityLaneBarVisualStyle,
+  normalizeMidiVelocity,
+  PIANO_KEYBOARD_WIDTH,
+} from './PianoRollConstants';
 
 interface VelocityLaneProps {
   ctx: CanvasRenderingContext2D;
@@ -64,13 +68,14 @@ export function drawVelocityLane({
     const barY = velAreaTop + velAreaHeight - barHeight;
     const isSelected = selectedNoteIds.has(note.id);
     const isSlide = note.isSlide === true;
+    const barVisualStyle = getVelocityLaneBarVisualStyle(note.velocity, { isSelected, isSlide });
 
-    ctx.fillStyle = isSlide ? 'rgba(251,191,36,0.85)' : velocityToBarColor(note.velocity);
-    ctx.globalAlpha = isSelected ? 1.0 : 0.6;
+    ctx.fillStyle = barVisualStyle.fillStyle;
+    ctx.globalAlpha = barVisualStyle.globalAlpha;
     ctx.fillRect(x, barY, Math.max(widthPx - 1, 3), barHeight);
 
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.globalAlpha = isSelected ? 0.95 : 0.45;
+    ctx.globalAlpha = barVisualStyle.highlightAlpha;
     ctx.fillRect(x, Math.max(barY - 1, velAreaTop), Math.max(widthPx - 1, 3), 1.5);
 
     if (isSlide) {
