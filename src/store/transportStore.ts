@@ -23,6 +23,7 @@ export interface TransportState {
   countInBeat: number; // 0 = not counting in, negative = beats remaining
   currentTime: number;
   scrubAnchorTime: number | null;
+  scrubResumeOnRelease: boolean;
   scrubPreviewRate: number;
   loopEnabled: boolean;
   loopStart: number;
@@ -51,7 +52,7 @@ export interface TransportState {
   toggleArmTrack: (id: string, exclusive?: boolean) => void;
   seek: (time: number) => void;
   setCurrentTime: (time: number) => void;
-  startScrub: (time: number) => void;
+  startScrub: (time: number, resumeOnRelease?: boolean) => void;
   updateScrub: (time: number, previewRate: number) => void;
   endScrub: () => void;
   toggleLoop: () => void;
@@ -83,6 +84,7 @@ export const useTransportStore = create<TransportState>((set) => ({
   countInBeat: 0,
   currentTime: 0,
   scrubAnchorTime: null,
+  scrubResumeOnRelease: false,
   scrubPreviewRate: 0,
   loopEnabled: false,
   loopStart: 0,
@@ -107,6 +109,7 @@ export const useTransportStore = create<TransportState>((set) => ({
     isScrubbing: false,
     currentTime: 0,
     scrubAnchorTime: null,
+    scrubResumeOnRelease: false,
     scrubPreviewRate: 0,
     loopCycleCount: 0,
   }),
@@ -128,20 +131,23 @@ export const useTransportStore = create<TransportState>((set) => ({
   }),
   seek: (time) => set({ currentTime: Math.max(0, time) }),
   setCurrentTime: (time) => set({ currentTime: time }),
-  startScrub: (time) => set({
+  startScrub: (time, resumeOnRelease = false) => set({
+    isPlaying: false,
     isScrubbing: true,
     currentTime: Math.max(0, time),
     scrubAnchorTime: Math.max(0, time),
+    scrubResumeOnRelease: resumeOnRelease,
     scrubPreviewRate: 0,
   }),
   updateScrub: (time, previewRate) => set((s) => ({
     isScrubbing: s.isScrubbing,
     currentTime: Math.max(0, time),
-    scrubPreviewRate: Math.max(-1, Math.min(1, previewRate)),
+    scrubPreviewRate: Math.max(-4, Math.min(4, previewRate)),
   })),
   endScrub: () => set({
     isScrubbing: false,
     scrubAnchorTime: null,
+    scrubResumeOnRelease: false,
     scrubPreviewRate: 0,
   }),
   toggleLoop: () => set((s) => ({ loopEnabled: !s.loopEnabled })),

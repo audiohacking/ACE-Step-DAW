@@ -5,6 +5,7 @@ import { useTransportStore } from '../../store/transportStore';
 import { useTransport } from '../../hooks/useTransport';
 import { getBarDuration } from '../../utils/time';
 import { beatToTime, getBeatAtBar, getTimeSignatureAtBar } from '../../utils/tempoMap';
+import { getScrubPreviewRate } from '../../utils/scrubMath';
 
 export function TimeRuler() {
   const project = useProjectStore((s) => s.project);
@@ -27,13 +28,14 @@ export function TimeRuler() {
   const getPreviewRate = useCallback((nextX: number, nextTime: number, stamp: number) => {
     const prev = scrubStateRef.current;
     if (!prev) return 0;
-
-    const dt = Math.max(16, stamp - prev.stamp);
-    const deltaX = nextX - prev.x;
-    const deltaTime = nextTime - prev.time;
-    const velocity = deltaX / dt;
-    const distanceBias = deltaTime * 0.35;
-    return Math.max(-1, Math.min(1, velocity * 0.22 + distanceBias));
+    return getScrubPreviewRate({
+      previousX: prev.x,
+      nextX,
+      previousTime: prev.time,
+      nextTime,
+      previousStamp: prev.stamp,
+      nextStamp: stamp,
+    });
   }, []);
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {

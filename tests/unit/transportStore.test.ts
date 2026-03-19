@@ -33,30 +33,34 @@ describe('transportStore', () => {
   });
 
   describe('scrub mode', () => {
-    it('tracks scrub state and clamps preview rate', () => {
-      useTransportStore.getState().startScrub(2.5);
+    it('tracks scrub state, remembers resume intent, and clamps preview rate', () => {
+      useTransportStore.getState().play();
+      useTransportStore.getState().startScrub(2.5, true);
 
       let state = useTransportStore.getState();
       expect(state.isScrubbing).toBe(true);
+      expect(state.isPlaying).toBe(false);
       expect(state.currentTime).toBe(2.5);
       expect(state.scrubAnchorTime).toBe(2.5);
+      expect(state.scrubResumeOnRelease).toBe(true);
       expect(state.scrubPreviewRate).toBe(0);
 
-      useTransportStore.getState().updateScrub(3.75, 0.42);
+      useTransportStore.getState().updateScrub(3.75, 1.42);
       state = useTransportStore.getState();
       expect(state.currentTime).toBe(3.75);
-      expect(state.scrubPreviewRate).toBeCloseTo(0.42);
+      expect(state.scrubPreviewRate).toBeCloseTo(1.42);
 
-      useTransportStore.getState().updateScrub(1.25, 4);
-      expect(useTransportStore.getState().scrubPreviewRate).toBe(1);
+      useTransportStore.getState().updateScrub(1.25, 8);
+      expect(useTransportStore.getState().scrubPreviewRate).toBe(4);
 
-      useTransportStore.getState().updateScrub(0.5, -3);
-      expect(useTransportStore.getState().scrubPreviewRate).toBe(-1);
+      useTransportStore.getState().updateScrub(0.5, -7);
+      expect(useTransportStore.getState().scrubPreviewRate).toBe(-4);
 
       useTransportStore.getState().endScrub();
       state = useTransportStore.getState();
       expect(state.isScrubbing).toBe(false);
       expect(state.scrubAnchorTime).toBeNull();
+      expect(state.scrubResumeOnRelease).toBe(false);
       expect(state.scrubPreviewRate).toBe(0);
     });
   });

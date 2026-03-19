@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 import { useTransportStore } from '../store/transportStore';
 import { useProjectStore } from '../store/projectStore';
@@ -13,6 +13,7 @@ import { useRecording } from './useRecording';
 import { beatToTime } from '../utils/tempoMap';
 import type { Clip, Project, Track } from '../types/project';
 import { toastInfo } from './useToast';
+import type { TimelineScrubClip } from '../engine/AudioEngine';
 
 const DRUM_PAD_INDEX_BY_SAMPLE_KEY: Record<string, number> = {
   kick: 0,
@@ -83,12 +84,47 @@ function getSessionPlaybackEnd(project: Project, startFrom: number): number {
   return Math.max(project.totalDuration, startFrom + 300);
 }
 
+function collectTimelineScrubClips(project: Project): TimelineScrubClip[] {
+  return project.tracks.flatMap((track) => {
+    if (track.frozen && track.frozenAudioKey) {
+      return [{
+        clipId: `frozen-${track.id}`,
+        trackId: track.id,
+        startTime: 0,
+        clipDuration: project.totalDuration,
+        audioOffset: 0,
+        timeStretchRate: 1,
+        bufferKey: track.frozenAudioKey,
+      }];
+    }
+
+    return track.clips.flatMap((clip) => {
+      if (clip.generationStatus !== 'ready') return [];
+      const bufferKey = clip.isolatedAudioKey ?? clip.cumulativeMixKey;
+      if (!bufferKey) return [];
+
+      return [{
+        clipId: clip.id,
+        trackId: track.id,
+        startTime: clip.startTime,
+        clipDuration: clip.duration,
+        audioOffset: clip.isolatedAudioKey
+          ? (clip.audioOffset ?? 0)
+          : clip.startTime + (clip.audioOffset ?? 0),
+        timeStretchRate: clip.timeStretchRate ?? 1,
+        bufferKey,
+      }];
+    });
+  });
+}
+
 export function useTransport() {
   const { isPlaying, currentTime } = useTransportStore();
   const isRecording = useTransportStore((s) => s.isRecording);
   const project = useProjectStore((s) => s.project);
   const { stopRecording, onLoopCycle } = useRecording();
   const mainView = useUIStore((s) => s.mainView);
+  const scrubClipsRef = useRef<TimelineScrubClip[]>([]);
 
   const play = useCallback(async (fromTime?: number) => {
     const engine = getAudioEngine();
@@ -519,24 +555,50 @@ export function useTransport() {
 
   const startScrub = useCallback(async (time: number) => {
     const engine = getAudioEngine();
+    const transport = useTransportStore.getState();
+    const scrubProject = useProjectStore.getState().project;
+    if (!scrubProject) return;
+
     await engine.resume();
-    useTransportStore.getState().startScrub(time);
+    const resumePlayback = transport.isPlaying || engine.playing;
+    if (resumePlayback) {
+      engine.stop();
+      synthEngine.releaseAll();
+      samplerEngine.stopAll();
+      automationEngine.stop();
+      useTransportStore.getState().pause();
+    }
+
+    scrubClipsRef.current = collectTimelineScrubClips(scrubProject);
+    useTransportStore.getState().startScrub(time, resumePlayback);
     useTransportStore.getState().seek(time);
-    engine.startScrubPreview();
+    await engine.startTimelineScrub(scrubProject.tracks, scrubClipsRef.current, time, 0);
   }, []);
 
-  const scrubTo = useCallback((time: number, previewRate: number) => {
+  const scrubTo = useCallback(async (time: number, previewRate: number) => {
+    const scrubProject = useProjectStore.getState().project;
+    if (!scrubProject) return;
+
     const engine = getAudioEngine();
     useTransportStore.getState().updateScrub(time, previewRate);
-    seek(time);
-    engine.updateScrubPreview(previewRate);
-  }, [seek]);
-
-  const endScrub = useCallback(() => {
-    const engine = getAudioEngine();
-    useTransportStore.getState().endScrub();
-    engine.stopScrubPreview();
+    useTransportStore.getState().seek(time);
+    await engine.updateTimelineScrub(scrubProject.tracks, scrubClipsRef.current, time, previewRate);
   }, []);
+
+  const endScrub = useCallback(async () => {
+    const engine = getAudioEngine();
+    const transport = useTransportStore.getState();
+    const shouldResumePlayback = transport.scrubResumeOnRelease;
+    const resumeFrom = transport.currentTime;
+
+    useTransportStore.getState().endScrub();
+    engine.stopTimelineScrub();
+    scrubClipsRef.current = [];
+
+    if (shouldResumePlayback) {
+      await play(resumeFrom);
+    }
+  }, [play]);
 
   const launchSessionClip = useCallback(async (trackId: string, clipId: string, sceneIndex: number) => {
     const transport = useTransportStore.getState();

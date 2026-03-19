@@ -12,7 +12,9 @@ import { ensureMasteringState } from '../utils/mastering';
 import { applyClipFadeAutomation } from '../utils/clipFade';
 import { beatToTime, getBarAtBeat } from '../utils/tempoMap';
 import { computeWarpedSegments } from '../utils/audioWarp';
+import { loadAudioBlobByKey } from '../services/audioFileManager';
 import { readAudioContextPlaybackLatency } from '../utils/playbackLatency';
+import { getScrubPlaybackRate, getScrubSliceWindow, getScrubSourceOffset } from '../utils/scrub';
 
 export interface ScheduledSource {
   source: AudioBufferSourceNode;
@@ -42,6 +44,34 @@ export interface ClipScheduleInfo {
   timeStretchRate?: number; // playback rate (1 = normal, 0.5 = half speed, 2 = double)
   gainEnvelope?: GainEnvelopePoint[]; // per-clip volume automation
   warpMarkers?: AudioWarpMarker[]; // flex-time warp markers for audio quantize
+}
+
+export interface TimelineScrubClip {
+  clipId: string;
+  trackId: string;
+  startTime: number;
+  clipDuration: number;
+  audioOffset: number;
+  timeStretchRate: number;
+  bufferKey: string;
+}
+
+export interface TimelineScrubTrackState {
+  id: string;
+  volume: number;
+  muted: boolean;
+  soloed: boolean;
+  pan?: number;
+  eqLowGain?: number;
+  eqMidGain?: number;
+  eqHighGain?: number;
+  compressorEnabled?: boolean;
+  compressorThreshold?: number;
+  compressorRatio?: number;
+  reverbMix?: number;
+  reverbRoomSize?: number;
+  parentTrackId?: string | null;
+  isGroup?: boolean;
 }
 
 /**
@@ -105,6 +135,11 @@ export class AudioEngine {
   private readonly scrubGain: GainNode;
   private scrubOscillator: OscillatorNode | null = null;
   private scrubFilter: BiquadFilterNode | null = null;
+  private scrubTimelineSources: AudioBufferSourceNode[] = [];
+  private scrubRequestId = 0;
+  private readonly decodedBufferCache = new Map<string, AudioBuffer>();
+  private readonly decodedBufferPromises = new Map<string, Promise<AudioBuffer | null>>();
+  private scrubTrackStateHash = '';
 
   constructor() {
     this.ctx = new AudioContext({ sampleRate: 48000 });
@@ -282,6 +317,158 @@ export class AudioEngine {
         filter?.disconnect();
       }, 60);
     }
+  }
+
+  private async _getDecodedBuffer(key: string) {
+    const cached = this.decodedBufferCache.get(key);
+    if (cached) return cached;
+
+    const inflight = this.decodedBufferPromises.get(key);
+    if (inflight) return inflight;
+
+    const decodePromise = (async () => {
+      const blob = await loadAudioBlobByKey(key);
+      if (!blob) return null;
+
+      const buffer = await this.decodeAudioData(blob);
+      this.decodedBufferCache.set(key, buffer);
+      return buffer;
+    })();
+
+    this.decodedBufferPromises.set(key, decodePromise);
+
+    try {
+      return await decodePromise;
+    } finally {
+      this.decodedBufferPromises.delete(key);
+    }
+  }
+
+  private _stopTimelineScrubSources() {
+    for (const source of this.scrubTimelineSources) {
+      try { source.stop(); } catch { /* already stopped */ }
+      source.disconnect();
+    }
+    this.scrubTimelineSources = [];
+  }
+
+  private _getScrubTrackStateHash(projectTracks: TimelineScrubTrackState[]) {
+    return JSON.stringify(projectTracks.map((track) => ({
+      id: track.id,
+      volume: track.volume,
+      muted: track.muted,
+      soloed: track.soloed,
+      pan: track.pan ?? 0,
+      eqLowGain: track.eqLowGain ?? 0,
+      eqMidGain: track.eqMidGain ?? 0,
+      eqHighGain: track.eqHighGain ?? 0,
+      compressorEnabled: track.compressorEnabled ?? false,
+      compressorThreshold: track.compressorThreshold ?? -24,
+      compressorRatio: track.compressorRatio ?? 4,
+      reverbMix: track.reverbMix ?? 0,
+      reverbRoomSize: track.reverbRoomSize ?? 0.5,
+      parentTrackId: track.parentTrackId ?? null,
+      isGroup: track.isGroup ?? false,
+    })));
+  }
+
+  private _syncTrackNodesForScrub(projectTracks: TimelineScrubTrackState[]) {
+    for (const track of projectTracks.filter((candidate) => candidate.isGroup)) {
+      this.getOrCreateTrackNode(track.id);
+    }
+
+    for (const track of projectTracks) {
+      const trackNode = this.getOrCreateTrackNode(track.id);
+      trackNode.volume = track.volume;
+      trackNode.muted = track.muted;
+      trackNode.soloed = track.soloed;
+      trackNode.pan = track.pan ?? 0;
+      trackNode.eqLowGain = track.eqLowGain ?? 0;
+      trackNode.eqMidGain = track.eqMidGain ?? 0;
+      trackNode.eqHighGain = track.eqHighGain ?? 0;
+      trackNode.applyCompressor(
+        track.compressorEnabled ?? false,
+        track.compressorThreshold ?? -24,
+        track.compressorRatio ?? 4,
+      );
+      trackNode.setReverb(track.reverbMix ?? 0, track.reverbRoomSize ?? 0.5);
+      this.setTrackGroupRouting(track.id, track.parentTrackId ?? null);
+    }
+
+    this.updateSoloState();
+  }
+
+  private _syncTrackNodesForScrubIfNeeded(projectTracks: TimelineScrubTrackState[]) {
+    const nextHash = this._getScrubTrackStateHash(projectTracks);
+    if (nextHash === this.scrubTrackStateHash) return;
+
+    this._syncTrackNodesForScrub(projectTracks);
+    this.scrubTrackStateHash = nextHash;
+  }
+
+  async startTimelineScrub(
+    projectTracks: TimelineScrubTrackState[],
+    clips: TimelineScrubClip[],
+    time: number,
+    previewRate: number,
+  ) {
+    this._syncTrackNodesForScrubIfNeeded(projectTracks);
+    await this.updateTimelineScrub(projectTracks, clips, time, previewRate);
+  }
+
+  async updateTimelineScrub(
+    projectTracks: TimelineScrubTrackState[],
+    clips: TimelineScrubClip[],
+    time: number,
+    previewRate: number,
+  ) {
+    this.scrubRequestId += 1;
+    const requestId = this.scrubRequestId;
+    this._syncTrackNodesForScrubIfNeeded(projectTracks);
+    this._stopTimelineScrubSources();
+
+    const overlappingClips = clips
+      .filter((clip) => time >= clip.startTime && time <= clip.startTime + clip.clipDuration)
+      .slice(0, 6);
+
+    if (overlappingClips.length === 0) return;
+
+    const scrubPlaybackRate = getScrubPlaybackRate(previewRate);
+    const scrubWindow = getScrubSliceWindow(previewRate);
+    const startedAt = this.ctx.currentTime + 0.003;
+
+    await Promise.all(overlappingClips.map(async (clip) => {
+      const buffer = await this._getDecodedBuffer(clip.bufferKey);
+      if (!buffer || requestId !== this.scrubRequestId) return;
+
+      const trackNode = this.getOrCreateTrackNode(clip.trackId);
+      const source = this.ctx.createBufferSource();
+      const totalPlaybackRate = Math.max(0.25, Math.min(4, scrubPlaybackRate * Math.max(0.1, clip.timeStretchRate)));
+      const sourceOffset = getScrubSourceOffset({
+        clipStartTime: clip.startTime,
+        clipDuration: clip.clipDuration,
+        timelineTime: time,
+        previewRate,
+        audioOffset: clip.audioOffset,
+        timeStretchRate: clip.timeStretchRate,
+      });
+      const maxSourceDuration = Math.max(0, buffer.duration - sourceOffset);
+      const sourceDuration = Math.min(maxSourceDuration, Math.max(0.03, scrubWindow * totalPlaybackRate));
+
+      if (sourceDuration <= 0.001) return;
+
+      source.buffer = buffer;
+      source.playbackRate.value = totalPlaybackRate;
+      source.connect(trackNode.inputGain);
+      source.start(startedAt, sourceOffset, sourceDuration);
+      this.scrubTimelineSources.push(source);
+    }));
+  }
+
+  stopTimelineScrub() {
+    this.scrubRequestId += 1;
+    this._stopTimelineScrubSources();
+    this.scrubTrackStateHash = '';
   }
 
   getOrCreateTrackNode(trackId: string): TrackNode {
@@ -766,6 +953,7 @@ export class AudioEngine {
     this.stopAllSources();
     this.stopMetronome();
     this.stopScrubPreview();
+    this.stopTimelineScrub();
     this.clearMidiEvents();
   }
 
