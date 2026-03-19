@@ -19,6 +19,8 @@ import type {
   TrackEffect,
   TrackEffectType,
   CompressorParams,
+  MidiEffect,
+  MidiEffectType,
   AutomationParameter,
   AutomationPoint,
   AutomationLane,
@@ -168,6 +170,10 @@ interface ProjectState {
   reorderTrackEffect: (trackId: string, fromIndex: number, toIndex: number) => void;
   setSidechainSource: (trackId: string, effectId: string, sourceTrackId: string | undefined) => void;
 
+  // MIDI effects
+  addMidiEffect: (trackId: string, type: MidiEffectType) => string | undefined;
+  removeMidiEffect: (trackId: string, effectId: string) => void;
+
   // Automation
   addAutomationPoint: (trackId: string, parameter: AutomationParameter, point: AutomationPoint) => void;
   removeAutomationPoint: (trackId: string, parameter: AutomationParameter, pointIndex: number) => void;
@@ -279,6 +285,18 @@ function createDefaultTrackEffect(type: TrackEffectType): TrackEffect {
           lfoDepth: 0.25,
         },
       };
+  }
+}
+
+function createDefaultMidiEffect(type: MidiEffectType): MidiEffect {
+  const id = uuidv4();
+  switch (type) {
+    case 'arpeggiator':
+      return { id, type, enabled: true, params: { rate: '1/8', pattern: 'up', octaves: 1 } };
+    case 'chord-gen':
+      return { id, type, enabled: true, params: { chordType: 'major', inversion: 0 } };
+    case 'scale-lock':
+      return { id, type, enabled: true, params: { root: 0, scale: 'major' } };
   }
 }
 
@@ -2024,6 +2042,45 @@ export const useProjectStore = create<ProjectState>()(
       },
     });
   },
+
+  // ─── MIDI Effects ──────────────────────────────────────────────────────────
+
+  addMidiEffect: (trackId, type) => {
+    const state = get();
+    if (!state.project) return undefined;
+    const effect = createDefaultMidiEffect(type);
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((track) =>
+          track.id === trackId
+            ? { ...track, midiEffects: [...(track.midiEffects ?? []), effect] }
+            : track,
+        ),
+      },
+    });
+    return effect.id;
+  },
+
+  removeMidiEffect: (trackId, effectId) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((track) =>
+          track.id === trackId
+            ? { ...track, midiEffects: (track.midiEffects ?? []).filter((e) => e.id !== effectId) }
+            : track,
+        ),
+      },
+    });
+  },
+
   // ─── Automation ───────────────────────────────────────────────────────────
 
   addAutomationPoint: (trackId, parameter, point) => {
