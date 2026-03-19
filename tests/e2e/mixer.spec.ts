@@ -5,8 +5,12 @@ test.describe('Mixer Operations', () => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
     await page.waitForFunction(() => typeof (window as any).__store !== 'undefined', null, { timeout: 10000 });
+    await page.waitForFunction(() => typeof (window as any).__uiStore !== 'undefined', null, { timeout: 10000 });
+    await page.waitForFunction(() => typeof (window as any).__getAudioEngine === 'function', null, { timeout: 10000 });
     await page.evaluate(() => {
       const store = (window as any).__store;
+      const uiStore = (window as any).__uiStore;
+      uiStore.getState().setShowNewProjectDialog(false);
       store.getState().createProject({ name: 'Mixer Test' });
       store.getState().addTrack('drums');
       store.getState().addTrack('bass');
@@ -136,5 +140,47 @@ test.describe('Mixer Operations', () => {
     expect(layout!.controlsScrollable).toBe(true);
 
     await page.screenshot({ path: 'test-screenshots/issue-296-master-layout.png', fullPage: true });
+  });
+
+  test('shows and resets the track clip indicator', async ({ page }) => {
+    const trackId = await page.evaluate(() => {
+      const store = (window as any).__store;
+      const uiStore = (window as any).__uiStore;
+      const engine = (window as any).__getAudioEngine();
+
+      let rafId = 0;
+      (window as any).requestAnimationFrame = (cb: FrameRequestCallback) => {
+        const id = ++rafId;
+        window.setTimeout(() => cb(performance.now()), 16);
+        return id;
+      };
+      (window as any).cancelAnimationFrame = () => {};
+
+      uiStore.getState().setShowMixer(true);
+
+      const firstTrackId = store.getState().project?.tracks[0]?.id;
+      let clipped = true;
+      engine.getTrackMeter = (id: string) => (
+        id === firstTrackId
+          ? { level: clipped ? 1 : 0.25, clipped }
+          : { level: 0, clipped: false }
+      );
+      engine.resetTrackClip = (id: string) => {
+        if (id === firstTrackId) clipped = false;
+      };
+
+      return firstTrackId;
+    });
+
+    await expect(page.getByLabel(`Track level meter for ${trackId}`)).toBeVisible();
+
+    const resetButton = page.getByRole('button', { name: `Reset clip indicator for ${trackId}` });
+    await expect(resetButton).toBeVisible();
+    const enableAudioOverlay = page.getByText('Click anywhere to enable audio');
+    if (await enableAudioOverlay.isVisible()) {
+      await enableAudioOverlay.click();
+    }
+    await resetButton.click();
+    await expect(resetButton).toBeHidden();
   });
 });

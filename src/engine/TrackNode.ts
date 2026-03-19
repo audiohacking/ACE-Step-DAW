@@ -22,6 +22,7 @@ export class TrackNode {
   private readonly analyserNode: AnalyserNode;
   private readonly analyserData: Uint8Array<ArrayBuffer>;
   private readonly analyserFloatData: Float32Array<ArrayBuffer>;
+  private readonly analyserTimeDomainData: Float32Array<ArrayBuffer>;
 
   private _volume = 0.8;
   private _muted = false;
@@ -31,6 +32,9 @@ export class TrackNode {
   private _reverbRoomSize = 0.5;
   private _effectsInput: AudioNode | null = null;
   private _effectsOutput: AudioNode | null = null;
+  private _clipped = false;
+
+  private static readonly CLIP_THRESHOLD = 0.995;
 
   constructor(private ctx: AudioContext, destination: AudioNode) {
     this.inputGain  = ctx.createGain();
@@ -49,6 +53,7 @@ export class TrackNode {
     this.analyserNode.smoothingTimeConstant = 0.75;
     this.analyserData = new Uint8Array(this.analyserNode.frequencyBinCount);
     this.analyserFloatData = new Float32Array(this.analyserNode.frequencyBinCount);
+    this.analyserTimeDomainData = new Float32Array(this.analyserNode.fftSize);
 
     // Configure EQ defaults
     this.eqLow.type = 'lowshelf';
@@ -173,16 +178,36 @@ export class TrackNode {
   }
 
   getLevel(): number {
-    this.analyserNode.getByteFrequencyData(this.analyserData);
+    return this.getMeter().level;
+  }
 
-    let peak = 0;
+  getMeter(): { level: number; clipped: boolean } {
+    this.analyserNode.getByteFrequencyData(this.analyserData);
+    this.analyserNode.getFloatTimeDomainData(this.analyserTimeDomainData);
+
+    let spectralPeak = 0;
     for (let i = 0; i < this.analyserData.length; i++) {
-      if (this.analyserData[i] > peak) {
-        peak = this.analyserData[i];
+      if (this.analyserData[i] > spectralPeak) {
+        spectralPeak = this.analyserData[i];
       }
     }
 
-    return peak / 255;
+    let samplePeak = 0;
+    for (let i = 0; i < this.analyserTimeDomainData.length; i++) {
+      const abs = Math.abs(this.analyserTimeDomainData[i]);
+      if (abs > samplePeak) samplePeak = abs;
+    }
+
+    const level = Math.max(spectralPeak / 255, samplePeak);
+    if (samplePeak >= TrackNode.CLIP_THRESHOLD) {
+      this._clipped = true;
+    }
+
+    return { level: Math.max(0, Math.min(1, level)), clipped: this._clipped };
+  }
+
+  resetClip() {
+    this._clipped = false;
   }
 
   getSpectrumData(): Float32Array<ArrayBuffer> {

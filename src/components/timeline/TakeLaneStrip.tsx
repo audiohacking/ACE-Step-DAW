@@ -35,7 +35,7 @@ export function TakeLaneStrip({ clip, track }: TakeLaneStripProps) {
             className={`flex w-full items-center justify-between rounded-md border px-2 py-1 text-[11px] transition-colors ${
               take.selected
                 ? 'border-emerald-500/70 bg-emerald-500/10 text-emerald-100'
-                : 'border-[#303030] bg-[#202020] text-zinc-300 hover:border-[#5a5a5a]'
+                : 'border-[#303030] bg-[#202020] text-zinc-300 hover:border-[#5a5a5a] hover:bg-[#262626]'
             }`}
             aria-label={`Select take ${index + 1} for ${track.displayName}${take.selected ? ', selected' : ''}`}
           >

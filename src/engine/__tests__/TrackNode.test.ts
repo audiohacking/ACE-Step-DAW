@@ -172,4 +172,36 @@ describe('TrackNode', () => {
       expect(param.cancelCalls.length).toBeGreaterThanOrEqual(1);
     });
   });
+
+  describe('meter clipping', () => {
+    function setMeterSamples(samples: number[]) {
+      const analyser = (node as unknown as { analyserNode: {
+        getByteFrequencyData: (data: Uint8Array) => void;
+        getFloatTimeDomainData: (data: Float32Array) => void;
+      } }).analyserNode;
+
+      analyser.getByteFrequencyData = vi.fn((data: Uint8Array) => {
+        data.fill(0);
+      });
+      analyser.getFloatTimeDomainData = vi.fn((data: Float32Array) => {
+        data.fill(0);
+        samples.forEach((sample, index) => {
+          if (index < data.length) data[index] = sample;
+        });
+      });
+    }
+
+    it('latches the clip state until resetClip is called', () => {
+      setMeterSamples([1]);
+
+      expect(node.getMeter()).toEqual({ level: 1, clipped: true });
+
+      setMeterSamples([0.25]);
+      expect(node.getMeter()).toEqual({ level: 0.25, clipped: true });
+
+      node.resetClip();
+
+      expect(node.getMeter()).toEqual({ level: 0.25, clipped: false });
+    });
+  });
 });

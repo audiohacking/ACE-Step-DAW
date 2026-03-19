@@ -62,6 +62,10 @@ export class AudioEngine {
   private readonly widthRightToRight: GainNode;
   private readonly masterInputAnalyserData: Uint8Array<ArrayBuffer>;
   private readonly masterOutputAnalyserData: Uint8Array<ArrayBuffer>;
+  private readonly masterInputTimeDomainData: Float32Array<ArrayBuffer>;
+  private readonly masterOutputTimeDomainData: Float32Array<ArrayBuffer>;
+  private masterInputClipped = false;
+  private masterOutputClipped = false;
 
   // High-resolution spectrum analyser for the SpectrumAnalyzer component & LUFS metering
   private readonly spectrumAnalyser: AnalyserNode;
@@ -133,6 +137,8 @@ export class AudioEngine {
     this.masterOutputAnalyser.smoothingTimeConstant = 0.6;
     this.masterInputAnalyserData = new Uint8Array(this.masterInputAnalyser.frequencyBinCount);
     this.masterOutputAnalyserData = new Uint8Array(this.masterOutputAnalyser.frequencyBinCount);
+    this.masterInputTimeDomainData = new Float32Array(this.masterInputAnalyser.fftSize);
+    this.masterOutputTimeDomainData = new Float32Array(this.masterOutputAnalyser.fftSize);
 
     // High-resolution spectrum analyser (connected after limiter, before output)
     this.spectrumAnalyser = this.ctx.createAnalyser();
@@ -208,7 +214,15 @@ export class AudioEngine {
   set masterVolume(v: number) { this.masterOutputGain.gain.value = Math.max(0, Math.min(2, v)); }
 
   getTrackLevel(trackId: string): number {
-    return this.trackNodes.get(trackId)?.getLevel() ?? 0;
+    return this.getTrackMeter(trackId).level;
+  }
+
+  getTrackMeter(trackId: string): { level: number; clipped: boolean } {
+    return this.trackNodes.get(trackId)?.getMeter() ?? { level: 0, clipped: false };
+  }
+
+  resetTrackClip(trackId: string) {
+    this.trackNodes.get(trackId)?.resetClip();
   }
 
   getTrackSpectrum(trackId: string): Float32Array<ArrayBuffer> | null {
@@ -216,10 +230,31 @@ export class AudioEngine {
   }
 
   getMasterLevel(stage: 'input' | 'output'): number {
-    return this._getAnalyserLevel(
+    return this.getMasterMeter(stage).level;
+  }
+
+  getMasterMeter(stage: 'input' | 'output'): { level: number; clipped: boolean } {
+    const liveMeter = this._readAnalyserMeter(
       stage === 'input' ? this.masterInputAnalyser : this.masterOutputAnalyser,
       stage === 'input' ? this.masterInputAnalyserData : this.masterOutputAnalyserData,
+      stage === 'input' ? this.masterInputTimeDomainData : this.masterOutputTimeDomainData,
     );
+
+    if (stage === 'input') {
+      this.masterInputClipped = this.masterInputClipped || liveMeter.clipped;
+      return { level: liveMeter.level, clipped: this.masterInputClipped };
+    }
+
+    this.masterOutputClipped = this.masterOutputClipped || liveMeter.clipped;
+    return { level: liveMeter.level, clipped: this.masterOutputClipped };
+  }
+
+  resetMasterClip(stage: 'input' | 'output') {
+    if (stage === 'input') {
+      this.masterInputClipped = false;
+      return;
+    }
+    this.masterOutputClipped = false;
   }
 
   /** Get high-resolution spectrum data (dB) for the master output. */
@@ -274,13 +309,29 @@ export class AudioEngine {
     this.widthRightToRight.gain.value = same;
   }
 
-  private _getAnalyserLevel(analyser: AnalyserNode, data: Uint8Array<ArrayBuffer>): number {
+  private _readAnalyserMeter(
+    analyser: AnalyserNode,
+    data: Uint8Array<ArrayBuffer>,
+    timeData: Float32Array<ArrayBuffer>,
+  ): { level: number; clipped: boolean } {
     analyser.getByteFrequencyData(data);
-    let peak = 0;
+    analyser.getFloatTimeDomainData(timeData);
+
+    let spectralPeak = 0;
     for (let i = 0; i < data.length; i++) {
-      if (data[i] > peak) peak = data[i];
+      if (data[i] > spectralPeak) spectralPeak = data[i];
     }
-    return peak / 255;
+
+    let samplePeak = 0;
+    for (let i = 0; i < timeData.length; i++) {
+      const abs = Math.abs(timeData[i]);
+      if (abs > samplePeak) samplePeak = abs;
+    }
+
+    return {
+      level: Math.max(0, Math.min(1, Math.max(spectralPeak / 255, samplePeak))),
+      clipped: samplePeak >= 0.995,
+    };
   }
 
   updateSoloState() {

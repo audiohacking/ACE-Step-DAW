@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
+import { getAudioEngine } from './hooks/useAudioEngine';
 import { useProjectStore } from './store/projectStore';
 import { useUIStore } from './store/uiStore';
 import { useTransportStore } from './store/transportStore';
@@ -14,6 +15,7 @@ import { generateProjectSummary, generateProjectStructure } from './utils/dawSta
 (window as unknown as Record<string, unknown>).__uiStore = useUIStore;
 (window as unknown as Record<string, unknown>).__transportStore = useTransportStore;
 (window as unknown as Record<string, unknown>).__collaborationStore = useCollaborationStore;
+(window as unknown as Record<string, unknown>).__getAudioEngine = () => getAudioEngine();
 
 // Expose DAW state summary for LLM agents
 // Agents can call: window.__dawSummary() for natural language, window.__dawStructure() for JSON
