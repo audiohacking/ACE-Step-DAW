@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Track, InputMonitoringMode } from '../../types/project';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
@@ -49,6 +49,8 @@ export function TrackHeader({
   const [heightSubmenu, setHeightSubmenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isFreezing, setIsFreezing] = useState(false);
+  const [showOverflowActions, setShowOverflowActions] = useState(false);
+  const overflowMenuRef = useRef<HTMLDivElement>(null);
 
   const handleFreeze = useCallback(async () => {
     if (track.frozen) {
@@ -131,8 +133,37 @@ export function TrackHeader({
   const handleHeaderContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setShowOverflowActions(false);
     setCtxMenu({ x: e.clientX, y: e.clientY });
   }, []);
+
+  useEffect(() => {
+    if (!showOverflowActions) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!overflowMenuRef.current?.contains(event.target as Node)) {
+        setShowOverflowActions(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowOverflowActions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showOverflowActions]);
+
+  const hasAutomationLane = (useProjectStore.getState().project?.automationLanes ?? []).some((l) => l.trackId === track.id);
+  const baseIconButtonClass = 'h-6 w-6 rounded-md border border-transparent flex items-center justify-center transition-all duration-100 focus:outline-none focus:ring-1 focus:ring-daw-accent/80';
+  const defaultIconButtonClass = 'text-zinc-400 hover:text-zinc-100 hover:bg-[#444]';
+  const secondaryIconButtonClass = `${baseIconButtonClass} bg-[#202020] hover:bg-[#2a2a2a]`;
 
   return (
     <>
@@ -237,17 +268,18 @@ export function TrackHeader({
         )}
       </div>
 
-      {/* M/S/Delete buttons */}
-      <div className="flex items-center gap-px flex-shrink-0">
+      {/* Primary transport buttons */}
+      <div className="relative flex items-center gap-1 flex-shrink-0" ref={overflowMenuRef}>
         {/* Mute - speaker icon */}
         <button
           onClick={() => updateTrack(track.id, { muted: !track.muted })}
-          className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
+          className={`${baseIconButtonClass} ${
             track.muted
               ? 'bg-amber-600/90 text-white'
-              : 'text-zinc-500 hover:text-zinc-300 hover:bg-[#444]'
+              : defaultIconButtonClass
           }`}
           title="Mute (M)"
+          aria-label={`Mute ${track.displayName}`}
         >
           <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             {track.muted ? (
@@ -266,21 +298,22 @@ export function TrackHeader({
         {/* Solo - headphone icon */}
         <button
           onClick={() => updateTrack(track.id, { soloed: !track.soloed })}
-          className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
+          className={`${baseIconButtonClass} ${
             track.soloed
               ? 'bg-emerald-600/90 text-white'
-              : 'text-zinc-500 hover:text-zinc-300 hover:bg-[#444]'
+              : defaultIconButtonClass
           }`}
           title="Solo (S)"
+          aria-label={`Solo ${track.displayName}`}
         >
-          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+          <svg data-testid="track-solo-icon" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
             <path d="M2 5.5a4 4 0 018 0" />
             <path d="M2 5.5v2a1 1 0 001 1h1v-3H2zM10 5.5v2a1 1 0 01-1 1H8v-3h2z" fill={track.soloed ? 'currentColor' : 'none'} />
           </svg>
         </button>
         <button
           onClick={(e) => toggleArmTrack(track.id, !(e.metaKey || e.ctrlKey))}
-          className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
+          className={`${baseIconButtonClass} ${
             isArmed
               ? 'bg-red-600/90 text-white'
               : 'text-red-400 hover:text-red-300 hover:bg-[#444]'
@@ -292,88 +325,121 @@ export function TrackHeader({
             <circle cx="6" cy="6" r="3.25" fill={isArmed ? 'currentColor' : 'none'} />
           </svg>
         </button>
-        {/* Input monitoring — cycles off → auto → on */}
         <button
-          onClick={cycleMonitor}
-          className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
-            monitorMode === 'on'
-              ? 'bg-cyan-600/90 text-white'
-              : monitorMode === 'auto'
-                ? 'bg-cyan-600/50 text-cyan-200'
-                : 'text-zinc-500 hover:text-cyan-400 hover:bg-[#444]'
-          }`}
-          title={`Input monitoring: ${monitorMode} (click to cycle off→auto→on)`}
-          aria-label={`Input monitoring ${track.displayName}: ${monitorMode}`}
-        >
-          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-            <path d="M2 7V6a4 4 0 018 0v1" />
-            <rect x="1" y="7" width="2.5" height="3" rx="0.5" fill={monitorMode !== 'off' ? 'currentColor' : 'none'} />
-            <rect x="8.5" y="7" width="2.5" height="3" rx="0.5" fill={monitorMode !== 'off' ? 'currentColor' : 'none'} />
-          </svg>
-        </button>
-        {/* Freeze toggle */}
-        <button
-          onClick={handleFreeze}
-          disabled={isFreezing}
-          className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${
-            track.frozen
-              ? 'bg-cyan-600/90 text-white'
-              : isFreezing
-                ? 'text-cyan-400 animate-pulse'
-                : 'text-zinc-500 hover:text-cyan-400 hover:bg-[#444]'
-          }`}
-          title={track.frozen ? 'Unfreeze Track' : 'Freeze Track'}
-          aria-label={`${track.frozen ? 'Unfreeze' : 'Freeze'} ${track.displayName}`}
-        >
-          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
-            <path d="M6 1v10M1 6h10M3 3l6 6M9 3L3 9" />
-          </svg>
-        </button>
-        {/* Automation toggle */}
-        <button
-          onClick={() => {
-            const project = useProjectStore.getState().project;
-            if (!project) return;
-            const hasLane = (project.automationLanes ?? []).some((l) => l.trackId === track.id);
-            if (!hasLane) {
-              // Create a default volume automation lane with 2 points
-              useProjectStore.getState().addAutomationPoint(
-                track.id,
-                { type: 'mixer', param: 'volume' },
-                { time: 0, value: track.volume },
-              );
-              useProjectStore.getState().addAutomationPoint(
-                track.id,
-                { type: 'mixer', param: 'volume' },
-                { time: project.totalDuration, value: track.volume },
-              );
-            } else {
-              // Clear all automation for this track
-              for (const lane of (project.automationLanes ?? []).filter((l) => l.trackId === track.id)) {
-                useProjectStore.getState().clearAutomationLane(track.id, lane.parameter);
-              }
-            }
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowOverflowActions((prev) => !prev);
           }}
-          className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-bold transition-colors ${
-            (useProjectStore.getState().project?.automationLanes ?? []).some((l) => l.trackId === track.id)
-              ? 'bg-amber-600/80 text-white'
-              : 'text-zinc-500 hover:text-amber-400 hover:bg-[#444]'
-          }`}
-          title="Toggle automation lane (A)"
-          aria-label={`Toggle automation ${track.displayName}`}
+          className={`${baseIconButtonClass} ${defaultIconButtonClass}`}
+          title="More track actions"
+          aria-label={`More track actions ${track.displayName}`}
+          aria-haspopup="menu"
+          aria-expanded={showOverflowActions}
         >
-          A
-        </button>
-        {/* Delete - hidden by default, visible on hover */}
-        <button
-          onClick={() => removeTrack(track.id)}
-          className="w-5 h-5 flex items-center justify-center rounded text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-          title="Remove track"
-        >
-          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <path d="M1 1l6 6M7 1L1 7" />
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+            <circle cx="2" cy="6" r="1" />
+            <circle cx="6" cy="6" r="1" />
+            <circle cx="10" cy="6" r="1" />
           </svg>
         </button>
+        {showOverflowActions && (
+          <div
+            className="absolute right-0 top-[calc(100%+6px)] z-30 flex items-center gap-1 rounded-lg border border-[#4a4a4a] bg-[#1f1f1f] p-1 shadow-2xl"
+            role="menu"
+            aria-label={`Secondary track actions ${track.displayName}`}
+          >
+            <button
+              onClick={() => {
+                cycleMonitor();
+                setShowOverflowActions(false);
+              }}
+              className={`${secondaryIconButtonClass} ${
+                monitorMode === 'on'
+                  ? 'bg-cyan-600/90 text-white'
+                  : monitorMode === 'auto'
+                    ? 'bg-cyan-600/50 text-cyan-100'
+                    : 'text-zinc-400 hover:text-cyan-300'
+              }`}
+              title={`Input monitoring: ${monitorMode} (click to cycle off→auto→on)`}
+              aria-label={`Input monitoring ${track.displayName}: ${monitorMode}`}
+              role="menuitem"
+            >
+              <svg data-testid="track-input-monitor-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="1.5" width="4" height="6" rx="2" fill={monitorMode === 'off' ? 'none' : 'currentColor'} />
+                <path d="M2.5 5.5a3.5 3.5 0 007 0" />
+                <path d="M6 8.5v2" />
+                <path d="M4.5 10.5h3" />
+              </svg>
+            </button>
+            <button
+              onClick={() => {
+                void handleFreeze();
+                setShowOverflowActions(false);
+              }}
+              disabled={isFreezing}
+              className={`${secondaryIconButtonClass} ${
+                track.frozen
+                  ? 'bg-cyan-600/90 text-white'
+                  : isFreezing
+                    ? 'text-cyan-400 animate-pulse'
+                    : 'text-zinc-400 hover:text-cyan-300'
+              }`}
+              title={track.frozen ? 'Unfreeze Track' : 'Freeze Track'}
+              aria-label={`${track.frozen ? 'Unfreeze' : 'Freeze'} ${track.displayName}`}
+              role="menuitem"
+            >
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+                <path d="M6 1v10M1 6h10M3 3l6 6M9 3L3 9" />
+              </svg>
+            </button>
+            <button
+              onClick={() => {
+                const project = useProjectStore.getState().project;
+                if (!project) return;
+                if (!hasAutomationLane) {
+                  useProjectStore.getState().addAutomationPoint(
+                    track.id,
+                    { type: 'mixer', param: 'volume' },
+                    { time: 0, value: track.volume },
+                  );
+                  useProjectStore.getState().addAutomationPoint(
+                    track.id,
+                    { type: 'mixer', param: 'volume' },
+                    { time: project.totalDuration, value: track.volume },
+                  );
+                } else {
+                  for (const lane of (project.automationLanes ?? []).filter((l) => l.trackId === track.id)) {
+                    useProjectStore.getState().clearAutomationLane(track.id, lane.parameter);
+                  }
+                }
+                setShowOverflowActions(false);
+              }}
+              className={`${secondaryIconButtonClass} ${
+                hasAutomationLane ? 'bg-amber-600/80 text-white' : 'text-zinc-400 hover:text-amber-300'
+              } text-[10px] font-bold`}
+              title="Toggle automation lane (A)"
+              aria-label={`Toggle automation ${track.displayName}`}
+              role="menuitem"
+            >
+              A
+            </button>
+            <button
+              onClick={() => {
+                removeTrack(track.id);
+                setShowOverflowActions(false);
+              }}
+              className={`${secondaryIconButtonClass} text-zinc-500 hover:text-red-400`}
+              title="Remove track"
+              aria-label={`Remove ${track.displayName}`}
+              role="menuitem"
+            >
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M1 1l6 6M7 1L1 7" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Bottom-edge height resize handle */}
