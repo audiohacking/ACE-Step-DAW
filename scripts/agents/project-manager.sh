@@ -1,64 +1,82 @@
 #!/bin/bash
 # Project Manager — Intelligent Agent Orchestrator
-# Runs as a dedicated Claude Code CLI brain, not just a bash script
+# PRIORITY ORDER: 1) Merge ready PRs  2) Balance team  3) Trigger maintenance
 set -e
 cd /Users/junmingong/.openclaw/workspace/acestep-daw
 REPO="ace-step/ACE-Step-DAW"
 
-# Gather state
-OPEN_ISSUES=$(gh issue list --repo $REPO --state open --json number,title,labels --jq '.')
-OPEN_PRS=$(gh pr list --repo $REPO --state open --json number,title,isDraft,mergeable,statusCheckRollup --jq '.')
-RECENT_MERGED=$(gh pr list --repo $REPO --state merged --limit 5 --json number,title,mergedAt --jq '.')
+echo "=== PM Brain $(date) ==="
+
+##############################################
+# STEP 1: MERGE — Always check first
+##############################################
+echo "--- Step 1: Merge ready PRs ---"
+READY_PRS=$(gh pr list --repo $REPO --state open --json number,isDraft,mergeable --jq '.[] | select(.isDraft==false) | "\(.number) \(.mergeable)"')
+MERGED_COUNT=0
+echo "$READY_PRS" | while read -r NUM MERGEABLE; do
+  [ -z "$NUM" ] && continue
+  if [ "$MERGEABLE" = "MERGEABLE" ]; then
+    # Check CI
+    FAIL_COUNT=$(gh pr checks $NUM --repo $REPO 2>&1 | grep -c "fail" || true)
+    PENDING_COUNT=$(gh pr checks $NUM --repo $REPO 2>&1 | grep -c "pending" || true)
+    if [ "$FAIL_COUNT" = "0" ] && [ "$PENDING_COUNT" = "0" ]; then
+      echo "  ✅ Merging PR #$NUM"
+      gh pr merge $NUM --repo $REPO --squash --admin 2>/dev/null || true
+      MERGED_COUNT=$((MERGED_COUNT + 1))
+    else
+      echo "  ⏳ PR #$NUM: CI pending or failed"
+    fi
+  elif [ "$MERGEABLE" = "CONFLICTING" ]; then
+    echo "  ⚠️ PR #$NUM: CONFLICT — launching rebase agent"
+    BRANCH=$(gh pr view $NUM --repo $REPO --json headRefName --jq .headRefName)
+    ~/.local/bin/claude --print --permission-mode bypassPermissions \
+      "cd /Users/junmingong/.openclaw/workspace/acestep-daw && git fetch origin && git checkout $BRANCH && git rebase origin/main && git push --force-with-lease origin $BRANCH && git checkout main" &
+  fi
+done
+
+##############################################
+# STEP 2: BALANCE — Adjust team size
+##############################################
+echo "--- Step 2: Balance team ---"
+OPEN_ISSUES=$(gh issue list --repo $REPO --state open --json number --jq length)
+OPEN_PRS=$(gh pr list --repo $REPO --state open --json number --jq length)
 RUNNING_CLI=$(ps aux | grep 'claude.*print' | grep -v grep | wc -l | tr -d ' ')
 
-# Launch the PM brain as Claude Code CLI — it makes all decisions
-~/.local/bin/claude --print --permission-mode bypassPermissions --allowedTools 'Edit,Write,Read,Bash,WebSearch,WebFetch' \
-  "You are the Project Manager for ACE-Step DAW. You are the brain of the entire agent team.
+echo "  Issues: $OPEN_ISSUES | PRs: $OPEN_PRS | CLI: $RUNNING_CLI"
 
-Current state:
-- Open issues: $OPEN_ISSUES
-- Open PRs: $OPEN_PRS  
-- Recently merged: $RECENT_MERGED
-- Running CLI agents: $RUNNING_CLI
+if [ "$OPEN_ISSUES" -lt 3 ]; then
+  echo "  → Issues low: launching Researcher + PM to create more"
+  bash scripts/agents/researcher.sh &
+  bash scripts/agents/product-manager-review.sh &
+elif [ "$OPEN_ISSUES" -gt 5 ] && [ "$RUNNING_CLI" -lt 3 ]; then
+  echo "  → Issues high, devs low: launching developers"
+  TOP_ISSUES=$(gh issue list --repo $REPO --state open --label "role: developer" --json number,title --jq '.[0:3][] | .number')
+  for NUM in $TOP_ISSUES; do
+    TITLE=$(gh issue view $NUM --repo $REPO --json title --jq .title)
+    echo "    Launching dev for #$NUM: $TITLE"
+    ~/.local/bin/claude --print --permission-mode bypassPermissions \
+      "Implement issue #$NUM ($TITLE) in /Users/junmingong/.openclaw/workspace/acestep-daw. git fetch origin && git reset --hard origin/main. Build, test, create PR." &
+    sleep 2
+  done
+fi
 
-Your decisions:
-
-1. MERGE ready PRs: For each non-draft PR where all CI checks pass and mergeable=MERGEABLE:
-   gh pr merge NUMBER --squash --admin --repo $REPO
-
-2. FIX failing PRs: For PRs with CI failures, checkout the branch, fix errors, push.
-
-3. REBASE conflicting PRs: checkout branch, git rebase origin/main, fix conflicts, push --force-with-lease.
-
-4. CLOSE duplicates: If multiple PRs solve the same issue, keep the best one.
-
-5. BALANCE the team:
-   - Count open issues vs running developers
-   - If issues > developers * 2: launch more devs (print the commands)
-   - If issues < 3: identify features we're missing vs Ableton/Logic, create new issues
-   - If PRs waiting review > 3: prioritize reviewing over new development
-
-6. QA direction: Check if recently merged PRs have QA tests. If not, create test issues.
-
-7. Update docs/design/UX_IMPROVEMENT_CHECKLIST.md with completed items.
-
-Make your decisions and execute them. Print a summary."
-
-# Periodic: trigger refactorer (every ~20 PRs merged)
+##############################################
+# STEP 3: MAINTENANCE — Refactor + Release
+##############################################
 TOTAL_COMMITS=$(git rev-list --count HEAD)
-if [ $((TOTAL_COMMITS % 20)) -eq 0 ]; then
-  echo "DECISION: Triggering refactorer (every 20 commits)"
+LAST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -1)
+
+if [ $((TOTAL_COMMITS % 20)) -eq 0 ] 2>/dev/null; then
+  echo "--- Step 3a: Triggering refactorer ---"
   bash scripts/agents/refactorer.sh &
 fi
 
-# Release evaluation: check if enough features accumulated
-LAST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -1)
 if [ -n "$LAST_TAG" ]; then
-  COMMITS_SINCE=$(git log ${LAST_TAG}..HEAD --oneline | wc -l | tr -d ' ')
   FEATS_SINCE=$(git log ${LAST_TAG}..HEAD --oneline --grep='feat:' | wc -l | tr -d ' ')
-  echo "Since $LAST_TAG: $COMMITS_SINCE commits, $FEATS_SINCE features"
   if [ "$FEATS_SINCE" -ge 5 ]; then
-    echo "DECISION: Enough features for release → launching Release Manager"
+    echo "--- Step 3b: $FEATS_SINCE features since $LAST_TAG → Release eval ---"
     bash scripts/agents/release-manager.sh &
   fi
 fi
+
+echo "=== PM Done ==="
