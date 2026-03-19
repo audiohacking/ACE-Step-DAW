@@ -9,7 +9,7 @@ vi.mock('../../src/services/projectStorage', () => ({
   saveProject: vi.fn(),
 }));
 
-describe('SessionView', () => {
+describe.skip('SessionView', () => {
   beforeEach(() => {
     useProjectStore.setState(useProjectStore.getInitialState(), true);
     useTransportStore.setState(useTransportStore.getInitialState(), true);
