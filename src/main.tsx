@@ -8,6 +8,7 @@ import { useUIStore } from './store/uiStore';
 import { useTransportStore } from './store/transportStore';
 import { useCollaborationStore } from './store/collaborationStore';
 import { useShortcutsStore } from './store/shortcutsStore';
+import { useGenerationStore } from './store/generationStore';
 import { generateProjectSummary, generateProjectStructure } from './utils/dawStateSummary';
 import { getMidiCaptureService } from './services/midiCaptureService';
 
@@ -18,6 +19,7 @@ import { getMidiCaptureService } from './services/midiCaptureService';
 (window as unknown as Record<string, unknown>).__assistantStore = useUIStore;
 (window as unknown as Record<string, unknown>).__transportStore = useTransportStore;
 (window as unknown as Record<string, unknown>).__collaborationStore = useCollaborationStore;
+(window as unknown as Record<string, unknown>).__generationStore = useGenerationStore;
 (window as unknown as Record<string, unknown>).__getAudioEngine = () => getAudioEngine();
 (window as unknown as Record<string, unknown>).__shortcutsStore = useShortcutsStore;
 
