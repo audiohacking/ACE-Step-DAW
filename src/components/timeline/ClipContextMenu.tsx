@@ -17,12 +17,15 @@ interface ClipContextMenuProps {
   onSeparateStems: () => void;
   onConvertToMidi: () => void;
   onCreateQuickSampler: () => void;
+  onQuantizeAudio: () => void;
+  onClearAudioQuantize: () => void;
   onClose: () => void;
   hasPrompt: boolean;
   isReady: boolean;
   isMidiClip: boolean;
   isVocalTrack: boolean;
   hasAudio: boolean;
+  hasWarpMarkers: boolean;
   canConsolidate: boolean;
 }
 
@@ -45,12 +48,15 @@ export function ClipContextMenu({
   onSeparateStems,
   onConvertToMidi,
   onCreateQuickSampler,
+  onQuantizeAudio,
+  onClearAudioQuantize,
   onClose,
   hasPrompt,
   isReady,
   isMidiClip,
   isVocalTrack,
   hasAudio,
+  hasWarpMarkers,
   canConsolidate,
 }: ClipContextMenuProps) {
   const clampedX = Math.min(x, window.innerWidth - 210);
@@ -121,6 +127,14 @@ export function ClipContextMenu({
             <button onClick={onCreateQuickSampler} className="w-full text-left px-3 py-1.5 text-[11px] text-orange-300 hover:bg-daw-accent hover:text-white transition-colors">
               Create Quick Sampler
             </button>
+            <button onClick={onQuantizeAudio} className="w-full text-left px-3 py-1.5 text-[11px] text-teal-300 hover:bg-daw-accent hover:text-white transition-colors">
+              Quantize Audio
+            </button>
+            {hasWarpMarkers && (
+              <button onClick={onClearAudioQuantize} className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-400 hover:bg-daw-accent hover:text-white transition-colors">
+                Clear Audio Quantize
+              </button>
+            )}
           </>
         )}
 

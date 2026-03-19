@@ -64,6 +64,8 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const snapClipEdgeToZeroCrossing = useProjectStore((s) => s.snapClipEdgeToZeroCrossing);
   const convertAudioToMidi = useProjectStore((s) => s.convertAudioToMidi);
   const createQuickSamplerFromClip = useProjectStore((s) => s.createQuickSamplerFromClip);
+  const applyAudioQuantize = useProjectStore((s) => s.applyAudioQuantize);
+  const clearAudioQuantize = useProjectStore((s) => s.clearAudioQuantize);
   const exportMidiClip = useProjectStore((s) => s.exportMidiClip);
   const batchDuplicateClips = useProjectStore((s) => s.batchDuplicateClips);
   const batchMoveClips = useProjectStore((s) => s.batchMoveClips);
@@ -630,12 +632,21 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
               useUIStore.getState().setOpenPianoRoll(samplerTrack.id);
             }
           }}
+          onQuantizeAudio={() => {
+            closeCtxMenu();
+            applyAudioQuantize(clip.id);
+          }}
+          onClearAudioQuantize={() => {
+            closeCtxMenu();
+            clearAudioQuantize(clip.id);
+          }}
           onClose={closeCtxMenu}
           hasPrompt={!!clip.prompt}
           isReady={clip.generationStatus === 'ready'}
           isMidiClip={isMidiClip}
           isVocalTrack={track.trackName === 'vocals' || track.trackName === 'backing_vocals'}
           hasAudio={!!(clip.isolatedAudioKey || clip.cumulativeMixKey)}
+          hasWarpMarkers={!!(clip.warpMarkers && clip.warpMarkers.length > 0)}
           canConsolidate={canConsolidate}
         />
       )}
