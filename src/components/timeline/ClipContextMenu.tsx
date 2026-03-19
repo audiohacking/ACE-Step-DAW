@@ -12,11 +12,13 @@ interface ClipContextMenuProps {
   onRepaint: () => void;
   onVocal2BGM: () => void;
   onAnalyze: () => void;
+  onConvertToMidi: () => void;
   onClose: () => void;
   hasPrompt: boolean;
   isReady: boolean;
   isMidiClip: boolean;
   isVocalTrack: boolean;
+  hasAudio: boolean;
 }
 
 export function ClipContextMenu({
@@ -33,11 +35,13 @@ export function ClipContextMenu({
   onRepaint,
   onVocal2BGM,
   onAnalyze,
+  onConvertToMidi,
   onClose,
   hasPrompt,
   isReady,
   isMidiClip,
   isVocalTrack,
+  hasAudio,
 }: ClipContextMenuProps) {
   const clampedX = Math.min(x, window.innerWidth - 210);
   const clampedY = Math.min(y, window.innerHeight - 300);
@@ -83,6 +87,12 @@ export function ClipContextMenu({
               Analyze Audio…
             </button>
           </>
+        )}
+
+        {!isMidiClip && hasAudio && (
+          <button onClick={onConvertToMidi} className="w-full text-left px-3 py-1.5 text-[11px] text-violet-300 hover:bg-daw-accent hover:text-white transition-colors">
+            Convert to MIDI…
+          </button>
         )}
 
         <div className="my-1 border-t border-[#555]" />
