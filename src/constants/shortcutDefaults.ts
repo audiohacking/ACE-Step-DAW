@@ -32,6 +32,7 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: 'view.zoomReset',        category: 'view',      label: 'Reset Zoom',                  defaultCombo: { code: 'Digit0', mod: true }, contexts: ['global'] },
   { id: 'view.zoomToFit',        category: 'view',      label: 'Zoom to Fit Project',         defaultCombo: { code: 'KeyZ' }, contexts: ['timeline'] },
   { id: 'view.toggleSnap',       category: 'view',      label: 'Toggle Snap',                 defaultCombo: { code: 'KeyN' }, contexts: ['timeline'] },
+  { id: 'view.toggleSessionView', category: 'view',     label: 'Toggle Session View',         defaultCombo: { code: 'Tab' }, contexts: ['global'] },
 
   { id: 'generation.silence',    category: 'generation', label: 'Generate from Silence',     defaultCombo: { code: 'KeyG', mod: true }, contexts: ['global'] },
   { id: 'generation.context',    category: 'generation', label: 'Generate from Context',     defaultCombo: { code: 'KeyG', mod: true, shift: true }, contexts: ['global'] },

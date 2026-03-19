@@ -9,7 +9,6 @@ export type InputMonitoringMode = 'off' | 'auto' | 'on';
 export type SynthPreset = 'piano' | 'strings' | 'pad' | 'lead' | 'bass' | 'organ' | 'sampler';
 export type DrumKitName = '808' | 'acoustic' | 'electronic' | 'lofi';
 export type SamplerPlaybackMode = 'classic' | 'oneShot' | 'loop';
-export type SessionFollowAction = 'loop' | 'next' | 'stop';
 /** Time-stretch algorithm mode. 'repitch' uses playbackRate (changes pitch), 'slice' uses warp markers. */
 export type StretchMode = 'repitch' | 'slice';
 export type PianoRollGrid = '1/4' | '1/8' | '1/16' | '1/32';
@@ -368,10 +367,6 @@ export interface Clip {
   warpMarkers?: AudioWarpMarker[];
   /** Per-clip gain envelope for non-destructive volume automation. */
   gainEnvelope?: GainEnvelopePoint[];
-  /** Session View scene index for this clip slot. */
-  sessionSceneIndex?: number;
-  /** Session View follow action applied after each loop cycle. */
-  sessionFollowAction?: SessionFollowAction;
 }
 
 export interface BounceInPlaceOptions {
@@ -550,6 +545,55 @@ export interface Marker {
   color: string;
 }
 
+export type SessionLaunchQuantization = 'none' | '1/8' | '1/4' | '1/2' | '1 bar';
+
+export interface SessionScene {
+  id: string;
+  name: string;
+  index: number;
+}
+
+export interface SessionClipSlot {
+  id: string;
+  trackId: string;
+  sceneId: string;
+  clipId: string | null;
+}
+
+export interface SessionPendingLaunch {
+  id: string;
+  type: 'clip' | 'scene' | 'stop-track' | 'stop-all';
+  executeAt: number;
+  requestedAt: number;
+  trackId?: string;
+  sceneId?: string;
+  clipId?: string | null;
+}
+
+export interface SessionLaunchEvent {
+  id: string;
+  trackId: string;
+  clipId: string | null;
+  startedAt: number;
+  endedAt: number | null;
+  sceneId: string | null;
+  source: 'clip' | 'scene' | 'stop';
+}
+
+export interface SessionState {
+  quantization: SessionLaunchQuantization;
+  scenes: SessionScene[];
+  slots: SessionClipSlot[];
+  activeClipIdsByTrackId: Record<string, string | null>;
+  pendingLaunches: SessionPendingLaunch[];
+  isRecordingToArrangement: boolean;
+  arrangementRecordStartTime: number | null;
+  arrangementRecordEndTime: number | null;
+  recordedLaunches: SessionLaunchEvent[];
+  lastLaunchedSceneId: string | null;
+  lastLaunchAt: number | null;
+}
+
 /** A saved project template — a snapshot of project settings and track layout (without audio). */
 export interface ProjectTemplate {
   id: string;
@@ -583,43 +627,6 @@ export interface ProjectTemplateTrack {
   sequencerPattern?: SequencerPattern;
 }
 
-export interface SessionTrackPlayback {
-  clipId: string;
-  sceneIndex: number;
-  startedAt: number;
-  lastCycleAt: number;
-}
-
-export interface SessionQueuedLaunch {
-  trackId: string;
-  clipId: string | null;
-  sceneIndex: number | null;
-  launchAt: number;
-}
-
-export interface SessionPerformanceEvent {
-  trackId: string;
-  clipId: string;
-  sceneIndex: number;
-  startTime: number;
-  endTime: number | null;
-}
-
-export interface SessionSelection {
-  trackId: string;
-  sceneIndex: number;
-}
-
-export interface SessionState {
-  sceneCount: number;
-  queuedLaunches: SessionQueuedLaunch[];
-  activeTrackPlaybacks: Record<string, SessionTrackPlayback | undefined>;
-  selectedCell: SessionSelection | null;
-  isRecordingToArrangement: boolean;
-  recordStartTime: number | null;
-  performanceEvents: SessionPerformanceEvent[];
-}
-
 export interface Project {
   id: string;
   name: string;
@@ -651,12 +658,12 @@ export interface Project {
   markers?: Marker[];
   /** Reusable groove templates (extracted timing/velocity patterns). */
   groovePool?: GrooveTemplate[];
+  /** Session View clip launcher state and arrangement print history. */
+  session?: SessionState;
   /** Tempo map: discrete tempo changes sorted by beat. Empty = use project.bpm everywhere. */
   tempoMap?: TempoEvent[];
   /** Time signature map: changes sorted by bar. Empty = use project.timeSignature everywhere. */
   timeSignatureMap?: TimeSignatureEvent[];
-  /** Session View / clip launcher state. */
-  session?: SessionState;
 }
 
 // ─── Tempo & Time Signature Map Types ────────────────────────────────────────

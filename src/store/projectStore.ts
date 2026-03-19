@@ -45,9 +45,12 @@ import type {
   DrumMachineConfig,
   DrumKitName,
   SamplerConfig,
-  SessionFollowAction,
+  SessionClipSlot,
+  SessionLaunchEvent,
+  SessionLaunchQuantization,
+  SessionPendingLaunch,
+  SessionScene,
   SessionState,
-  SessionPerformanceEvent,
 } from '../types/project';
 import type { PluginInstance, PluginParamValue } from '../types/plugin';
 import { pluginRegistry } from '../engine/PluginRegistry';
@@ -82,7 +85,7 @@ import { convertClipAudioToMidi } from '../services/audioToMidi';
 import { createDefaultParametricEqBands } from '../utils/parametricEq';
 import type { StemCount } from '../types/api';
 import { separateClipAudioToStems } from '../services/stemSeparation';
-import { beatToTime, getBarAtBeat, getBeatAtBar, timeToBeat } from '../utils/tempoMap';
+import { beatToTime, getBeatAtBar } from '../utils/tempoMap';
 import { encodeMidiFile } from '../utils/midi';
 import { encodeMidiFile as encodeMultiTrackMidiFile, type MidiExportTrack } from '../utils/midiEncoder';
 import { clampClipFadeDurations } from '../utils/clipFade';
@@ -317,18 +320,6 @@ interface ProjectState {
 
   addClip: (trackId: string, clip: Omit<Clip, 'id' | 'trackId' | 'generationStatus' | 'generationJobId' | 'cumulativeMixKey' | 'isolatedAudioKey' | 'waveformPeaks'>) => Clip;
   ensureMidiClip: (trackId: string, startTime?: number, duration?: number) => Clip;
-  setClipSessionSlot: (clipId: string, sceneIndex: number | null) => void;
-  setClipFollowAction: (clipId: string, action: SessionFollowAction) => void;
-  selectSessionCell: (trackId: string, sceneIndex: number) => void;
-  moveSessionSelection: (trackDelta: number, sceneDelta: number) => void;
-  launchClip: (trackId: string, sceneIndex: number) => void;
-  stopSessionTrack: (trackId: string) => void;
-  launchScene: (sceneIndex: number) => void;
-  stopAllSessionClips: () => void;
-  commitQueuedSessionLaunches: (currentTime?: number) => void;
-  advanceSessionPlaybacks: (currentTime?: number) => void;
-  setSessionRecording: (enabled: boolean, currentTime?: number) => void;
-  commitSessionRecording: (endTime?: number) => void;
   updateClip: (clipId: string, updates: Partial<Clip>) => void;
   removeClip: (clipId: string) => void;
   duplicateClip: (clipId: string) => Clip | undefined;
@@ -361,6 +352,19 @@ interface ProjectState {
   duplicateClipToTrack: (clipId: string, targetTrackId: string, startTime?: number) => Clip | undefined;
   batchDuplicateClips: (clipIds: string[], timeOffset: number) => void;
   batchMoveClips: (clipIds: string[], timeOffset: number) => void;
+
+  // Session View / clip launcher
+  createSessionScene: (name?: string) => SessionScene | undefined;
+  removeSessionScene: (sceneId: string) => void;
+  assignClipToSessionSlot: (trackId: string, sceneId: string, clipId: string | null) => void;
+  setSessionLaunchQuantization: (quantization: SessionLaunchQuantization) => void;
+  launchSessionClip: (trackId: string, sceneId: string) => void;
+  launchSessionScene: (sceneId: string) => void;
+  stopSessionTrack: (trackId: string) => void;
+  stopAllSessionClips: () => void;
+  commitPendingSessionLaunches: (currentTime: number) => void;
+  startSessionArrangementRecording: (startTime?: number) => void;
+  stopSessionArrangementRecording: (endTime?: number) => Clip[];
 
   removeAsset: (assetId: string) => void;
   toggleAssetStar: (assetId: string) => void;
@@ -595,6 +599,264 @@ function createNeutralBouncedTrack(track: Track, bouncedClip: Clip, displayName:
   };
 }
 
+const DEFAULT_SESSION_SCENE_COUNT = 4;
+const SESSION_LAUNCH_EPSILON = 0.0001;
+
+function createSessionScene(index: number): SessionScene {
+  return {
+    id: uuidv4(),
+    name: `Scene ${index + 1}`,
+    index,
+  };
+}
+
+function createDefaultSessionState(): SessionState {
+  return {
+    quantization: '1 bar',
+    scenes: Array.from({ length: DEFAULT_SESSION_SCENE_COUNT }, (_, index) => createSessionScene(index)),
+    slots: [],
+    activeClipIdsByTrackId: {},
+    pendingLaunches: [],
+    isRecordingToArrangement: false,
+    arrangementRecordStartTime: null,
+    arrangementRecordEndTime: null,
+    recordedLaunches: [],
+    lastLaunchedSceneId: null,
+    lastLaunchAt: null,
+  };
+}
+
+function getSessionQuantizationSeconds(project: Project, quantization: SessionLaunchQuantization): number {
+  const beatDuration = 60 / Math.max(1, project.bpm);
+  switch (quantization) {
+    case 'none':
+      return 0;
+    case '1/8':
+      return beatDuration / 2;
+    case '1/4':
+      return beatDuration;
+    case '1/2':
+      return beatDuration * 2;
+    case '1 bar':
+      return beatDuration * project.timeSignature;
+  }
+}
+
+function getQuantizedLaunchTime(currentTime: number, stepSeconds: number): number {
+  if (stepSeconds <= 0) return currentTime;
+  const steps = Math.ceil((currentTime - SESSION_LAUNCH_EPSILON) / stepSeconds);
+  return Math.max(0, steps * stepSeconds);
+}
+
+function ensureSessionSlotsForTrack(session: SessionState, trackId: string): SessionState {
+  const nextSlots = [...session.slots];
+  let changed = false;
+  for (const scene of session.scenes) {
+    const exists = nextSlots.some((slot) => slot.trackId === trackId && slot.sceneId === scene.id);
+    if (!exists) {
+      nextSlots.push({ id: uuidv4(), trackId, sceneId: scene.id, clipId: null });
+      changed = true;
+    }
+  }
+  if (!changed) return session;
+  return { ...session, slots: nextSlots };
+}
+
+function ensureProjectSession(project: Project): Project {
+  let session = project.session ?? createDefaultSessionState();
+
+  session = {
+    ...session,
+    scenes: [...session.scenes]
+      .sort((a, b) => a.index - b.index)
+      .map((scene, index) => ({ ...scene, index })),
+  };
+
+  for (const track of project.tracks) {
+    session = ensureSessionSlotsForTrack(session, track.id);
+  }
+
+  const trackIds = new Set(project.tracks.map((track) => track.id));
+  const clipIds = new Set(project.tracks.flatMap((track) => track.clips.map((clip) => clip.id)));
+  const sceneIds = new Set(session.scenes.map((scene) => scene.id));
+
+  session = {
+    ...session,
+    slots: session.slots.filter((slot) => trackIds.has(slot.trackId) && sceneIds.has(slot.sceneId) && (slot.clipId === null || clipIds.has(slot.clipId))),
+    activeClipIdsByTrackId: Object.fromEntries(
+      Object.entries(session.activeClipIdsByTrackId).filter(([trackId, clipId]) => (
+        trackIds.has(trackId) && (clipId === null || clipIds.has(clipId))
+      )),
+    ),
+    pendingLaunches: session.pendingLaunches.filter((launch) => (
+      (launch.trackId === undefined || trackIds.has(launch.trackId))
+      && (launch.sceneId === undefined || sceneIds.has(launch.sceneId))
+      && (launch.clipId === undefined || launch.clipId === null || clipIds.has(launch.clipId))
+    )),
+    recordedLaunches: session.recordedLaunches.filter((launch) => (
+      trackIds.has(launch.trackId) && (launch.clipId === null || clipIds.has(launch.clipId))
+    )),
+  };
+
+  return {
+    ...project,
+    session,
+  };
+}
+
+function autoAssignClipToSession(session: SessionState, trackId: string, clipId: string): SessionState {
+  const normalized = ensureSessionSlotsForTrack(session, trackId);
+  if (normalized.slots.some((slot) => slot.trackId === trackId && slot.clipId === clipId)) {
+    return normalized;
+  }
+
+  const emptySlot = normalized.slots
+    .filter((slot) => slot.trackId === trackId && slot.clipId === null)
+    .sort((a, b) => {
+      const sceneA = normalized.scenes.find((scene) => scene.id === a.sceneId)?.index ?? 0;
+      const sceneB = normalized.scenes.find((scene) => scene.id === b.sceneId)?.index ?? 0;
+      return sceneA - sceneB;
+    })[0];
+
+  if (emptySlot) {
+    return {
+      ...normalized,
+      slots: normalized.slots.map((slot) => (
+        slot.id === emptySlot.id ? { ...slot, clipId } : slot
+      )),
+    };
+  }
+
+  const newScene = createSessionScene(normalized.scenes.length);
+  const expanded = {
+    ...normalized,
+    scenes: [...normalized.scenes, newScene],
+  };
+
+  return {
+    ...ensureSessionSlotsForTrack(expanded, trackId),
+    slots: ensureSessionSlotsForTrack(expanded, trackId).slots.map((slot) => (
+      slot.trackId === trackId && slot.sceneId === newScene.id ? { ...slot, clipId } : slot
+    )),
+  };
+}
+
+function replaceSessionSlotClip(session: SessionState, trackId: string, sceneId: string, clipId: string | null): SessionState {
+  const normalized = ensureSessionSlotsForTrack(session, trackId);
+  return {
+    ...normalized,
+    slots: normalized.slots.map((slot) => (
+      slot.trackId === trackId && slot.sceneId === sceneId ? { ...slot, clipId } : slot
+    )),
+  };
+}
+
+function cloneClipForArrangement(sourceClip: Clip, startTime: number, duration: number): Clip {
+  const nextDuration = Math.max(SESSION_LAUNCH_EPSILON, Math.min(duration, sourceClip.duration));
+  return {
+    ...structuredClone(sourceClip),
+    id: uuidv4(),
+    startTime,
+    duration: nextDuration,
+    trackId: sourceClip.trackId,
+  };
+}
+
+function closeOpenSessionLaunches(events: SessionLaunchEvent[], trackId: string, endedAt: number): SessionLaunchEvent[] {
+  return events.map((event) => (
+    event.trackId === trackId && event.endedAt === null && event.startedAt <= endedAt
+      ? { ...event, endedAt }
+      : event
+  ));
+}
+
+function applySessionTrackLaunch(
+  project: Project,
+  trackId: string,
+  clipId: string | null,
+  executedAt: number,
+  source: SessionLaunchEvent['source'],
+  sceneId: string | null = null,
+): Project {
+  const session = ensureProjectSession(project).session!;
+  const nextEvents = closeOpenSessionLaunches(session.recordedLaunches, trackId, executedAt);
+  const nextRecordedLaunches = session.isRecordingToArrangement && clipId
+    ? [
+        ...nextEvents,
+        {
+          id: uuidv4(),
+          trackId,
+          clipId,
+          startedAt: executedAt,
+          endedAt: null,
+          sceneId,
+          source,
+        },
+      ]
+    : nextEvents;
+
+  return {
+    ...project,
+    session: {
+      ...session,
+      activeClipIdsByTrackId: {
+        ...session.activeClipIdsByTrackId,
+        [trackId]: clipId,
+      },
+      recordedLaunches: nextRecordedLaunches,
+      lastLaunchAt: executedAt,
+      lastLaunchedSceneId: source === 'scene' ? sceneId : session.lastLaunchedSceneId,
+    },
+  };
+}
+
+function queuePendingSessionLaunch(
+  session: SessionState,
+  launch: Omit<SessionPendingLaunch, 'id' | 'requestedAt'>,
+): SessionState {
+  const nextLaunch: SessionPendingLaunch = {
+    id: uuidv4(),
+    requestedAt: Date.now(),
+    ...launch,
+  };
+
+  if (launch.type === 'scene' || launch.type === 'stop-all') {
+    return {
+      ...session,
+      pendingLaunches: [nextLaunch],
+    };
+  }
+
+  return {
+    ...session,
+    pendingLaunches: [
+      ...session.pendingLaunches.filter((candidate) => (
+        candidate.type !== 'scene'
+        && candidate.type !== 'stop-all'
+        && candidate.trackId !== launch.trackId
+      )),
+      nextLaunch,
+    ],
+  };
+}
+
+function buildArrangementClipsFromSession(project: Project, endTime: number): Clip[] {
+  const session = ensureProjectSession(project).session!;
+  const finalizedEvents = session.recordedLaunches
+    .map((event) => ({
+      ...event,
+      endedAt: event.endedAt ?? endTime,
+    }))
+    .filter((event) => event.clipId && event.endedAt > event.startedAt + SESSION_LAUNCH_EPSILON);
+
+  const clipIndex = new Map(project.tracks.flatMap((track) => track.clips.map((clip) => [clip.id, clip] as const)));
+
+  return finalizedEvents.flatMap((event) => {
+    const sourceClip = event.clipId ? clipIndex.get(event.clipId) : undefined;
+    if (!sourceClip) return [];
+    return [cloneClipForArrangement(sourceClip, event.startedAt, event.endedAt - event.startedAt)];
+  });
+}
 function createDefaultTrackEffect(type: TrackEffectType): TrackEffect {
   const id = uuidv4();
   switch (type) {
@@ -781,71 +1043,6 @@ function createDefaultSamplerSettings(overrides?: Partial<SamplerSettings>): Sam
     rootNote: 60,
     ...overrides,
   };
-}
-
-function createDefaultSessionState(sceneCount = 8): SessionState {
-  return {
-    sceneCount,
-    queuedLaunches: [],
-    activeTrackPlaybacks: {},
-    selectedCell: null,
-    isRecordingToArrangement: false,
-    recordStartTime: null,
-    performanceEvents: [],
-  };
-}
-
-function getTrackSceneClips(track: Track) {
-  return [...track.clips]
-    .filter((clip) => clip.sessionSceneIndex !== undefined && clip.sessionSceneIndex !== null)
-    .sort((a, b) => (
-      (a.sessionSceneIndex ?? Number.MAX_SAFE_INTEGER) - (b.sessionSceneIndex ?? Number.MAX_SAFE_INTEGER)
-      || a.startTime - b.startTime
-    ));
-}
-
-function getNextSessionSceneIndex(track: Track) {
-  const used = new Set(
-    track.clips
-      .map((clip) => clip.sessionSceneIndex)
-      .filter((value): value is number => typeof value === 'number'),
-  );
-  let next = 0;
-  while (used.has(next)) next += 1;
-  return next;
-}
-
-function getClipByTrackAndScene(track: Track, sceneIndex: number) {
-  return track.clips.find((clip) => clip.sessionSceneIndex === sceneIndex);
-}
-
-function getNextBarTime(project: Project, currentTime: number) {
-  const currentBeat = timeToBeat(currentTime, project.tempoMap, project.bpm);
-  const currentBar = getBarAtBeat(currentBeat, project.timeSignatureMap, project.timeSignature);
-  const nextBarBeat = getBeatAtBar(currentBar + 1, project.timeSignatureMap, project.timeSignature);
-  return beatToTime(nextBarBeat, project.tempoMap, project.bpm);
-}
-
-function withSessionState(project: Project): Project {
-  if (project.session) return project;
-  return {
-    ...project,
-    session: createDefaultSessionState(),
-  };
-}
-
-function resolveSessionSceneCount(project: Project) {
-  const maxScene = project.tracks.reduce((maxTrackScene, track) => (
-    Math.max(
-      maxTrackScene,
-      ...track.clips.map((clip) => clip.sessionSceneIndex ?? -1),
-    )
-  ), -1);
-  return Math.max(project.session?.sceneCount ?? 8, maxScene + 1, 1);
-}
-
-function clonePerformanceEvents(events: SessionPerformanceEvent[]) {
-  return events.map((event) => ({ ...event }));
 }
 
 function createDefaultSamplerConfig(audioKey: string, overrides?: Partial<SamplerConfig>): SamplerConfig {
@@ -1040,25 +1237,21 @@ function createTrackPresetSnapshot(track: Track, name: string): TrackPreset {
 }
 
 function ensureTrackDefaults(track: Track): Track {
-  const clips = track.clips.map((clip, index) => ({
-    ...clip,
-    sessionSceneIndex: clip.sessionSceneIndex ?? index,
-    sessionFollowAction: clip.sessionFollowAction ?? 'loop',
-    midiData: clip.midiData
-      ? {
-          notes: clip.midiData.notes ?? [],
-          grid: clip.midiData.grid ?? '1/16',
-        }
-      : undefined,
-  }));
-
   const normalizedTrack: Track = {
     ...track,
     synthPreset: track.synthPreset ?? getDefaultTrackSynthPreset(track.trackName),
     effects: track.effects ?? [],
     midiEffects: track.midiEffects ?? [],
     drumKit: track.drumKit ?? '808',
-    clips,
+    clips: track.clips.map((clip) => ({
+      ...clip,
+      midiData: clip.midiData
+        ? {
+            notes: clip.midiData.notes ?? [],
+            grid: clip.midiData.grid ?? '1/16',
+          }
+        : undefined,
+    })),
   };
 
   return {
@@ -1086,7 +1279,7 @@ export const useProjectStore = create<ProjectState>()(
   setProject: (project) => {
     _clearHistory();
     // Migration: backfill trackType for projects created before the field existed
-    const migrated: Project = {
+    const migratedBase: Project = {
       ...project,
       trackPresets: project.trackPresets ?? [],
       tracks: project.tracks.map((t) => {
@@ -1101,21 +1294,7 @@ export const useProjectStore = create<ProjectState>()(
       }).map(ensureTrackDefaults),
       mastering: ensureMasteringState(project.mastering),
     };
-    migrated.session = {
-      ...createDefaultSessionState(project.session?.sceneCount ?? 8),
-      ...project.session,
-      sceneCount: resolveSessionSceneCount({
-        ...migrated,
-        session: {
-          ...createDefaultSessionState(project.session?.sceneCount ?? 8),
-          ...project.session,
-        },
-      }),
-      queuedLaunches: [],
-      activeTrackPlaybacks: {},
-      performanceEvents: [],
-    };
-    set({ project: migrated });
+    set({ project: ensureProjectSession(migratedBase) });
   },
 
   undo: (scope) => {
@@ -1219,7 +1398,7 @@ export const useProjectStore = create<ProjectState>()(
       mastering: createDefaultMasteringState(),
       session: createDefaultSessionState(),
     };
-    set({ project });
+    set({ project: ensureProjectSession(project) });
   },
 
   updateProject: (updates) => {
@@ -1646,13 +1825,14 @@ export const useProjectStore = create<ProjectState>()(
     const track = createTrackFromTemplate(state.project.tracks, trackName, resolvedType);
 
     const newTracks = [...state.project.tracks, track];
+    const nextProject = ensureProjectSession({
+      ...state.project,
+      updatedAt: Date.now(),
+      totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+      tracks: newTracks,
+    });
     set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
-        tracks: newTracks,
-      },
+      project: nextProject,
     });
 
     return track;
@@ -1836,12 +2016,12 @@ export const useProjectStore = create<ProjectState>()(
     _pushHistory(state.project, { scope: 'arrangement', label: 'Remove track', trackId });
     const newTracks = state.project.tracks.filter((t) => t.id !== trackId);
     set({
-      project: {
+      project: ensureProjectSession({
         ...state.project,
         updatedAt: Date.now(),
         totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
-      },
+      }),
     });
   },
 
@@ -1852,22 +2032,47 @@ export const useProjectStore = create<ProjectState>()(
     if (!source) return undefined;
     _pushHistory(state.project);
     const newId = crypto.randomUUID();
+    const clipIdMap = new Map<string, string>();
     const clonedTrack: Track = {
       ...JSON.parse(JSON.stringify(source)),
       id: newId,
       displayName: `${source.displayName} (copy)`,
-      clips: source.clips.map((clip) => ({
-        ...JSON.parse(JSON.stringify(clip)),
-        id: crypto.randomUUID(),
-      })),
+      clips: source.clips.map((clip) => {
+        const nextId = crypto.randomUUID();
+        clipIdMap.set(clip.id, nextId);
+        return {
+          ...JSON.parse(JSON.stringify(clip)),
+          id: nextId,
+          trackId: newId,
+        };
+      }),
     };
     const newTracks = [...state.project.tracks, clonedTrack];
+    const baseProject = ensureProjectSession({
+      ...state.project,
+      updatedAt: Date.now(),
+      totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+      tracks: newTracks,
+    });
+    const session = ensureSessionSlotsForTrack(baseProject.session!, newId);
+    const clonedSlots = (baseProject.session?.slots ?? [])
+      .filter((slot) => slot.trackId === source.id)
+      .map((slot) => ({
+        id: uuidv4(),
+        trackId: newId,
+        sceneId: slot.sceneId,
+        clipId: slot.clipId ? (clipIdMap.get(slot.clipId) ?? null) : null,
+      }));
     set({
       project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
-        tracks: newTracks,
+        ...baseProject,
+        session: {
+          ...session,
+          slots: [
+            ...session.slots.filter((slot) => slot.trackId !== newId),
+            ...clonedSlots,
+          ],
+        },
       },
     });
     return clonedTrack;
@@ -2080,8 +2285,6 @@ export const useProjectStore = create<ProjectState>()(
     const state = get();
     if (!state.project) throw new Error('No project');
     _pushHistory(state.project);
-    const track = state.project.tracks.find((item) => item.id === trackId);
-    if (!track) throw new Error(`Track '${trackId}' not found`);
 
     const clip: Clip = {
       id: uuidv4(),
@@ -2102,18 +2305,16 @@ export const useProjectStore = create<ProjectState>()(
       source: clipData.source,
       starred: clipData.starred,
       midiData: clipData.midiData,
-      sessionSceneIndex: clipData.sessionSceneIndex ?? getNextSessionSceneIndex(track),
-      sessionFollowAction: clipData.sessionFollowAction ?? 'loop',
     };
 
     const newTracks = state.project.tracks.map((t) =>
       t.id === trackId ? { ...t, clips: [...t.clips, clip] } : t,
     );
-    const session = {
-      ...createDefaultSessionState(state.project.session?.sceneCount ?? 8),
-      ...state.project.session,
-      sceneCount: Math.max(state.project.session?.sceneCount ?? 8, (clip.sessionSceneIndex ?? 0) + 1),
-    };
+    const session = ensureProjectSession({
+      ...state.project,
+      tracks: newTracks,
+      session: autoAssignClipToSession(ensureProjectSession(state.project).session!, trackId, clip.id),
+    }).session!;
 
     set({
       project: {
@@ -2149,390 +2350,6 @@ export const useProjectStore = create<ProjectState>()(
     });
   },
 
-  setClipSessionSlot: (clipId, sceneIndex) => {
-    const state = get();
-    if (!state.project) return;
-    _pushHistory(state.project);
-    const updatedTracks = state.project.tracks.map((track) => ({
-      ...track,
-      clips: track.clips.map((clip) => (
-        clip.id === clipId
-          ? { ...clip, sessionSceneIndex: sceneIndex ?? undefined }
-          : clip
-      )),
-    }));
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        tracks: updatedTracks,
-        session: {
-          ...createDefaultSessionState(state.project.session?.sceneCount ?? 8),
-          ...state.project.session,
-          sceneCount: Math.max(sceneIndex !== null ? sceneIndex + 1 : 0, resolveSessionSceneCount({
-            ...state.project,
-            tracks: updatedTracks,
-          })),
-        },
-      },
-    });
-  },
-
-  setClipFollowAction: (clipId, action) => {
-    get().updateClip(clipId, { sessionFollowAction: action });
-  },
-
-  selectSessionCell: (trackId, sceneIndex) => {
-    const state = get();
-    if (!state.project) return;
-    const project = withSessionState(state.project);
-    set({
-      project: {
-        ...project,
-        session: {
-          ...project.session!,
-          selectedCell: { trackId, sceneIndex },
-          sceneCount: Math.max(project.session!.sceneCount, sceneIndex + 1),
-        },
-      },
-    });
-  },
-
-  moveSessionSelection: (trackDelta, sceneDelta) => {
-    const state = get();
-    if (!state.project) return;
-    const project = withSessionState(state.project);
-    const sortedTracks = [...project.tracks].sort((a, b) => a.order - b.order);
-    if (sortedTracks.length === 0) return;
-    const currentSelection = project.session!.selectedCell ?? { trackId: sortedTracks[0].id, sceneIndex: 0 };
-    const currentTrackIndex = Math.max(0, sortedTracks.findIndex((track) => track.id === currentSelection.trackId));
-    const nextTrackIndex = Math.min(sortedTracks.length - 1, Math.max(0, currentTrackIndex + trackDelta));
-    const nextSceneIndex = Math.min(
-      Math.max(project.session!.sceneCount - 1, 0),
-      Math.max(0, currentSelection.sceneIndex + sceneDelta),
-    );
-    set({
-      project: {
-        ...project,
-        session: {
-          ...project.session!,
-          selectedCell: {
-            trackId: sortedTracks[nextTrackIndex].id,
-            sceneIndex: nextSceneIndex,
-          },
-        },
-      },
-    });
-  },
-
-  launchClip: (trackId, sceneIndex) => {
-    const state = get();
-    if (!state.project) return;
-    const project = withSessionState(state.project);
-    const track = project.tracks.find((item) => item.id === trackId);
-    if (!track) return;
-    const clip = getClipByTrackAndScene(track, sceneIndex);
-    const transport = useTransportStore.getState();
-    const now = transport.currentTime;
-    const launchAt = transport.isPlaying ? getNextBarTime(project, now) : now;
-    const queuedLaunches = project.session!.queuedLaunches
-      .filter((launch) => launch.trackId !== trackId)
-      .concat({
-        trackId,
-        clipId: clip?.id ?? null,
-        sceneIndex: clip ? sceneIndex : null,
-        launchAt,
-      });
-
-    set({
-      project: {
-        ...project,
-        updatedAt: Date.now(),
-        session: {
-          ...project.session!,
-          sceneCount: Math.max(project.session!.sceneCount, sceneIndex + 1),
-          queuedLaunches,
-          selectedCell: { trackId, sceneIndex },
-        },
-      },
-    });
-  },
-
-  stopSessionTrack: (trackId) => {
-    const state = get();
-    if (!state.project) return;
-    const project = withSessionState(state.project);
-    const transport = useTransportStore.getState();
-    const launchAt = transport.isPlaying ? getNextBarTime(project, transport.currentTime) : transport.currentTime;
-    set({
-      project: {
-        ...project,
-        updatedAt: Date.now(),
-        session: {
-          ...project.session!,
-          queuedLaunches: project.session!.queuedLaunches
-            .filter((launch) => launch.trackId !== trackId)
-            .concat({ trackId, clipId: null, sceneIndex: null, launchAt }),
-        },
-      },
-    });
-  },
-
-  launchScene: (sceneIndex) => {
-    const state = get();
-    if (!state.project) return;
-    const project = withSessionState(state.project);
-    const transport = useTransportStore.getState();
-    const now = transport.currentTime;
-    const launchAt = transport.isPlaying ? getNextBarTime(project, now) : now;
-    const queuedByTrack = project.tracks.map((track) => {
-      const clip = getClipByTrackAndScene(track, sceneIndex);
-      return {
-        trackId: track.id,
-        clipId: clip?.id ?? null,
-        sceneIndex: clip ? sceneIndex : null,
-        launchAt,
-      };
-    });
-    const replacedTrackIds = new Set(queuedByTrack.map((item) => item.trackId));
-    set({
-      project: {
-        ...project,
-        updatedAt: Date.now(),
-        session: {
-          ...project.session!,
-          sceneCount: Math.max(project.session!.sceneCount, sceneIndex + 1),
-          queuedLaunches: [
-            ...project.session!.queuedLaunches.filter((launch) => !replacedTrackIds.has(launch.trackId)),
-            ...queuedByTrack,
-          ],
-        },
-      },
-    });
-  },
-
-  stopAllSessionClips: () => {
-    const state = get();
-    if (!state.project) return;
-    const project = withSessionState(state.project);
-    const transport = useTransportStore.getState();
-    const launchAt = transport.isPlaying ? getNextBarTime(project, transport.currentTime) : transport.currentTime;
-    set({
-      project: {
-        ...project,
-        updatedAt: Date.now(),
-        session: {
-          ...project.session!,
-          queuedLaunches: project.tracks.map((track) => ({
-            trackId: track.id,
-            clipId: null,
-            sceneIndex: null,
-            launchAt,
-          })),
-        },
-      },
-    });
-  },
-
-  commitQueuedSessionLaunches: (currentTime) => {
-    const state = get();
-    if (!state.project?.session) return;
-    const now = currentTime ?? useTransportStore.getState().currentTime;
-    const due = state.project.session.queuedLaunches.filter((launch) => launch.launchAt <= now + 1e-3);
-    if (due.length === 0) return;
-
-    const nextSession = {
-      ...state.project.session,
-      queuedLaunches: state.project.session.queuedLaunches.filter((launch) => launch.launchAt > now + 1e-3),
-      activeTrackPlaybacks: { ...state.project.session.activeTrackPlaybacks },
-      performanceEvents: clonePerformanceEvents(state.project.session.performanceEvents),
-    };
-
-    for (const launch of due) {
-      const currentPlayback = nextSession.activeTrackPlaybacks[launch.trackId];
-      const openEvent = [...nextSession.performanceEvents]
-        .reverse()
-        .find((event) => event.trackId === launch.trackId && event.endTime === null);
-      if (openEvent) {
-        openEvent.endTime = launch.launchAt;
-      }
-
-      if (launch.clipId && launch.sceneIndex !== null) {
-        nextSession.activeTrackPlaybacks[launch.trackId] = {
-          clipId: launch.clipId,
-          sceneIndex: launch.sceneIndex,
-          startedAt: launch.launchAt,
-          lastCycleAt: launch.launchAt,
-        };
-        if (nextSession.isRecordingToArrangement) {
-          nextSession.performanceEvents.push({
-            trackId: launch.trackId,
-            clipId: launch.clipId,
-            sceneIndex: launch.sceneIndex,
-            startTime: launch.launchAt,
-            endTime: null,
-          });
-        }
-      } else if (currentPlayback) {
-        delete nextSession.activeTrackPlaybacks[launch.trackId];
-      }
-    }
-
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        session: nextSession,
-      },
-    });
-  },
-
-  advanceSessionPlaybacks: (currentTime) => {
-    const state = get();
-    if (!state.project?.session) return;
-    const project = state.project;
-    const session = project.session!;
-    const now = currentTime ?? useTransportStore.getState().currentTime;
-    let mutated = false;
-    const nextPlaybacks = { ...session.activeTrackPlaybacks };
-    const nextQueue = [...session.queuedLaunches];
-
-    for (const track of project.tracks) {
-      const playback = nextPlaybacks[track.id];
-      if (!playback) continue;
-      const clip = track.clips.find((item) => item.id === playback.clipId);
-      if (!clip || clip.duration <= 0) continue;
-
-      while (now >= playback.lastCycleAt + clip.duration - 1e-3) {
-        playback.lastCycleAt += clip.duration;
-        mutated = true;
-
-        const action = clip.sessionFollowAction ?? 'loop';
-        if (action === 'loop') continue;
-
-        const sceneClips = getTrackSceneClips(track);
-        const currentIndex = sceneClips.findIndex((item) => item.id === clip.id);
-        const nextClip = currentIndex >= 0 ? sceneClips[currentIndex + 1] : undefined;
-
-        if (action === 'next' && nextClip?.sessionSceneIndex !== undefined) {
-          nextQueue.push({
-            trackId: track.id,
-            clipId: nextClip.id,
-            sceneIndex: nextClip.sessionSceneIndex,
-            launchAt: playback.lastCycleAt,
-          });
-          break;
-        }
-
-        if (action === 'stop' || !nextClip) {
-          nextQueue.push({
-            trackId: track.id,
-            clipId: null,
-            sceneIndex: null,
-            launchAt: playback.lastCycleAt,
-          });
-          break;
-        }
-      }
-    }
-
-    if (!mutated && nextQueue.length === session.queuedLaunches.length) return;
-    set({
-      project: {
-        ...project,
-        updatedAt: Date.now(),
-        session: {
-          ...createDefaultSessionState(session.sceneCount),
-          ...session,
-          activeTrackPlaybacks: nextPlaybacks,
-          queuedLaunches: nextQueue,
-        },
-      },
-    });
-  },
-
-  setSessionRecording: (enabled, currentTime) => {
-    const state = get();
-    if (!state.project?.session) return;
-    const session = state.project.session!;
-    if (!enabled) {
-      get().commitSessionRecording(currentTime);
-      return;
-    }
-
-    _pushHistory(state.project);
-    const startTime = currentTime ?? useTransportStore.getState().currentTime;
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        session: {
-          ...createDefaultSessionState(session.sceneCount),
-          ...session,
-          isRecordingToArrangement: true,
-          recordStartTime: startTime,
-          performanceEvents: [],
-        },
-      },
-    });
-  },
-
-  commitSessionRecording: (endTime) => {
-    const state = get();
-    if (!state.project?.session) return;
-    const project = state.project;
-    const session = project.session!;
-    if (!session.isRecordingToArrangement) return;
-
-    const recordEnd = endTime ?? useTransportStore.getState().currentTime;
-    const normalizedEvents = session.performanceEvents
-      .map((event) => ({
-        ...event,
-        endTime: event.endTime ?? recordEnd,
-      }))
-      .filter((event) => (event.endTime ?? recordEnd) > event.startTime + 1e-3);
-
-    let addedClips = false;
-    const newTracks = project.tracks.map((track) => {
-      const events = normalizedEvents.filter((event) => event.trackId === track.id);
-      if (events.length === 0) return track;
-      addedClips = true;
-      const clones: Clip[] = events.flatMap((event) => {
-        const source = track.clips.find((clip) => clip.id === event.clipId);
-        if (!source) return [];
-        return [{
-          ...structuredClone(source),
-          id: uuidv4(),
-          startTime: event.startTime,
-          duration: (event.endTime ?? recordEnd) - event.startTime,
-          sessionSceneIndex: undefined,
-        }];
-      });
-      return {
-        ...track,
-        clips: [...track.clips, ...clones],
-      };
-    });
-
-    set({
-      project: {
-        ...project,
-        updatedAt: Date.now(),
-        totalDuration: addedClips
-          ? computeTotalDuration(newTracks, project.measures, project.bpm, project.timeSignature, project.tempoMap, project.timeSignatureMap)
-          : project.totalDuration,
-        tracks: newTracks,
-        session: {
-          ...createDefaultSessionState(session.sceneCount),
-          ...session,
-          isRecordingToArrangement: false,
-          recordStartTime: null,
-          performanceEvents: [],
-        },
-      },
-    });
-  },
-
   updateClip: (clipId, updates) => {
     const state = get();
     if (!state.project) return;
@@ -2561,12 +2378,25 @@ export const useProjectStore = create<ProjectState>()(
       ...t,
       clips: t.clips.filter((c) => c.id !== clipId),
     }));
+    const session = ensureProjectSession({
+      ...state.project,
+      tracks: newTracks,
+    }).session!;
     set({
       project: {
         ...state.project,
         updatedAt: Date.now(),
         totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
+        session: {
+          ...session,
+          slots: session.slots.map((slot) => (slot.clipId === clipId ? { ...slot, clipId: null } : slot)),
+          activeClipIdsByTrackId: Object.fromEntries(
+            Object.entries(session.activeClipIdsByTrackId).map(([trackId, activeClipId]) => [trackId, activeClipId === clipId ? null : activeClipId]),
+          ),
+          pendingLaunches: session.pendingLaunches.filter((launch) => launch.clipId !== clipId),
+          recordedLaunches: session.recordedLaunches.filter((launch) => launch.clipId !== clipId),
+        },
       },
     });
   },
@@ -2606,6 +2436,11 @@ export const useProjectStore = create<ProjectState>()(
         updatedAt: Date.now(),
         totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
+        session: ensureProjectSession({
+          ...state.project,
+          tracks: newTracks,
+          session: autoAssignClipToSession(ensureProjectSession(state.project).session!, trackId, newClip.id),
+        }).session!,
       },
     });
 
@@ -3252,12 +3087,23 @@ export const useProjectStore = create<ProjectState>()(
       const extra = newClipsPerTrack.get(t.id);
       return extra ? { ...t, clips: [...t.clips, ...extra] } : t;
     });
+    let session = ensureProjectSession(state.project).session!;
+    for (const [trackId, clips] of newClipsPerTrack.entries()) {
+      for (const clip of clips) {
+        session = autoAssignClipToSession(session, trackId, clip.id);
+      }
+    }
     set({
       project: {
         ...state.project,
         updatedAt: Date.now(),
         totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
+        session: ensureProjectSession({
+          ...state.project,
+          tracks: newTracks,
+          session,
+        }).session!,
       },
     });
   },
@@ -3282,6 +3128,347 @@ export const useProjectStore = create<ProjectState>()(
         tracks: newTracks,
       },
     });
+  },
+
+  createSessionScene: (name) => {
+    const state = get();
+    if (!state.project) return undefined;
+    _pushHistory(state.project);
+    const session = ensureProjectSession(state.project).session!;
+    const scene: SessionScene = {
+      id: uuidv4(),
+      name: name?.trim() || `Scene ${session.scenes.length + 1}`,
+      index: session.scenes.length,
+    };
+    let nextSession: SessionState = {
+      ...session,
+      scenes: [...session.scenes, scene],
+    };
+    for (const track of state.project.tracks) {
+      nextSession = ensureSessionSlotsForTrack(nextSession, track.id);
+    }
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        session: nextSession,
+      },
+    });
+    return scene;
+  },
+
+  removeSessionScene: (sceneId) => {
+    const state = get();
+    if (!state.project) return;
+    const session = ensureProjectSession(state.project).session!;
+    if (session.scenes.length <= 1) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        session: {
+          ...session,
+          scenes: session.scenes.filter((scene) => scene.id !== sceneId).map((scene, index) => ({ ...scene, index })),
+          slots: session.slots.filter((slot) => slot.sceneId !== sceneId),
+          pendingLaunches: session.pendingLaunches.filter((launch) => launch.sceneId !== sceneId),
+          recordedLaunches: session.recordedLaunches.map((launch) => (
+            launch.sceneId === sceneId ? { ...launch, sceneId: null } : launch
+          )),
+          lastLaunchedSceneId: session.lastLaunchedSceneId === sceneId ? null : session.lastLaunchedSceneId,
+        },
+      },
+    });
+  },
+
+  assignClipToSessionSlot: (trackId, sceneId, clipId) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    const session = replaceSessionSlotClip(ensureProjectSession(state.project).session!, trackId, sceneId, clipId);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        session,
+      },
+    });
+  },
+
+  setSessionLaunchQuantization: (quantization) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        session: {
+          ...ensureProjectSession(state.project).session!,
+          quantization,
+        },
+      },
+    });
+  },
+
+  launchSessionClip: (trackId, sceneId) => {
+    const state = get();
+    if (!state.project) return;
+    const track = state.project.tracks.find((candidate) => candidate.id === trackId);
+    if (!track) return;
+    const session = ensureProjectSession(state.project).session!;
+    const slot = session.slots.find((candidate) => candidate.trackId === trackId && candidate.sceneId === sceneId);
+    if (!slot?.clipId || !track.clips.some((clip) => clip.id === slot.clipId)) return;
+
+    const transport = useTransportStore.getState();
+    const isImmediate = !transport.isPlaying || session.quantization === 'none';
+    const executeAt = isImmediate
+      ? transport.currentTime
+      : getQuantizedLaunchTime(transport.currentTime, getSessionQuantizationSeconds(state.project, session.quantization));
+
+    if (isImmediate) {
+      set({
+        project: applySessionTrackLaunch(state.project, trackId, slot.clipId, executeAt, 'clip', sceneId),
+      });
+      return;
+    }
+
+    set({
+      project: {
+        ...state.project,
+        session: queuePendingSessionLaunch(session, {
+          type: 'clip',
+          trackId,
+          sceneId,
+          clipId: slot.clipId,
+          executeAt,
+        }),
+      },
+    });
+  },
+
+  launchSessionScene: (sceneId) => {
+    const state = get();
+    if (!state.project) return;
+    const session = ensureProjectSession(state.project).session!;
+    const transport = useTransportStore.getState();
+    const isImmediate = !transport.isPlaying || session.quantization === 'none';
+    const executeAt = isImmediate
+      ? transport.currentTime
+      : getQuantizedLaunchTime(transport.currentTime, getSessionQuantizationSeconds(state.project, session.quantization));
+
+    if (isImmediate) {
+      let nextProject = state.project;
+      for (const slot of session.slots.filter((candidate) => candidate.sceneId === sceneId && candidate.clipId)) {
+        nextProject = applySessionTrackLaunch(nextProject, slot.trackId, slot.clipId ?? null, executeAt, 'scene', sceneId);
+      }
+      set({ project: nextProject });
+      return;
+    }
+
+    set({
+      project: {
+        ...state.project,
+        session: queuePendingSessionLaunch(session, {
+          type: 'scene',
+          sceneId,
+          executeAt,
+        }),
+      },
+    });
+  },
+
+  stopSessionTrack: (trackId) => {
+    const state = get();
+    if (!state.project) return;
+    const session = ensureProjectSession(state.project).session!;
+    const transport = useTransportStore.getState();
+    const isImmediate = !transport.isPlaying || session.quantization === 'none';
+    const executeAt = isImmediate
+      ? transport.currentTime
+      : getQuantizedLaunchTime(transport.currentTime, getSessionQuantizationSeconds(state.project, session.quantization));
+
+    if (isImmediate) {
+      set({ project: applySessionTrackLaunch(state.project, trackId, null, executeAt, 'stop') });
+      return;
+    }
+
+    set({
+      project: {
+        ...state.project,
+        session: queuePendingSessionLaunch(session, {
+          type: 'stop-track',
+          trackId,
+          executeAt,
+        }),
+      },
+    });
+  },
+
+  stopAllSessionClips: () => {
+    const state = get();
+    if (!state.project) return;
+    const session = ensureProjectSession(state.project).session!;
+    const transport = useTransportStore.getState();
+    const isImmediate = !transport.isPlaying || session.quantization === 'none';
+    const executeAt = isImmediate
+      ? transport.currentTime
+      : getQuantizedLaunchTime(transport.currentTime, getSessionQuantizationSeconds(state.project, session.quantization));
+
+    if (isImmediate) {
+      let nextProject = state.project;
+      for (const track of state.project.tracks) {
+        nextProject = applySessionTrackLaunch(nextProject, track.id, null, executeAt, 'stop');
+      }
+      set({ project: nextProject });
+      return;
+    }
+
+    set({
+      project: {
+        ...state.project,
+        session: queuePendingSessionLaunch(session, {
+          type: 'stop-all',
+          executeAt,
+        }),
+      },
+    });
+  },
+
+  commitPendingSessionLaunches: (currentTime) => {
+    const state = get();
+    if (!state.project) return;
+    const session = ensureProjectSession(state.project).session!;
+    const ready = session.pendingLaunches
+      .filter((launch) => launch.executeAt <= currentTime + SESSION_LAUNCH_EPSILON)
+      .sort((a, b) => a.executeAt - b.executeAt || a.requestedAt - b.requestedAt);
+    if (ready.length === 0) return;
+
+    let nextProject: Project = {
+      ...ensureProjectSession(state.project),
+      session: {
+        ...session,
+        pendingLaunches: session.pendingLaunches.filter((launch) => !ready.some((candidate) => candidate.id === launch.id)),
+      },
+    };
+
+    for (const launch of ready) {
+      if (launch.type === 'clip' && launch.trackId) {
+        nextProject = applySessionTrackLaunch(nextProject, launch.trackId, launch.clipId ?? null, launch.executeAt, 'clip', launch.sceneId ?? null);
+        continue;
+      }
+      if (launch.type === 'scene' && launch.sceneId) {
+        const nextSession = ensureProjectSession(nextProject).session!;
+        for (const slot of nextSession.slots.filter((candidate) => candidate.sceneId === launch.sceneId && candidate.clipId)) {
+          nextProject = applySessionTrackLaunch(nextProject, slot.trackId, slot.clipId ?? null, launch.executeAt, 'scene', launch.sceneId);
+        }
+        continue;
+      }
+      if (launch.type === 'stop-track' && launch.trackId) {
+        nextProject = applySessionTrackLaunch(nextProject, launch.trackId, null, launch.executeAt, 'stop');
+        continue;
+      }
+      if (launch.type === 'stop-all') {
+        for (const track of nextProject.tracks) {
+          nextProject = applySessionTrackLaunch(nextProject, track.id, null, launch.executeAt, 'stop');
+        }
+      }
+    }
+
+    set({ project: nextProject });
+  },
+
+  startSessionArrangementRecording: (startTime) => {
+    const state = get();
+    if (!state.project) return;
+    const session = ensureProjectSession(state.project).session!;
+    const effectiveStartTime = startTime ?? useTransportStore.getState().currentTime;
+    const initialLaunches: SessionLaunchEvent[] = Object.entries(session.activeClipIdsByTrackId)
+      .filter(([, clipId]) => !!clipId)
+      .map(([trackId, clipId]) => ({
+        id: uuidv4(),
+        trackId,
+        clipId: clipId ?? null,
+        startedAt: effectiveStartTime,
+        endedAt: null,
+        sceneId: null,
+        source: 'clip',
+      }));
+
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        session: {
+          ...session,
+          isRecordingToArrangement: true,
+          arrangementRecordStartTime: effectiveStartTime,
+          arrangementRecordEndTime: null,
+          recordedLaunches: initialLaunches,
+        },
+      },
+    });
+  },
+
+  stopSessionArrangementRecording: (endTime) => {
+    const state = get();
+    if (!state.project) return [];
+    const session = ensureProjectSession(state.project).session!;
+    if (!session.isRecordingToArrangement) return [];
+    const effectiveEndTime = endTime ?? useTransportStore.getState().currentTime;
+    const baseProject = {
+      ...state.project,
+      session: {
+        ...session,
+        recordedLaunches: session.recordedLaunches.map((launch) => ({
+          ...launch,
+          endedAt: launch.endedAt ?? effectiveEndTime,
+        })),
+      },
+    };
+    const printedClips = buildArrangementClipsFromSession(baseProject, effectiveEndTime);
+    if (printedClips.length === 0) {
+      set({
+        project: {
+          ...baseProject,
+          updatedAt: Date.now(),
+          session: {
+            ...baseProject.session!,
+            isRecordingToArrangement: false,
+            arrangementRecordEndTime: effectiveEndTime,
+            recordedLaunches: [],
+          },
+        },
+      });
+      return [];
+    }
+
+    _pushHistory(state.project);
+    const clipsByTrack = new Map<string, Clip[]>();
+    for (const clip of printedClips) {
+      if (!clipsByTrack.has(clip.trackId)) clipsByTrack.set(clip.trackId, []);
+      clipsByTrack.get(clip.trackId)!.push(clip);
+    }
+    const newTracks = state.project.tracks.map((track) => (
+      clipsByTrack.has(track.id)
+        ? { ...track, clips: [...track.clips, ...clipsByTrack.get(track.id)!] }
+        : track
+    ));
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: newTracks,
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        session: {
+          ...baseProject.session!,
+          isRecordingToArrangement: false,
+          arrangementRecordEndTime: effectiveEndTime,
+          recordedLaunches: [],
+        },
+      },
+    });
+    return printedClips;
   },
 
   removeAsset: (assetId) => {
