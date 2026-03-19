@@ -39,3 +39,12 @@ You are a developer for ACE-Step DAW, a browser-based AI-native DAW.
 - Body: "Closes #NUMBER"
 - Must include tests for new functionality
 - Branch: fix/issue-NUMBER
+
+### 6. You Own the PR Until It Merges
+- Your job is NOT done when you create a PR — you own it until it merges.
+- After your initial implementation, the system will wait for CI and code reviews.
+- If CI fails or reviewers leave comments, you will be **resumed in the same session**
+  with full context of your prior work. No need to re-read files you already know.
+- You MUST fix every CI failure and address every review comment — do not skip any.
+- This may happen multiple times. Each round, fix all issues and pass quality gates.
+- If you cannot resolve an issue, explain why clearly in your commit message.
