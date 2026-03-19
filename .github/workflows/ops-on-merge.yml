@@ -1,33 +1,37 @@
-name: Ops — Event-Driven Agent Dispatch
+name: Ops — Post-Merge Dispatch
 
 on:
   pull_request:
     types: [closed]
     branches: [main]
-  issues:
-    types: [opened, labeled]
 
 jobs:
-  dispatch-agents:
-    if: github.event.pull_request.merged == true || github.event_name == 'issues'
+  post-merge:
+    if: github.event.pull_request.merged == true
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run ops cycle
+      - name: Merge next ready PR or start next issue
         run: |
-          echo "Event: ${{ github.event_name }}"
-          echo "Trigger: PR merged or issue created"
+          echo "PR #${{ github.event.pull_request.number }} merged"
           
-          # Run the ops cycle script
-          bash scripts/ops-cycle.sh
+          # Try to merge next ready PR
+          NEXT_PR=$(gh pr list --repo ${{ github.repository }} --state open --json number,isDraft,mergeable --jq '[.[] | select(.isDraft==false and .mergeable=="MERGEABLE")] | .[0].number // empty')
+          if [ -n "$NEXT_PR" ]; then
+            echo "Merging next ready PR #$NEXT_PR"
+            gh pr merge $NEXT_PR --repo ${{ github.repository }} --squash --admin || true
+          fi
           
-          # Launch Claude Code CLI for next task if available
-          OPEN_ISSUES=$(gh issue list --repo ${{ github.repository }} --state open --limit 5 --json number --jq '.[].number' | head -1)
+          # Check if there are unworked issues
+          OPEN_ISSUES=$(gh issue list --repo ${{ github.repository }} --state open --label "role: developer" --json number,title --jq '.[0]')
           if [ -n "$OPEN_ISSUES" ]; then
-            echo "Launching Claude Code CLI for issue #$OPEN_ISSUES"
+            ISSUE_NUM=$(echo "$OPEN_ISSUES" | python3 -c "import json,sys; print(json.load(sys.stdin)['number'])")
+            ISSUE_TITLE=$(echo "$OPEN_ISSUES" | python3 -c "import json,sys; print(json.load(sys.stdin)['title'])")
+            echo "Starting work on issue #$ISSUE_NUM: $ISSUE_TITLE"
+            
             ~/.local/bin/claude --print --permission-mode bypassPermissions \
-              "Check issue #$OPEN_ISSUES in ace-step/ACE-Step-DAW. If it needs coding, implement it. Build, test, create PR." &
+              "Implement issue #$ISSUE_NUM ($ISSUE_TITLE) in /Users/junmingong/.openclaw/workspace/acestep-daw. Build, test, create PR." &
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
