@@ -223,6 +223,7 @@ interface ProjectState {
   reorderMidiEffect: (trackId: string, fromIndex: number, toIndex: number) => void;
 
   // Automation
+  ensureAutomationLane: (trackId: string, parameter: AutomationParameter, initialValue?: number) => void;
   addAutomationPoint: (trackId: string, parameter: AutomationParameter, point: AutomationPoint) => void;
   removeAutomationPoint: (trackId: string, parameter: AutomationParameter, pointIndex: number) => void;
   updateAutomationPoint: (trackId: string, parameter: AutomationParameter, pointIndex: number, updates: Partial<AutomationPoint>) => void;
@@ -2540,6 +2541,9 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
+        automationLanes: (state.project.automationLanes ?? []).filter(
+          (lane) => lane.parameter.type !== 'effect' || lane.parameter.effectId !== effectId,
+        ),
         tracks: state.project.tracks.map((track) =>
           track.id === trackId
             ? { ...track, effects: (track.effects ?? []).filter((effect) => effect.id !== effectId) }
@@ -2703,6 +2707,29 @@ export const useProjectStore = create<ProjectState>()(
   },
 
   // ─── Automation ───────────────────────────────────────────────────────────
+
+  ensureAutomationLane: (trackId, parameter, initialValue = 0.5) => {
+    const state = get();
+    if (!state.project) return;
+    const existingLane = (state.project.automationLanes ?? []).find(
+      (lane) => lane.trackId === trackId && automationParamEquals(lane.parameter, parameter),
+    );
+    if (existingLane) return;
+    _pushHistory(state.project);
+    const lanes = [
+      ...(state.project.automationLanes ?? []),
+      {
+        id: uuidv4(),
+        trackId,
+        parameter,
+        points: [
+          { time: 0, value: initialValue },
+          { time: state.project.totalDuration, value: initialValue },
+        ],
+      },
+    ];
+    set({ project: { ...state.project, updatedAt: Date.now(), automationLanes: lanes } });
+  },
 
   addAutomationPoint: (trackId, parameter, point) => {
     const state = get();
