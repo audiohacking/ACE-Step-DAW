@@ -459,7 +459,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
       <div
         ref={clipBlockRef}
         className={`absolute top-1 bottom-1 rounded-md select-none overflow-hidden
-          ${statusStyles[clip.generationStatus] ?? ''}
+          ${clip.muted ? 'opacity-30 pointer-events-none' : (statusStyles[clip.generationStatus] ?? '')}
           ${isSelected ? 'ring-2 ring-offset-1 ring-offset-transparent' : ''}
           ${dragGhost && dragGhost.targetTrackId && !dragGhost.isShiftCopy ? 'opacity-0' : ''}
         `}

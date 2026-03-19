@@ -99,7 +99,7 @@ function collectTimelineScrubClips(project: Project): TimelineScrubClip[] {
     }
 
     return track.clips.flatMap((clip) => {
-      if (clip.generationStatus !== 'ready') return [];
+      if (clip.generationStatus !== 'ready' || clip.muted) return [];
       const bufferKey = clip.isolatedAudioKey ?? clip.cumulativeMixKey;
       if (!bufferKey) return [];
 
@@ -207,7 +207,7 @@ export function useTransport() {
 
       const clipsToSchedule = mainView === 'session'
         ? (sessionTrackMap.get(track.id)?.clip ? [sessionTrackMap.get(track.id)!.clip] : [])
-        : track.clips.filter((clip) => clip.generationStatus === 'ready');
+        : track.clips.filter((clip) => clip.generationStatus === 'ready' && !clip.muted);
 
       for (const clip of clipsToSchedule) {
         if (clip.generationStatus !== 'ready') continue;

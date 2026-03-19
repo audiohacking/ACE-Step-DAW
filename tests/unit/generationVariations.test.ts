@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useGenerationStore } from '../../src/store/generationStore';
+import { useProjectStore } from '../../src/store/projectStore';
 
 describe('Generation Variation Session', () => {
   beforeEach(() => {
@@ -178,6 +179,101 @@ describe('Generation Variation Session', () => {
 
       useGenerationStore.getState().clearVariationSession();
       expect(useGenerationStore.getState().variationSession).toBeNull();
+    });
+  });
+
+  describe('setActiveVariation with clip muting', () => {
+    beforeEach(() => {
+      // Set up project store with a track containing variation clips
+      useProjectStore.setState(useProjectStore.getInitialState(), true);
+      const projStore = useProjectStore.getState();
+      projStore.createProject('Test Project');
+      projStore.addTrack('stems');
+      const track = useProjectStore.getState().project!.tracks[0];
+
+      // Start a variation session targeting this track
+      useGenerationStore.getState().startVariationSession({
+        prompt: 'test',
+        trackId: track.id,
+        variationCount: 3,
+        bpm: 120,
+        keyScale: 'C major',
+        duration: 30,
+        guidanceScale: 7.0,
+      });
+
+      // Add 3 clips to the track to simulate completed variations
+      const clip0 = projStore.addClip(track.id, {
+        startTime: 0, duration: 10, prompt: 'var0', lyrics: '',
+      });
+      const clip1 = projStore.addClip(track.id, {
+        startTime: 0, duration: 10, prompt: 'var1', lyrics: '',
+      });
+      const clip2 = projStore.addClip(track.id, {
+        startTime: 0, duration: 10, prompt: 'var2', lyrics: '',
+      });
+
+      // Mark variations as done with clip IDs
+      useGenerationStore.getState().updateVariation(0, { status: 'done', clipId: clip0.id });
+      useGenerationStore.getState().updateVariation(1, { status: 'done', clipId: clip1.id });
+      useGenerationStore.getState().updateVariation(2, { status: 'done', clipId: clip2.id });
+    });
+
+    it('mutes non-active variation clips and unmutes the active one', () => {
+      // Switch to variation 1
+      useGenerationStore.getState().setActiveVariation(1);
+
+      const track = useProjectStore.getState().project!.tracks[0];
+      const session = useGenerationStore.getState().variationSession!;
+
+      // clip0 (variation 0) should be muted
+      const clip0 = track.clips.find(c => c.id === session.variations[0].clipId)!;
+      expect(clip0.muted).toBe(true);
+
+      // clip1 (variation 1, active) should NOT be muted
+      const clip1 = track.clips.find(c => c.id === session.variations[1].clipId)!;
+      expect(clip1.muted).toBeFalsy();
+
+      // clip2 (variation 2) should be muted
+      const clip2 = track.clips.find(c => c.id === session.variations[2].clipId)!;
+      expect(clip2.muted).toBe(true);
+    });
+
+    it('switches muting when changing active variation', () => {
+      const projStoreRef = useProjectStore;
+
+      // Start at variation 0, switch to 2
+      useGenerationStore.getState().setActiveVariation(2);
+
+      const track = useProjectStore.getState().project!.tracks[0];
+      const session = useGenerationStore.getState().variationSession!;
+
+      // Only clip2 should be unmuted
+      const clip0 = track.clips.find(c => c.id === session.variations[0].clipId)!;
+      const clip1 = track.clips.find(c => c.id === session.variations[1].clipId)!;
+      const clip2 = track.clips.find(c => c.id === session.variations[2].clipId)!;
+
+      expect(clip0.muted).toBe(true);
+      expect(clip1.muted).toBe(true);
+      expect(clip2.muted).toBeFalsy();
+    });
+
+    it('does not break when variation has no clipId yet', () => {
+      // Reset and create session with pending variations
+      useGenerationStore.setState(useGenerationStore.getInitialState(), true);
+      useGenerationStore.getState().startVariationSession({
+        prompt: 'test',
+        trackId: 'track-x',
+        variationCount: 2,
+        bpm: 120,
+        keyScale: 'C major',
+        duration: 30,
+        guidanceScale: 7.0,
+      });
+
+      // Should not throw
+      expect(() => useGenerationStore.getState().setActiveVariation(1)).not.toThrow();
+      expect(useGenerationStore.getState().variationSession!.activeVariationIndex).toBe(1);
     });
   });
 

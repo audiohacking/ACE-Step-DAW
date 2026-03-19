@@ -369,6 +369,8 @@ export interface Clip {
   warpMarkers?: AudioWarpMarker[];
   /** Per-clip gain envelope for non-destructive volume automation. */
   gainEnvelope?: GainEnvelopePoint[];
+  /** Per-clip mute for A/B variation comparison. */
+  muted?: boolean;
 }
 
 export interface BounceInPlaceOptions {

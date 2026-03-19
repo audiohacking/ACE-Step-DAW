@@ -33,6 +33,7 @@ const agentProjectStore = {
     lastSubmittedRequest: useGenerationStore.getState().lastSubmittedRequest,
     variationSession: useGenerationStore.getState().variationSession,
     submitGenerationRequest: useGenerationStore.getState().submitGenerationRequest,
+    setActiveVariation: useGenerationStore.getState().setActiveVariation,
   }),
   setState: useProjectStore.setState,
   subscribe: useProjectStore.subscribe,
@@ -52,6 +53,7 @@ const agentProjectStore = {
     lastSubmittedRequest: useGenerationStore.getInitialState().lastSubmittedRequest,
     variationSession: useGenerationStore.getInitialState().variationSession,
     submitGenerationRequest: useGenerationStore.getInitialState().submitGenerationRequest,
+    setActiveVariation: useGenerationStore.getInitialState().setActiveVariation,
   }),
 };
 
