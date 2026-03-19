@@ -151,6 +151,10 @@ export interface Clip {
   fadeInCurve?: 'linear' | 'exponential' | 'equal-power';
   /** Fade out curve shape. */
   fadeOutCurve?: 'linear' | 'exponential' | 'equal-power';
+  /** Time-stretch playback rate (1 = original speed, 0.5 = half, 2 = double). */
+  timeStretchRate?: number;
+  /** Pitch shift in semitones (0 = original pitch). */
+  pitchShift?: number;
   /** Optional MIDI region data for piano roll tracks. */
   midiData?: MidiClipData;
 }
