@@ -455,6 +455,10 @@ export interface ProjectState {
   moveTrackToGroup: (trackId: string, groupId: string | null) => void;
   toggleGroupCollapse: (groupId: string) => void;
   getGroupVolume: (groupId: string) => number;
+  removeGroupTrack: (groupId: string) => void;
+  setGroupMuted: (groupId: string, muted: boolean) => void;
+  setGroupSoloed: (groupId: string, soloed: boolean) => void;
+  getVisibleTracks: () => Track[];
 
   // Tempo map
   addTempoEvent: (event: TempoEvent) => void;
@@ -4953,6 +4957,74 @@ export const useProjectStore = create<ProjectState>()(
     const children = state.project.tracks.filter((t) => t.parentTrackId === groupId && !t.isGroup);
     if (children.length === 0) return 0;
     return children.reduce((sum, t) => sum + t.volume, 0) / children.length;
+  },
+
+  removeGroupTrack: (groupId) => {
+    const state = get();
+    if (!state.project) return;
+    const group = state.project.tracks.find((t) => t.id === groupId);
+    if (!group || !group.isGroup) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks
+          .filter((t) => t.id !== groupId)
+          .map((t) => t.parentTrackId === groupId ? { ...t, parentTrackId: undefined } : t),
+      },
+    });
+  },
+
+  setGroupMuted: (groupId, muted) => {
+    const state = get();
+    if (!state.project) return;
+    const group = state.project.tracks.find((t) => t.id === groupId);
+    if (!group || !group.isGroup) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((t) => {
+          if (t.id === groupId) return { ...t, muted };
+          if (t.parentTrackId === groupId) return { ...t, muted };
+          return t;
+        }),
+      },
+    });
+  },
+
+  setGroupSoloed: (groupId, soloed) => {
+    const state = get();
+    if (!state.project) return;
+    const group = state.project.tracks.find((t) => t.id === groupId);
+    if (!group || !group.isGroup) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((t) => {
+          if (t.id === groupId) return { ...t, soloed };
+          if (t.parentTrackId === groupId) return { ...t, soloed };
+          return t;
+        }),
+      },
+    });
+  },
+
+  getVisibleTracks: () => {
+    const state = get();
+    if (!state.project) return [];
+    const collapsedGroupIds = new Set(
+      state.project.tracks
+        .filter((t) => t.isGroup && t.collapsed)
+        .map((t) => t.id),
+    );
+    return [...state.project.tracks]
+      .filter((t) => !t.parentTrackId || !collapsedGroupIds.has(t.parentTrackId))
+      .sort((a, b) => a.order - b.order);
   },
 
   // ── Return tracks (sends/returns mixer buses) ─────────────────────────────

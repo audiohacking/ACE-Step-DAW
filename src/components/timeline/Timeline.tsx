@@ -160,9 +160,8 @@ export function Timeline() {
     };
   }, []);
 
-  const sortedTracks = project
-    ? [...project.tracks].sort((a, b) => a.order - b.order)
-    : [];
+  const getVisibleTracks = useProjectStore((s) => s.getVisibleTracks);
+  const sortedTracks = project ? getVisibleTracks() : [];
 
   const totalWidth = project ? project.totalDuration * pixelsPerSecond : 0;
 

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { TrackHeader } from './TrackHeader';
@@ -8,6 +8,7 @@ import { TrackHeightPresetSelector } from './TrackHeightPresetSelector';
 export function TrackList() {
   const project = useProjectStore((s) => s.project);
   const reorderTrack = useProjectStore((s) => s.reorderTrack);
+  const getVisibleTracks = useProjectStore((s) => s.getVisibleTracks);
   const trackListWidth = useUIStore((s) => s.trackListWidth);
   const setTrackListWidth = useUIStore((s) => s.setTrackListWidth);
 
@@ -67,7 +68,8 @@ export function TrackList() {
 
   if (!project) return null;
 
-  const sortedTracks = [...project.tracks].sort((a, b) => a.order - b.order);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const visibleTracks = useMemo(() => getVisibleTracks(), [getVisibleTracks, project]);
 
   return (
     <div
@@ -86,10 +88,11 @@ export function TrackList() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {sortedTracks.map((track) => (
+        {visibleTracks.map((track) => (
           <TrackHeader
             key={track.id}
             track={track}
+            isChild={!!track.parentTrackId}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDrop={handleDrop}

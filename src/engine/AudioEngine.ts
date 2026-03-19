@@ -215,6 +215,22 @@ export class AudioEngine {
     return node;
   }
 
+  /**
+   * Route a child track's output through its parent group's TrackNode.
+   * Call this after creating/updating track group assignments.
+   */
+  setTrackGroupRouting(trackId: string, groupId: string | null) {
+    const trackNode = this.trackNodes.get(trackId);
+    if (!trackNode) return;
+
+    if (groupId) {
+      const groupNode = this.getOrCreateTrackNode(groupId);
+      trackNode.rerouteOutput(groupNode.inputGain);
+    } else {
+      trackNode.rerouteOutput(this.masterInputGain);
+    }
+  }
+
   removeTrackNode(trackId: string) {
     const node = this.trackNodes.get(trackId);
     if (node) {

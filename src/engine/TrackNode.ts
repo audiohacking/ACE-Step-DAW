@@ -295,6 +295,15 @@ export class TrackNode {
 
   // -----------------------------------------------------------------------
 
+  /**
+   * Re-route the final output (analyserNode) to a new destination node.
+   * Used for group bus routing — child tracks route to the group's inputGain.
+   */
+  rerouteOutput(destination: AudioNode) {
+    this.analyserNode.disconnect();
+    this.analyserNode.connect(destination);
+  }
+
   disconnect() {
     this.inputGain.disconnect();
     this.panNode.disconnect();
