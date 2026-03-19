@@ -98,6 +98,8 @@ interface ProjectState {
   setDualMonoPan: (trackId: string, left: number, right: number) => void;
   setTrackLocalCaption: (trackId: string, caption: string) => void;
   setTrackReverb: (trackId: string, mix: number, roomSize: number) => void;
+  freezeTrack: (trackId: string) => void;
+  unfreezeTrack: (trackId: string) => void;
 
   addTrack: (trackName: TrackName, trackType?: TrackType) => Track;
   removeTrack: (trackId: string) => void;
@@ -120,6 +122,8 @@ interface ProjectState {
   /** Restore clip audio fields from a version by index. */
   setActiveVersion: (clipId: string, idx: number) => void;
   setClipFade: (clipId: string, fade: Partial<Pick<Clip, 'fadeInDuration' | 'fadeOutDuration' | 'fadeInCurve' | 'fadeOutCurve'>>) => void;
+  setClipTimeStretch: (clipId: string, rate: number) => void;
+  setClipPitchShift: (clipId: string, semitones: number) => void;
 
   splitClip: (clipId: string, splitTime: number) => void;
   toggleClipStar: (clipId: string) => void;
@@ -450,6 +454,36 @@ export const useProjectStore = create<ProjectState>()(
         updatedAt: Date.now(),
         tracks: state.project.tracks.map((t) =>
           t.id === trackId ? { ...t, reverbMix: mix, reverbRoomSize: roomSize } : t,
+        ),
+      },
+    });
+  },
+
+  freezeTrack: (trackId) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((t) =>
+          t.id === trackId ? { ...t, frozen: true } : t,
+        ),
+      },
+    });
+  },
+
+  unfreezeTrack: (trackId) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((t) =>
+          t.id === trackId ? { ...t, frozen: false, frozenAudioKey: undefined } : t,
         ),
       },
     });
@@ -818,6 +852,14 @@ export const useProjectStore = create<ProjectState>()(
 
   setClipFade: (clipId, fade) => {
     get().updateClip(clipId, fade);
+  },
+
+  setClipTimeStretch: (clipId, rate) => {
+    get().updateClip(clipId, { timeStretchRate: rate });
+  },
+
+  setClipPitchShift: (clipId, semitones) => {
+    get().updateClip(clipId, { pitchShift: semitones });
   },
 
   splitClip: (clipId, splitTime) => {
