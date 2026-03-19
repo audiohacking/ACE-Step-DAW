@@ -16,9 +16,15 @@ fi
 cd "$DAW"
 git fetch origin main 2>/dev/null
 git worktree prune 2>/dev/null
-git worktree add "$WT" origin/main --detach 2>/dev/null
-cd "$WT"
-git checkout -B "fix/issue-$ISSUE_NUM" origin/main 2>/dev/null
+# Delete stale branch if exists
+git branch -D "fix/issue-$ISSUE_NUM" 2>/dev/null || true
+# Create worktree — if fails, abort with error
+git worktree add "$WT" origin/main --detach 2>/dev/null || {
+  echo "ERROR: failed to create worktree for #$ISSUE_NUM" >> /tmp/pm-activity.log
+  exit 1
+}
+cd "$WT" || exit 1
+git checkout -B "fix/issue-$ISSUE_NUM" origin/main 2>/dev/null || exit 1
 
 CONTEXT=$(cat "$DAW/scripts/agents/AGENT_CONTEXT.md" 2>/dev/null)
 
