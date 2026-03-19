@@ -1,4 +1,6 @@
 import { audioBufferToWavBlob } from '../utils/wav';
+import { encodeToMp3, encodeToFlac } from '../utils/audioEncoders';
+import type { ExportOptions } from '../utils/audioEncoders';
 import type { TrackEffect } from '../types/project';
 
 export interface ExportClip {
@@ -183,6 +185,74 @@ export async function exportMixToWav(
 
   const rendered = await offlineCtx.startRendering();
   return audioBufferToWavBlob(rendered);
+}
+
+/**
+ * Render the mix offline and return the raw AudioBuffer.
+ * Used internally by format-specific export functions.
+ */
+export async function renderMixOffline(
+  clips: ExportClip[],
+  totalDuration: number,
+  sampleRate: number = 48000,
+): Promise<AudioBuffer> {
+  const length = Math.ceil(totalDuration * sampleRate);
+  const offlineCtx = new OfflineAudioContext(2, length, sampleRate);
+
+  for (const clip of clips) {
+    const source = offlineCtx.createBufferSource();
+    source.buffer = clip.buffer;
+
+    const gain = offlineCtx.createGain();
+    gain.gain.value = clip.volume;
+
+    const fxChain = clip.effects ? buildOfflineEffects(offlineCtx, clip.effects) : null;
+    const pan = clip.pan ?? 0;
+    let chainEnd: AudioNode;
+
+    if (fxChain) {
+      source.connect(fxChain.input);
+      fxChain.output.connect(gain);
+    } else {
+      source.connect(gain);
+    }
+
+    if (pan !== 0) {
+      const panner = offlineCtx.createStereoPanner();
+      panner.pan.value = Math.max(-1, Math.min(1, pan));
+      gain.connect(panner);
+      chainEnd = panner;
+    } else {
+      chainEnd = gain;
+    }
+
+    chainEnd.connect(offlineCtx.destination);
+    source.start(clip.startTime);
+  }
+
+  return offlineCtx.startRendering();
+}
+
+/**
+ * Export the mix in the specified format.
+ * Renders offline then encodes to the requested format.
+ */
+export async function exportMix(
+  clips: ExportClip[],
+  totalDuration: number,
+  options: ExportOptions,
+): Promise<Blob> {
+  const rendered = await renderMixOffline(clips, totalDuration, options.sampleRate);
+
+  switch (options.format) {
+    case 'mp3':
+      return encodeToMp3(rendered, options.mp3Bitrate);
+    case 'flac':
+      return encodeToFlac(rendered, options.bitDepth);
+    case 'wav':
+    default:
+      return audioBufferToWavBlob(rendered, options.bitDepth);
+  }
 }
 
 /**

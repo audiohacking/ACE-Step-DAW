@@ -3,28 +3,75 @@ import { useUIStore } from '../../store/uiStore';
 import { useProjectStore } from '../../store/projectStore';
 import { getAudioEngine } from '../../hooks/useAudioEngine';
 import { loadAudioBlobByKey } from '../../services/audioFileManager';
-import { exportMixToWav, type ExportClip } from '../../engine/exportMix';
+import { exportMix, type ExportClip } from '../../engine/exportMix';
 import { renderMidiTrackOffline, renderSequencerTrackOffline } from '../../engine/offlineRender';
 import { toastError, toastSuccess } from '../../hooks/useToast';
+import {
+  type ExportFormat,
+  type Mp3Bitrate,
+  type SampleRateOption,
+  type BitDepth,
+  type ExportOptions,
+  DEFAULT_EXPORT_OPTIONS,
+  estimateFileSize,
+  formatFileSize,
+} from '../../utils/audioEncoders';
+
+const FORMAT_OPTIONS: { value: ExportFormat; label: string }[] = [
+  { value: 'wav', label: 'WAV' },
+  { value: 'mp3', label: 'MP3' },
+  { value: 'flac', label: 'FLAC' },
+];
+
+const BITRATE_OPTIONS: { value: Mp3Bitrate; label: string }[] = [
+  { value: 128, label: '128 kbps' },
+  { value: 192, label: '192 kbps' },
+  { value: 256, label: '256 kbps' },
+  { value: 320, label: '320 kbps' },
+];
+
+const SAMPLE_RATE_OPTIONS: { value: SampleRateOption; label: string }[] = [
+  { value: 44100, label: '44.1 kHz' },
+  { value: 48000, label: '48 kHz' },
+];
+
+const BIT_DEPTH_OPTIONS: { value: BitDepth; label: string }[] = [
+  { value: 16, label: '16-bit' },
+  { value: 24, label: '24-bit' },
+];
+
+function fileExtension(format: ExportFormat): string {
+  switch (format) {
+    case 'mp3': return '.mp3';
+    case 'flac': return '.flac';
+    default: return '.wav';
+  }
+}
 
 export function ExportDialog() {
   const show = useUIStore((s) => s.showExportDialog);
   const setShow = useUIStore((s) => s.setShowExportDialog);
   const project = useProjectStore((s) => s.project);
   const [exporting, setExporting] = useState(false);
+  const [exportOptions, setExportOptions] = useState<ExportOptions>(DEFAULT_EXPORT_OPTIONS);
+  const [progress, setProgress] = useState(0);
 
   if (!show || !project) return null;
 
   const handleExport = async () => {
     setExporting(true);
+    setProgress(0);
     try {
       const engine = getAudioEngine();
       const clips: ExportClip[] = [];
 
       const anySoloed = project.tracks.some((t) => t.soloed);
+      const totalTracks = project.tracks.length;
+      let processedTracks = 0;
+
       for (const track of project.tracks) {
-        if (track.muted) continue;
-        if (anySoloed && !track.soloed) continue;
+        if (track.muted) { processedTracks++; continue; }
+        if (anySoloed && !track.soloed) { processedTracks++; continue; }
 
         if (track.trackType === 'pianoRoll') {
           for (const clip of track.clips) {
@@ -61,22 +108,30 @@ export function ExportDialog() {
             }
           }
         }
+
+        processedTracks++;
+        setProgress(Math.round((processedTracks / totalTracks) * 50));
       }
 
-      const wavBlob = await exportMixToWav(clips, project.totalDuration);
-      const url = URL.createObjectURL(wavBlob);
+      setProgress(60);
+      const blob = await exportMix(clips, project.totalDuration, exportOptions);
+      setProgress(90);
+
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${project.name}.wav`;
+      a.download = `${project.name}${fileExtension(exportOptions.format)}`;
       a.click();
       URL.revokeObjectURL(url);
-      toastSuccess('WAV exported successfully');
+      setProgress(100);
+      toastSuccess(`${exportOptions.format.toUpperCase()} exported successfully`);
       setShow(false);
     } catch (error) {
       console.error('Export failed:', error);
       toastError('Export failed');
     } finally {
       setExporting(false);
+      setProgress(0);
     }
   };
 
@@ -97,9 +152,18 @@ export function ExportDialog() {
     return hasReadyAudio || hasMidiNotes || Boolean(hasSequencerSteps);
   });
 
+  const estimatedSize = estimateFileSize(
+    project.totalDuration,
+    exportOptions.sampleRate,
+    2,
+    exportOptions,
+  );
+
+  const selectClass = 'w-full bg-daw-surface-2 border border-daw-border rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-daw-accent';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-[360px] bg-daw-surface rounded-lg border border-daw-border shadow-2xl">
+      <div className="w-[400px] bg-daw-surface rounded-lg border border-daw-border shadow-2xl">
         <div className="flex items-center justify-between px-4 py-3 border-b border-daw-border">
           <h2 className="text-sm font-medium">Export Mix</h2>
           <button
@@ -111,13 +175,97 @@ export function ExportDialog() {
         </div>
 
         <div className="p-4 space-y-3">
-          <p className="text-xs text-zinc-400">
-            Export all generated clips as a stereo WAV file at 48kHz.
-          </p>
-          <p className="text-xs text-zinc-500">
-            {readyClips.length} clip{readyClips.length !== 1 ? 's' : ''} ready across{' '}
-            {project.tracks.length} track{project.tracks.length !== 1 ? 's' : ''}
-          </p>
+          {/* Format selector */}
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Format</label>
+            <select
+              data-testid="export-format-select"
+              className={selectClass}
+              value={exportOptions.format}
+              onChange={(e) =>
+                setExportOptions((prev) => ({ ...prev, format: e.target.value as ExportFormat }))
+              }
+            >
+              {FORMAT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Sample rate */}
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Sample Rate</label>
+            <select
+              data-testid="export-sample-rate-select"
+              className={selectClass}
+              value={exportOptions.sampleRate}
+              onChange={(e) =>
+                setExportOptions((prev) => ({ ...prev, sampleRate: Number(e.target.value) as SampleRateOption }))
+              }
+            >
+              {SAMPLE_RATE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Bit depth (WAV & FLAC only) */}
+          {exportOptions.format !== 'mp3' && (
+            <div>
+              <label className="block text-xs text-zinc-400 mb-1">Bit Depth</label>
+              <select
+                data-testid="export-bit-depth-select"
+                className={selectClass}
+                value={exportOptions.bitDepth}
+                onChange={(e) =>
+                  setExportOptions((prev) => ({ ...prev, bitDepth: Number(e.target.value) as BitDepth }))
+                }
+              >
+                {BIT_DEPTH_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* MP3 bitrate (MP3 only) */}
+          {exportOptions.format === 'mp3' && (
+            <div>
+              <label className="block text-xs text-zinc-400 mb-1">Bitrate</label>
+              <select
+                data-testid="export-bitrate-select"
+                className={selectClass}
+                value={exportOptions.mp3Bitrate}
+                onChange={(e) =>
+                  setExportOptions((prev) => ({ ...prev, mp3Bitrate: Number(e.target.value) as Mp3Bitrate }))
+                }
+              >
+                {BITRATE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* File info */}
+          <div className="flex items-center justify-between text-xs text-zinc-500">
+            <span>
+              {readyClips.length} clip{readyClips.length !== 1 ? 's' : ''} across{' '}
+              {project.tracks.length} track{project.tracks.length !== 1 ? 's' : ''}
+            </span>
+            <span data-testid="export-size-estimate">~{formatFileSize(estimatedSize)}</span>
+          </div>
+
+          {/* Progress bar */}
+          {exporting && (
+            <div className="w-full h-1.5 bg-daw-surface-2 rounded overflow-hidden">
+              <div
+                className="h-full bg-daw-accent transition-all duration-300"
+                style={{ width: `${progress}%` }}
+                data-testid="export-progress-bar"
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end px-4 py-3 border-t border-daw-border gap-2">
@@ -132,7 +280,7 @@ export function ExportDialog() {
             disabled={exporting || !hasExportableContent}
             className="px-4 py-1.5 text-xs font-medium bg-daw-accent text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed enabled:hover:bg-daw-accent-hover"
           >
-            {exporting ? 'Exporting...' : 'Export WAV'}
+            {exporting ? `Exporting... ${progress}%` : `Export ${exportOptions.format.toUpperCase()}`}
           </button>
         </div>
       </div>
