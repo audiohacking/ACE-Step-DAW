@@ -87,7 +87,7 @@ export function TrackLane({ track }: TrackLaneProps) {
     startTime: number; duration: number;
   } | null>(null);
 
-  const { importAudioBufferToTrack, importAudioToTrack, importLoopToTrack, importAssetToTrack } = useAudioImport();
+  const { importAudioToTrack, importMidiFile, importLoopToTrack, importAssetToTrack } = useAudioImport();
   const [fileDragOver, setFileDragOver] = useState(false);
 
   const resizeRef = useRef<{ startY: number; startH: number } | null>(null);
@@ -223,9 +223,11 @@ export function TrackLane({ track }: TrackLaneProps) {
     for (const file of Array.from(files)) {
       if (file.type.startsWith('audio/') || /\.(wav|mp3|ogg|flac|aac|m4a|webm)$/i.test(file.name)) {
         await importAudioToTrack(file, track.id, startTime);
+      } else if (/\.(mid|midi)$/i.test(file.name)) {
+        await importMidiFile(file, startTime);
       }
     }
-  }, [project, pixelsPerSecond, track.id, importAudioToTrack, importLoopToTrack, importAssetToTrack]);
+  }, [project, pixelsPerSecond, track.id, importAudioToTrack, importMidiFile, importLoopToTrack, importAssetToTrack]);
 
   const hasClips = track.clips.length > 0;
   const automationLanes = (project?.automationLanes ?? []).filter((l) => l.trackId === track.id);
@@ -245,7 +247,7 @@ export function TrackLane({ track }: TrackLaneProps) {
       >
         {fileDragOver && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 border border-dashed border-blue-400/60 rounded-sm">
-            <span className="text-[10px] text-blue-300 bg-blue-950/80 px-2 py-0.5 rounded">Drop audio here</span>
+            <span className="text-[10px] text-blue-300 bg-blue-950/80 px-2 py-0.5 rounded">Drop audio or MIDI here</span>
           </div>
         )}
 
