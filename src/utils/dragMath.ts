@@ -3,6 +3,7 @@
  * Extracted so AI agents can unit test drag logic without DOM interaction.
  */
 import { snapToGrid } from './time';
+import type { TempoEvent } from '../types/project';
 
 /** Minimum clip duration in seconds */
 export const MIN_CLIP_DURATION = 0.5;
@@ -17,10 +18,11 @@ export function calcClipMove(
   bpm: number,
   totalDuration: number,
   snap: boolean = true,
+  tempoMap?: TempoEvent[],
 ): number {
   const deltaSec = deltaPx / pixelsPerSecond;
   const raw = origStart + deltaSec;
-  const snapped = snap ? snapToGrid(raw, bpm, 1) : raw;
+  const snapped = snap ? snapToGrid(raw, bpm, 1, tempoMap) : raw;
   return Math.max(0, Math.min(snapped, totalDuration - MIN_CLIP_DURATION));
 }
 
@@ -35,10 +37,11 @@ export function calcClipResizeRight(
   clipStart: number,
   totalDuration: number,
   snap: boolean = true,
+  tempoMap?: TempoEvent[],
 ): number {
   const deltaSec = deltaPx / pixelsPerSecond;
   const raw = origDuration + deltaSec;
-  const snapped = snap ? snapToGrid(raw, bpm, 1) : raw;
+  const snapped = snap ? snapToGrid(raw, bpm, 1, tempoMap) : raw;
   const clamped = Math.max(MIN_CLIP_DURATION, snapped);
   return Math.min(clamped, totalDuration - clipStart);
 }
@@ -54,10 +57,11 @@ export function calcClipResizeLeft(
   bpm: number,
   origAudioOffset: number = 0,
   snap: boolean = true,
+  tempoMap?: TempoEvent[],
 ): { startTime: number; duration: number; audioOffset: number } {
   const deltaSec = deltaPx / pixelsPerSecond;
   const raw = origStart + deltaSec;
-  const newStart = snap ? snapToGrid(raw, bpm, 1) : raw;
+  const newStart = snap ? snapToGrid(raw, bpm, 1, tempoMap) : raw;
   const clampedStart = Math.max(0, newStart);
   const newDuration = origDuration + (origStart - clampedStart);
   const newAudioOffset = Math.max(0, origAudioOffset + (clampedStart - origStart));

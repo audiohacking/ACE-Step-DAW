@@ -262,8 +262,8 @@ export function Timeline() {
         } else {
           const rawStart = leftPx / pixelsPerSecond;
           const rawEnd = rightPx / pixelsPerSecond;
-          const startTime = Math.max(0, snapToGrid(rawStart, bpm, 1));
-          const endTime = snapToGrid(rawEnd, bpm, 1);
+          const startTime = Math.max(0, snapToGrid(rawStart, bpm, 1, project?.tempoMap));
+          const endTime = snapToGrid(rawEnd, bpm, 1, project?.tempoMap);
           const trackIds = getIntersectedTrackIds(container, minY, maxY);
 
           if (endTime > startTime && trackIds.length > 0) {

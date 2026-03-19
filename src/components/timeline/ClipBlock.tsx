@@ -130,6 +130,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
     const origAudioOffset = clip.audioOffset ?? 0;
     const origAudioDuration = clip.audioDuration ?? clip.duration;
     const bpm = project?.bpm ?? 120;
+    const tempoMap = project?.tempoMap;
     const totalDuration = project?.totalDuration ?? 600;
     dragRef.current = false;
     let isShiftCopy = e.shiftKey;
@@ -164,7 +165,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
           const isFineMove = ev.metaKey || ev.ctrlKey;
           let newStart = isFineMove
             ? Math.round((origStart + deltaSec) * 100) / 100
-            : snapToGrid(origStart + deltaSec, bpm, 1);
+            : snapToGrid(origStart + deltaSec, bpm, 1, tempoMap);
           newStart = Math.max(0, Math.min(newStart, totalDuration - origDuration));
           const timeOffset = newStart - origStart;
 
@@ -200,7 +201,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
           });
         }
       } else if (mode === 'resize-left') {
-        let newStart = snapToGrid(origStart + deltaSec, bpm, 1);
+        let newStart = snapToGrid(origStart + deltaSec, bpm, 1, tempoMap);
         newStart = Math.max(0, newStart);
         const maxStart = origStart + origDuration - MIN_CLIP_DURATION;
         newStart = Math.min(newStart, maxStart);
@@ -226,7 +227,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
           updateClip(clip.id, { audioOffset: newOffset });
         }
       } else {
-        let newDuration = snapToGrid(origDuration + deltaSec, bpm, 1);
+        let newDuration = snapToGrid(origDuration + deltaSec, bpm, 1, tempoMap);
         newDuration = Math.max(MIN_CLIP_DURATION, newDuration);
         newDuration = Math.min(newDuration, totalDuration - origStart);
         updateClip(clip.id, { duration: newDuration });
@@ -245,7 +246,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
         const isFineMove = ev.metaKey || ev.ctrlKey;
         const dropStart = Math.max(0, isFineMove
           ? Math.round((origStart + deltaSec) * 100) / 100
-          : snapToGrid(origStart + deltaSec, bpm, 1));
+          : snapToGrid(origStart + deltaSec, bpm, 1, tempoMap));
 
         if (ev.shiftKey && closest) {
           if (isMultiSelected && lastBatchOffset !== 0) {

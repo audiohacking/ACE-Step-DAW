@@ -13,7 +13,7 @@ function LCDDisplay() {
   const countInBeat = useTransportStore((s) => s.countInBeat);
   const project = useProjectStore((s) => s.project);
   const barsBeats = project
-    ? formatBarsBeats(currentTime, project.bpm, project.timeSignature)
+    ? formatBarsBeats(currentTime, project.bpm, project.timeSignature, project.tempoMap, project.timeSignatureMap)
     : '1.1.00';
 
   // During count-in: show negative beat count in cyan (Ableton convention)

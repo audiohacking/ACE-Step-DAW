@@ -84,6 +84,8 @@ export function ExportDialog() {
               project.bpm,
               track.synthPreset ?? 'piano',
               project.totalDuration,
+              48000,
+              project.tempoMap,
             );
             clips.push({ startTime: 0, buffer, volume: track.volume, pan: track.pan ?? 0, effects: track.effects });
           }
@@ -95,6 +97,8 @@ export function ExportDialog() {
             project.bpm,
             project.totalDuration,
             track.drumKit ?? '808',
+            48000,
+            project.tempoMap,
           );
           clips.push({ startTime: 0, buffer, volume: track.volume, pan: track.pan ?? 0, effects: track.effects });
         }

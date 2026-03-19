@@ -25,7 +25,7 @@ export function useTimelineInteraction() {
       if (!project) return;
 
       const rawTime = (clickX + scrollX) / pixelsPerSecond;
-      const snappedTime = snapToGrid(rawTime, project.bpm, 1);
+      const snappedTime = snapToGrid(rawTime, project.bpm, 1, project.tempoMap);
       const remainingTime = project.totalDuration - snappedTime;
       const defaultDuration = Math.min(DEFAULT_DURATION, Math.max(0.5, remainingTime));
 
