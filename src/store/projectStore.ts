@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { type TrackHeightPreset, getTrackHeightForPreset } from '../constants/trackHeight';
 import type {
   Project,
+  ProjectTemplate,
+  ProjectTemplateTrack,
   Track,
   Clip,
   ClipVersion,
@@ -296,6 +298,12 @@ interface ProjectState {
 
   /** Export each track as a separate WAV file (stem export). */
   exportStems: () => Promise<void>;
+
+  // Project templates
+  /** Save current project as a reusable template (strips clips/audio, keeps track layout & settings). */
+  saveProjectAsTemplate: (name: string, description?: string) => ProjectTemplate;
+  /** Create a new project from a template. */
+  createProjectFromTemplate: (template: ProjectTemplate, projectName?: string) => void;
 }
 
 function computeTotalDuration(
@@ -3663,6 +3671,91 @@ export const useProjectStore = create<ProjectState>()(
       a.click();
       URL.revokeObjectURL(url);
     }
+  },
+
+  // ── Project Templates ─────────────────────────────────────────────────────
+
+  saveProjectAsTemplate: (name, description) => {
+    const state = get();
+    if (!state.project) throw new Error('No project');
+
+    const trimmedName = name.trim();
+    if (!trimmedName) throw new Error('Template name is required');
+
+    const templateTracks: ProjectTemplateTrack[] = state.project.tracks.map((track) => ({
+      trackName: track.trackName,
+      trackType: track.trackType ?? 'stems',
+      displayName: track.displayName,
+      color: track.color,
+      volume: track.volume,
+      pan: track.pan,
+      effects: track.effects ? structuredClone(track.effects) : undefined,
+      midiEffects: track.midiEffects ? structuredClone(track.midiEffects) : undefined,
+      synthPreset: track.synthPreset,
+      drumKit: track.drumKit,
+      localCaption: track.localCaption,
+      sequencerPattern: track.sequencerPattern ? structuredClone(track.sequencerPattern) : undefined,
+    }));
+
+    const template: ProjectTemplate = {
+      id: uuidv4(),
+      name: trimmedName,
+      description: (description ?? '').trim(),
+      createdAt: Date.now(),
+      bpm: state.project.bpm,
+      keyScale: state.project.keyScale,
+      timeSignature: state.project.timeSignature,
+      measures: state.project.measures ?? DEFAULT_MEASURES,
+      tracks: templateTracks,
+      generationDefaults: structuredClone(state.project.generationDefaults),
+    };
+
+    return template;
+  },
+
+  createProjectFromTemplate: (template, projectName) => {
+    const bpm = template.bpm;
+    const timeSig = template.timeSignature;
+    const measures = template.measures;
+
+    const tracks: Track[] = template.tracks.map((tt, idx) => ({
+      id: uuidv4(),
+      trackName: tt.trackName,
+      trackType: tt.trackType,
+      displayName: tt.displayName,
+      color: tt.color,
+      order: idx,
+      volume: tt.volume,
+      muted: false,
+      soloed: false,
+      clips: [],
+      pan: tt.pan,
+      effects: tt.effects ? structuredClone(tt.effects).map((e) => ({ ...e, id: uuidv4() })) : undefined,
+      midiEffects: tt.midiEffects ? structuredClone(tt.midiEffects).map((e) => ({ ...e, id: uuidv4() })) : undefined,
+      synthPreset: tt.synthPreset,
+      drumKit: tt.drumKit,
+      localCaption: tt.localCaption,
+      sequencerPattern: tt.sequencerPattern ? structuredClone(tt.sequencerPattern) : undefined,
+    }));
+
+    const project: Project = {
+      id: uuidv4(),
+      name: projectName?.trim() || template.name,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      bpm,
+      keyScale: template.keyScale,
+      timeSignature: timeSig,
+      totalDuration: measures * getBarDurationSec(bpm, timeSig),
+      measures,
+      tracks,
+      trackPresets: [],
+      generationDefaults: structuredClone(template.generationDefaults),
+      globalCaption: '',
+      mastering: createDefaultMasteringState(),
+    };
+
+    set({ project });
   },
 }),
     {

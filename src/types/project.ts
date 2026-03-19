@@ -491,6 +491,39 @@ export interface Marker {
   color: string;
 }
 
+/** A saved project template — a snapshot of project settings and track layout (without audio). */
+export interface ProjectTemplate {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: number;
+  /** Musical settings */
+  bpm: number;
+  keyScale: string;
+  timeSignature: number;
+  measures: number;
+  /** Track layout snapshot (clips stripped, only structure preserved). */
+  tracks: ProjectTemplateTrack[];
+  /** Generation defaults captured from the source project. */
+  generationDefaults: GenerationDefaults;
+}
+
+/** Lightweight track snapshot stored inside a project template (no clips or audio references). */
+export interface ProjectTemplateTrack {
+  trackName: TrackName;
+  trackType: TrackType;
+  displayName: string;
+  color: string;
+  volume: number;
+  pan?: number;
+  effects?: TrackEffect[];
+  midiEffects?: MidiEffect[];
+  synthPreset?: SynthPreset;
+  drumKit?: DrumKitName;
+  localCaption?: string;
+  sequencerPattern?: SequencerPattern;
+}
+
 export interface Project {
   id: string;
   name: string;

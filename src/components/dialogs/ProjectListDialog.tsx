@@ -9,6 +9,7 @@ import {
   saveProject,
   exportProjectArchive,
   importProjectArchive,
+  saveTemplate,
   type ProjectSummary,
 } from '../../services/projectStorage';
 import { deleteAllProjectAudio } from '../../services/audioFileManager';
@@ -19,10 +20,13 @@ export function ProjectListDialog() {
   const setShow = useUIStore((s) => s.setShowProjectListDialog);
   const currentProject = useProjectStore((s) => s.project);
   const setProject = useProjectStore((s) => s.setProject);
+  const saveProjectAsTemplate = useProjectStore((s) => s.saveProjectAsTemplate);
 
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showTemplateName, setShowTemplateName] = useState(false);
+  const [templateName, setTemplateName] = useState('');
 
   useEffect(() => {
     if (show) {
@@ -69,6 +73,15 @@ export function ProjectListDialog() {
     } finally {
       setExporting(false);
     }
+  };
+
+  const handleSaveAsTemplate = async () => {
+    if (!currentProject || !templateName.trim()) return;
+    const template = saveProjectAsTemplate(templateName);
+    await saveTemplate(template);
+    toastSuccess(`Template "${template.name}" saved`);
+    setShowTemplateName(false);
+    setTemplateName('');
   };
 
   const handleImport = async () => {
@@ -154,6 +167,33 @@ export function ProjectListDialog() {
           )}
         </div>
 
+        {showTemplateName && (
+          <div className="flex items-center gap-2 px-4 py-2 border-t border-daw-border bg-daw-surface-2/50">
+            <input
+              type="text"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveAsTemplate(); if (e.key === 'Escape') setShowTemplateName(false); }}
+              placeholder="Template name..."
+              className="flex-1 px-2 py-1 text-xs bg-daw-bg border border-daw-border rounded focus:outline-none focus:border-daw-accent"
+              autoFocus
+            />
+            <button
+              onClick={handleSaveAsTemplate}
+              disabled={!templateName.trim()}
+              className="px-2 py-1 text-[10px] font-medium bg-daw-accent hover:bg-daw-accent-hover text-white rounded transition-colors disabled:opacity-50"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setShowTemplateName(false)}
+              className="px-2 py-1 text-[10px] font-medium bg-daw-surface-2 hover:bg-[#484848] rounded transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
         <div className="flex items-center justify-between px-4 py-3 border-t border-daw-border">
           <div className="flex gap-2">
             <button
@@ -168,6 +208,13 @@ export function ProjectListDialog() {
               className="px-3 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-[#484848] rounded transition-colors disabled:opacity-50"
             >
               {exporting ? 'Packing...' : 'Export .acedaw'}
+            </button>
+            <button
+              onClick={() => { setShowTemplateName(true); setTemplateName(currentProject?.name ?? ''); }}
+              disabled={!currentProject}
+              className="px-3 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-[#484848] rounded transition-colors disabled:opacity-50"
+            >
+              Save as Template
             </button>
           </div>
           <button

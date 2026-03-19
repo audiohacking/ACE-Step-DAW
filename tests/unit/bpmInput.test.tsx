@@ -16,6 +16,9 @@ vi.mock('../../src/services/projectStorage', () => ({
   saveProject: vi.fn(),
   listProjects: vi.fn().mockResolvedValue([]),
   loadProject: vi.fn().mockResolvedValue(null),
+  listTemplates: vi.fn().mockResolvedValue([]),
+  loadTemplate: vi.fn().mockResolvedValue(null),
+  deleteTemplate: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('BPM input — clamp on blur, not keystroke', () => {
