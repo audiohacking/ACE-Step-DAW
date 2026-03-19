@@ -54,14 +54,16 @@ PROMPT=$(cat "$1/agent-prompt.txt")
 
 # Run the coding agent (30 min timeout)
 if [ "$2" = "codex" ]; then
-  timeout 1800 codex exec -C "$1" -s danger-full-access "$PROMPT"
+  codex exec -C "$1" -s danger-full-access "$PROMPT"
 else
-  timeout 1800 ~/.local/bin/claude --print --permission-mode bypassPermissions "$PROMPT"
+  ~/.local/bin/claude --print --permission-mode bypassPermissions "$PROMPT"
 fi
 
 WRAPPER_EOF
 chmod +x "$WT/run-agent.sh"
 
 chmod +x "$WT/run-agent.sh"
+# Kill agent after 30 min
+(sleep 1800 && kill $(cat "$WT/.agent-pid" 2>/dev/null) 2>/dev/null) &
 nohup bash "$WT/run-agent.sh" "$WT" "$TOOL" > "/tmp/daw-worktrees/agent-$ISSUE_NUM.${TOOL}.log" 2>&1 &
 echo "$TOOL-$ISSUE_NUM: PID $!"
