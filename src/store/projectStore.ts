@@ -458,9 +458,12 @@ interface ProjectState {
   updateMarker: (id: string, updates: Partial<Pick<Marker, 'time' | 'name' | 'color'>>) => void;
 
   // Comping / takes
-  addTake: (clipId: string, audioKey: string) => void;
+  addTake: (clipId: string, audioKey: string, waveformPeaks?: number[]) => void;
   selectTake: (clipId: string, takeId: string) => void;
   toggleTakeLanes: (trackId: string) => void;
+  promoteTake: (clipId: string, takeId: string) => void;
+  deleteTake: (clipId: string, takeId: string) => void;
+  flattenComp: (clipId: string) => void;
 
   getTrackById: (trackId: string) => Track | undefined;
   getClipById: (clipId: string) => Clip | undefined;
@@ -4929,11 +4932,11 @@ export const useProjectStore = create<ProjectState>()(
 
   // ── Comping / takes ─────────────────────────────────────────────────────────
 
-  addTake: (clipId, audioKey) => {
+  addTake: (clipId, audioKey, waveformPeaks) => {
     const state = get();
     if (!state.project) return;
     _pushHistory(state.project);
-    const take: Take = { id: uuidv4(), audioKey, selected: false };
+    const take: Take = { id: uuidv4(), audioKey, selected: false, waveformPeaks: waveformPeaks ?? null };
     set({
       project: {
         ...state.project,
@@ -4986,6 +4989,80 @@ export const useProjectStore = create<ProjectState>()(
         tracks: state.project.tracks.map((t) =>
           t.id === trackId ? { ...t, showTakeLanes: !track?.showTakeLanes } : t,
         ),
+      },
+    });
+  },
+
+  promoteTake: (clipId, takeId) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((t) => ({
+          ...t,
+          clips: t.clips.map((c) => {
+            if (c.id !== clipId) return c;
+            const take = (c.takes ?? []).find((tk) => tk.id === takeId);
+            if (!take) return c;
+            return {
+              ...c,
+              isolatedAudioKey: take.audioKey,
+              waveformPeaks: take.waveformPeaks ?? c.waveformPeaks,
+              takes: [],
+            };
+          }),
+        })),
+      },
+    });
+  },
+
+  deleteTake: (clipId, takeId) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((t) => ({
+          ...t,
+          clips: t.clips.map((c) =>
+            c.id === clipId
+              ? { ...c, takes: (c.takes ?? []).filter((tk) => tk.id !== takeId) }
+              : c,
+          ),
+        })),
+      },
+    });
+  },
+
+  flattenComp: (clipId) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((t) => ({
+          ...t,
+          clips: t.clips.map((c) => {
+            if (c.id !== clipId) return c;
+            const selectedTake = (c.takes ?? []).find((tk) => tk.selected);
+            if (selectedTake) {
+              return {
+                ...c,
+                isolatedAudioKey: selectedTake.audioKey,
+                waveformPeaks: selectedTake.waveformPeaks ?? c.waveformPeaks,
+                takes: [],
+              };
+            }
+            return { ...c, takes: [] };
+          }),
+        })),
       },
     });
   },

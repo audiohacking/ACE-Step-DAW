@@ -67,6 +67,12 @@ export function useRecording() {
     const transport = useTransportStore.getState();
     const armedIds = transport.armedTrackIds;
 
+    // Determine recording region: punch range overrides loop range when punch is enabled
+    const usePunch = transport.punchEnabled && transport.punchInTime !== null && transport.punchOutTime !== null;
+    const regionStart = usePunch ? transport.punchInTime! : transport.loopStart;
+    const regionEnd = usePunch ? transport.punchOutTime! : transport.loopEnd;
+    const regionDuration = regionEnd - regionStart;
+
     const results = await recordingEngine.stopAllRecordings();
 
     for (const [trackId, result] of results.entries()) {
@@ -74,8 +80,8 @@ export function useRecording() {
 
       if (!clipId) {
         const clip = addClip(trackId, {
-          startTime: transport.loopStart,
-          duration: transport.loopEnd - transport.loopStart,
+          startTime: regionStart,
+          duration: regionDuration,
           prompt: 'Recording',
           lyrics: '',
           source: 'uploaded',
@@ -96,13 +102,14 @@ export function useRecording() {
       } else {
         const wavBlob = audioBufferToWavBlob(result.audioBuffer);
         const audioKey = await saveAudioBlob(project.id, `${clipId}-take-${Date.now()}`, 'isolated', wavBlob);
-        addTake(clipId, audioKey);
+        const waveformPeaks = computeWaveformPeaks(result.audioBuffer, 200);
+        addTake(clipId, audioKey, waveformPeaks);
       }
     }
 
     useTransportStore.getState().incrementLoopCycle();
 
-    const transportTime = transport.loopStart;
+    const transportTime = regionStart;
     for (const trackId of armedIds) {
       await recordingEngine.startRecording(trackId, uuidv4(), transportTime);
     }
@@ -115,8 +122,11 @@ export function useRecording() {
       return;
     }
 
+    const transport = useTransportStore.getState();
+    const usePunch = transport.punchEnabled && transport.punchInTime !== null && transport.punchOutTime !== null;
+
     const sessionStartTimes = new Map<string, number>();
-    for (const trackId of useTransportStore.getState().armedTrackIds) {
+    for (const trackId of transport.armedTrackIds) {
       const session = recordingEngine.getSession(trackId);
       if (session) {
         sessionStartTimes.set(trackId, session.startTime);
@@ -133,13 +143,22 @@ export function useRecording() {
         if (clipId) {
           const wavBlob = audioBufferToWavBlob(result.audioBuffer);
           const audioKey = await saveAudioBlob(project.id, `${clipId}-take-${Date.now()}`, 'isolated', wavBlob);
-          addTake(clipId, audioKey);
+          const waveformPeaks = computeWaveformPeaks(result.audioBuffer, 200);
+          addTake(clipId, audioKey, waveformPeaks);
           createdCount += 1;
         }
       } else {
+        // For punch-in (non-loop), place clip at punch-in time with punch duration
+        const clipStart = usePunch
+          ? transport.punchInTime!
+          : (sessionStartTimes.get(trackId) ?? transport.currentTime);
+        const clipDuration = usePunch
+          ? (transport.punchOutTime! - transport.punchInTime!)
+          : result.duration;
+
         const clip = addClip(trackId, {
-          startTime: sessionStartTimes.get(trackId) ?? useTransportStore.getState().currentTime,
-          duration: result.duration,
+          startTime: clipStart,
+          duration: clipDuration,
           prompt: 'Recording',
           lyrics: '',
           source: 'uploaded',
@@ -161,7 +180,7 @@ export function useRecording() {
 
     // Auto-show take lanes on armed tracks after loop recording
     if (isLoopRec) {
-      const armedIds = useTransportStore.getState().armedTrackIds;
+      const armedIds = transport.armedTrackIds;
       for (const trackId of armedIds) {
         const track = useProjectStore.getState().project?.tracks.find((t) => t.id === trackId);
         if (track && !track.showTakeLanes) {
@@ -176,7 +195,8 @@ export function useRecording() {
     setIsRecording(false);
 
     if (createdCount > 0) {
-      toastSuccess(isLoopRec ? 'Loop recording saved' : 'Recording saved');
+      const mode = isLoopRec ? 'Loop recording' : (usePunch ? 'Punch recording' : 'Recording');
+      toastSuccess(`${mode} saved`);
     }
   }, [addClip, addTake, setIsRecording, updateClipStatus]);
 
@@ -212,7 +232,11 @@ export function useRecording() {
     }
 
     setIsRecording(true);
-    const transportTime = useTransportStore.getState().currentTime;
+
+    // Determine start time: if punch-in is enabled, use punch-in time
+    const transport = useTransportStore.getState();
+    const usePunch = transport.punchEnabled && transport.punchInTime !== null;
+    const transportTime = usePunch ? transport.punchInTime! : transport.currentTime;
     let startedCount = 0;
 
     for (const trackId of currentArmedTrackIds) {
@@ -228,7 +252,7 @@ export function useRecording() {
       return;
     }
 
-    toastInfo('Recording started');
+    toastInfo(usePunch ? 'Punch-in recording started' : 'Recording started');
   }, [setIsRecording, setCountIn, stopRecording]);
 
   return {

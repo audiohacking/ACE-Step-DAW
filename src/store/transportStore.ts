@@ -56,6 +56,7 @@ interface TransportState {
   setPunchIn: (time: number) => void;
   setPunchOut: (time: number) => void;
   togglePunch: () => void;
+  setPunchRange: (inTime: number, outTime: number) => void;
   toggleLoopRecording: () => void;
   setLoopCycleCount: (count: number) => void;
   incrementLoopCycle: () => void;
@@ -119,6 +120,7 @@ export const useTransportStore = create<TransportState>((set) => ({
   setPunchIn: (time) => set({ punchInTime: time }),
   setPunchOut: (time) => set({ punchOutTime: time }),
   togglePunch: () => set((s) => ({ punchEnabled: !s.punchEnabled })),
+  setPunchRange: (inTime, outTime) => set({ punchInTime: inTime, punchOutTime: outTime, punchEnabled: true }),
   toggleLoopRecording: () =>
     set((s) => {
       const next = !s.loopRecordingEnabled;
