@@ -1,6 +1,7 @@
 import { useProjectStore } from '../store/projectStore';
 import { loadAudioBlobByKey, saveAudioBlob } from './audioFileManager';
 import { renderMidiTrackOffline, renderSamplerTrackOffline, renderSequencerTrackOffline } from '../engine/offlineRender';
+import { createSamplerConfig } from '../engine/SamplerEngine';
 import { audioBufferToWavBlob } from '../utils/wav';
 import { computeWaveformPeaks } from '../utils/waveformPeaks';
 import { getAudioEngine } from '../hooks/useAudioEngine';
@@ -39,7 +40,11 @@ export async function freezeTrackToAudio(trackId: string): Promise<void> {
             0,
             project.bpm,
             sampleBuffer,
-            track.sampler.rootNote,
+            track.samplerConfig ?? createSamplerConfig(track.sampler.audioKey, {
+              rootNote: track.sampler.rootNote,
+              trimEnd: track.sampler.sampleDuration,
+              loopEnd: track.sampler.sampleDuration,
+            }),
             project.totalDuration,
           );
         }

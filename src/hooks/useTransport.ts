@@ -5,7 +5,7 @@ import { useProjectStore } from '../store/projectStore';
 import { getAudioEngine } from './useAudioEngine';
 import { loadAudioBlobByKey } from '../services/audioFileManager';
 import { synthEngine } from '../engine/SynthEngine';
-import { samplerEngine } from '../engine/SamplerEngine';
+import { createSamplerConfig, samplerEngine } from '../engine/SamplerEngine';
 import { drumEngine } from '../engine/DrumEngine';
 import { automationEngine } from '../engine/AutomationEngine';
 import { useRecording } from './useRecording';
@@ -199,14 +199,11 @@ export function useTransport() {
         const preset = track.synthPreset ?? 'piano';
         const samplerConfig = track.samplerConfig
           ?? (preset === 'sampler' && track.sampler?.audioKey
-            ? {
-                audioKey: track.sampler.audioKey,
+            ? createSamplerConfig(track.sampler.audioKey, {
                 rootNote: track.sampler.rootNote ?? 60,
-                attack: 0.005,
-                decay: 0.1,
-                sustain: 1,
-                release: 0.3,
-              }
+                trimEnd: track.sampler.sampleDuration,
+                loopEnd: track.sampler.sampleDuration,
+              })
             : null);
         const useSampler = !!samplerConfig;
 
@@ -244,12 +241,8 @@ export function useTransport() {
             const trackId = track.id;
 
             if (useSampler) {
-              const noteName = Tone.Frequency(note.pitch, 'midi').toNote();
               engine.scheduleMidiEvent(scheduledStart, () => {
-                const sampler = samplerEngine.getSampler(trackId);
-                if (sampler) {
-                  sampler.triggerAttackRelease(noteName, scheduledDuration, undefined, velocity);
-                }
+                samplerEngine.triggerAttackRelease(trackId, note.pitch, scheduledDuration, velocity);
               });
             } else {
               const freq = Tone.Frequency(note.pitch, 'midi').toFrequency();

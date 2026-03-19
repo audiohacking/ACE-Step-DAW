@@ -70,6 +70,7 @@ import { generatePattern, type PatternOptions } from '../utils/midiPatternGenera
 import { loadAudioBlobByKey, saveAudioBlob } from '../services/audioFileManager';
 import { getAudioEngine } from '../hooks/useAudioEngine';
 import { renderMidiTrackOffline, renderSamplerTrackOffline, renderSequencerTrackOffline } from '../engine/offlineRender';
+import { createSamplerConfig } from '../engine/SamplerEngine';
 import { convertClipAudioToMidi } from '../services/audioToMidi';
 import { createDefaultParametricEqBands } from '../utils/parametricEq';
 import type { StemCount } from '../types/api';
@@ -170,6 +171,13 @@ interface ProjectState {
   clearTrackSampler: (trackId: string) => void;
   /** Set or clear the sampler config on a pianoRoll track. Pass null to remove. */
   updateSamplerConfig: (trackId: string, config: SamplerConfig | null) => void;
+  createQuickSamplerTrack: (input: {
+    audioKey: string;
+    sampleName?: string;
+    sampleDuration?: number;
+    rootNote?: number;
+    trackId?: string;
+  }) => Track | undefined;
   saveTrackPreset: (trackId: string, presetName: string) => TrackPreset;
   applyTrackPreset: (presetId: string) => Track | undefined;
   deleteTrackPreset: (presetId: string) => void;
@@ -545,9 +553,19 @@ function createDefaultSamplerSettings(overrides?: Partial<SamplerSettings>): Sam
 }
 
 function createDefaultSamplerConfig(audioKey: string, overrides?: Partial<SamplerConfig>): SamplerConfig {
+  const sampleDuration = Math.max(0.01, overrides?.trimEnd ?? overrides?.loopEnd ?? 1);
+  const trimStart = Math.max(0, Math.min(overrides?.trimStart ?? 0, sampleDuration - 0.01));
+  const trimEnd = Math.max(trimStart + 0.01, Math.min(overrides?.trimEnd ?? sampleDuration, sampleDuration));
+  const loopStart = Math.max(trimStart, Math.min(overrides?.loopStart ?? trimStart, trimEnd - 0.01));
+  const loopEnd = Math.max(loopStart + 0.01, Math.min(overrides?.loopEnd ?? trimEnd, trimEnd));
   return {
     audioKey,
     rootNote: 60,
+    trimStart,
+    trimEnd,
+    playbackMode: 'classic',
+    loopStart,
+    loopEnd,
     attack: 0.005,
     decay: 0.1,
     sustain: 1,
@@ -572,6 +590,7 @@ function syncSamplerState(
         ...(nextSampler ?? {}),
         audioKey: nextConfig.audioKey,
         rootNote: nextConfig.rootNote,
+        sampleDuration: nextSampler?.sampleDuration ?? nextConfig.trimEnd,
       }),
       samplerConfig: createDefaultSamplerConfig(nextConfig.audioKey, nextConfig),
     };
@@ -582,6 +601,8 @@ function syncSamplerState(
       sampler: createDefaultSamplerSettings(nextSampler),
       samplerConfig: createDefaultSamplerConfig(nextSampler.audioKey, {
         rootNote: nextSampler.rootNote,
+        trimEnd: nextSampler.sampleDuration,
+        loopEnd: nextSampler.sampleDuration,
       }),
     };
   }
@@ -680,6 +701,7 @@ function createTrackPresetSnapshot(track: Track, name: string): TrackPreset {
     laneHeight: track.laneHeight,
     synthPreset: track.synthPreset,
     sampler: track.sampler ? createDefaultSamplerSettings(track.sampler) : undefined,
+    samplerConfig: track.samplerConfig ? createDefaultSamplerConfig(track.samplerConfig.audioKey, track.samplerConfig) : undefined,
     drumKit: track.drumKit,
     pan: track.pan,
     panMode: track.panMode,
@@ -1173,6 +1195,74 @@ export const useProjectStore = create<ProjectState>()(
         ...preset.settings,
         effects: preset.effects,
         midiEffects: preset.midiEffects,
+      },
+    );
+
+    const newTracks = [...state.project.tracks, track];
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature),
+        tracks: newTracks,
+      },
+    });
+    return track;
+  },
+
+  createQuickSamplerTrack: (input) => {
+    const state = get();
+    if (!state.project) return undefined;
+
+    const rootNote = input.rootNote ?? 60;
+    const sampleDuration = Math.max(0.01, input.sampleDuration ?? 1);
+    const sampler = createDefaultSamplerSettings({
+      audioKey: input.audioKey,
+      sampleName: input.sampleName,
+      rootNote,
+      sampleDuration,
+    });
+    const samplerConfig = createDefaultSamplerConfig(input.audioKey, {
+      rootNote,
+      trimEnd: sampleDuration,
+      loopEnd: sampleDuration,
+    });
+
+    _pushHistory(state.project);
+
+    if (input.trackId) {
+      let updatedTrack: Track | undefined;
+      const tracks = state.project.tracks.map((candidate) => {
+        if (candidate.id !== input.trackId) return candidate;
+        updatedTrack = {
+          ...candidate,
+          trackType: 'pianoRoll',
+          synthPreset: 'sampler',
+          displayName: input.sampleName || 'Quick Sampler',
+          ...syncSamplerState(candidate, { sampler, samplerConfig }),
+        };
+        return updatedTrack;
+      });
+      if (!updatedTrack) return undefined;
+      set({
+        project: {
+          ...state.project,
+          updatedAt: Date.now(),
+          tracks,
+        },
+      });
+      return updatedTrack;
+    }
+
+    const track = createTrackFromTemplate(
+      state.project.tracks,
+      'keyboard',
+      'pianoRoll',
+      {
+        displayName: input.sampleName || 'Quick Sampler',
+        synthPreset: 'sampler',
+        sampler,
+        samplerConfig,
       },
     );
 
@@ -3808,7 +3898,11 @@ export const useProjectStore = create<ProjectState>()(
                 clip.startTime,
                 project.bpm,
                 sampleBuffer,
-                track.sampler.rootNote,
+                track.samplerConfig ?? createSamplerConfig(track.sampler.audioKey, {
+                  rootNote: track.sampler.rootNote,
+                  trimEnd: track.sampler.sampleDuration,
+                  loopEnd: track.sampler.sampleDuration,
+                }),
                 totalDuration,
               );
             }

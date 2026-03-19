@@ -33,7 +33,7 @@ function createTestWav(durationSeconds = 0.2, sampleRate = 44100): Buffer {
 }
 
 test.describe('Sampler Workflow', () => {
-  test('creates a sampler track from an audio file', async ({ page }, testInfo) => {
+  test('creates and edits a quick sampler from an audio file', async ({ page }, testInfo) => {
     const samplePath = testInfo.outputPath('sampler-test.wav');
     await fs.writeFile(samplePath, createTestWav());
 
@@ -46,12 +46,21 @@ test.describe('Sampler Workflow', () => {
     });
     await page.getByText('Click anywhere to enable audio').click();
 
-    await page.getByRole('button', { name: /track/i }).first().click();
-    await page.getByRole('button', { name: 'Piano Roll' }).click();
+    await page.evaluate(() => {
+      const store = (window as any).__store;
+      const uiStore = (window as any).__uiStore;
+      const track = store.getState().addTrack('keyboard', 'pianoRoll');
+      store.getState().updateTrack(track.id, {
+        displayName: 'Quick Sampler',
+        synthPreset: 'sampler',
+      });
+      store.getState().setTrackSampler(track.id, { rootNote: 60 });
+      uiStore.getState().setOpenPianoRoll(track.id);
+    });
 
     const [chooser] = await Promise.all([
       page.waitForEvent('filechooser'),
-      page.getByRole('button', { name: 'Sampler From Audio File' }).click(),
+      page.getByRole('button', { name: /Load sampler source for Quick Sampler/i }).click(),
     ]);
     await chooser.setFiles(samplePath);
 
@@ -60,8 +69,27 @@ test.describe('Sampler Workflow', () => {
       return track?.synthPreset === 'sampler' && track?.sampler?.sampleName === 'sampler-test';
     });
 
-    await expect(page.getByText('Sample: sampler-test')).toBeVisible();
-    await expect(page.getByLabel('Sampler root note')).toHaveValue('60');
+    await expect(page.getByRole('button', { name: /Load sampler source for sampler-test/i })).toBeVisible();
+    await expect(page.getByRole('spinbutton', { name: 'Sampler root note' })).toHaveValue('60');
+    await expect(page.getByLabel('Quick Sampler playback mode')).toHaveValue('classic');
+
+    await page.evaluate(() => {
+      const store = (window as any).__store;
+      const track = store.getState().project?.tracks[0];
+      if (!track?.samplerConfig) return;
+      store.getState().updateSamplerConfig(track.id, {
+        ...track.samplerConfig,
+        playbackMode: 'loop',
+        trimEnd: 0.12,
+        loopEnd: 0.12,
+      });
+    });
+
+    await page.waitForFunction(() => {
+      const track = (window as any).__store.getState().project?.tracks[0];
+      return track?.samplerConfig?.playbackMode === 'loop'
+        && Math.abs((track?.samplerConfig?.trimEnd ?? 0) - 0.12) < 0.011;
+    });
 
     const samplerState = await page.evaluate(() => {
       const track = (window as any).__store.getState().project?.tracks[0];
@@ -79,6 +107,8 @@ test.describe('Sampler Workflow', () => {
         synthPreset: refreshedTrack.synthPreset,
         sampleName: refreshedTrack.sampler?.sampleName,
         rootNote: refreshedTrack.sampler?.rootNote,
+        playbackMode: refreshedTrack.samplerConfig?.playbackMode,
+        trimEnd: refreshedTrack.samplerConfig?.trimEnd,
         notes: refreshedClip?.midiData?.notes.length ?? 0,
       };
     });
@@ -88,7 +118,9 @@ test.describe('Sampler Workflow', () => {
       synthPreset: 'sampler',
       sampleName: 'sampler-test',
       rootNote: 60,
+      playbackMode: 'loop',
       notes: 1,
     });
+    expect(samplerState.trimEnd).toBeCloseTo(0.12, 2);
   });
 });

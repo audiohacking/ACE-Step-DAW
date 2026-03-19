@@ -5,6 +5,7 @@ import { getAudioEngine } from '../../hooks/useAudioEngine';
 import { loadAudioBlobByKey } from '../../services/audioFileManager';
 import { exportMix, type ExportClip } from '../../engine/exportMix';
 import { renderMidiTrackOffline, renderSamplerTrackOffline, renderSequencerTrackOffline } from '../../engine/offlineRender';
+import { createSamplerConfig } from '../../engine/SamplerEngine';
 import { toastError, toastSuccess } from '../../hooks/useToast';
 import {
   type ExportFormat,
@@ -88,7 +89,11 @@ export function ExportDialog() {
                   clip.startTime,
                   project.bpm,
                   sampleBuffer,
-                  track.sampler.rootNote,
+                  track.samplerConfig ?? createSamplerConfig(track.sampler.audioKey, {
+                    rootNote: track.sampler.rootNote,
+                    trimEnd: track.sampler.sampleDuration,
+                    loopEnd: track.sampler.sampleDuration,
+                  }),
                   project.totalDuration,
                 );
               }

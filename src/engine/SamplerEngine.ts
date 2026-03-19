@@ -3,15 +3,30 @@ import type { SamplerConfig, Track } from '../types/project';
 import { loadAudioBlobByKey } from '../services/audioFileManager';
 import { getAudioEngine } from '../hooks/useAudioEngine';
 
-interface SamplerInstance {
-  sampler: Tone.Sampler;
+interface SamplerVoice {
   gain: Tone.Gain;
+  pitch: number;
+  releaseTimeoutId: number | null;
+  source: Tone.ToneBufferSource;
+}
+
+interface SamplerInstance {
+  audioBuffer: AudioBuffer;
   audioKey: string;
+  buffer: Tone.ToneAudioBuffer;
+  config: SamplerConfig;
+  output: Tone.Gain;
+  voices: Map<number, SamplerVoice[]>;
 }
 
 /** Default ADSR values for new sampler configs. */
 export const DEFAULT_SAMPLER_CONFIG: Omit<SamplerConfig, 'audioKey'> = {
   rootNote: 60,
+  trimStart: 0,
+  trimEnd: 1,
+  playbackMode: 'classic',
+  loopStart: 0,
+  loopEnd: 1,
   attack: 0.005,
   decay: 0.1,
   sustain: 1,
@@ -22,11 +37,25 @@ export const DEFAULT_SAMPLER_CONFIG: Omit<SamplerConfig, 'audioKey'> = {
  * Create a SamplerConfig with sensible defaults.
  */
 export function createSamplerConfig(audioKey: string, overrides?: Partial<SamplerConfig>): SamplerConfig {
+  const sampleDuration = Math.max(0.01, overrides?.trimEnd ?? overrides?.loopEnd ?? 1);
+  const trimStart = clamp(overrides?.trimStart ?? 0, 0, Math.max(0, sampleDuration - 0.01));
+  const trimEnd = clamp(overrides?.trimEnd ?? sampleDuration, trimStart + 0.01, sampleDuration);
+  const loopStart = clamp(overrides?.loopStart ?? trimStart, trimStart, Math.max(trimStart, trimEnd - 0.01));
+  const loopEnd = clamp(overrides?.loopEnd ?? trimEnd, loopStart + 0.01, trimEnd);
+
   return {
     ...DEFAULT_SAMPLER_CONFIG,
     audioKey,
+    trimStart,
+    trimEnd,
+    loopStart,
+    loopEnd,
     ...overrides,
   };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function getTrackSamplerConfig(track: Track): SamplerConfig | null {
@@ -34,18 +63,27 @@ function getTrackSamplerConfig(track: Track): SamplerConfig | null {
   if (!track.sampler?.audioKey) return null;
   return createSamplerConfig(track.sampler.audioKey, {
     rootNote: track.sampler.rootNote ?? DEFAULT_SAMPLER_CONFIG.rootNote,
+    trimEnd: track.sampler.sampleDuration ?? DEFAULT_SAMPLER_CONFIG.trimEnd,
+    loopEnd: track.sampler.sampleDuration ?? DEFAULT_SAMPLER_CONFIG.loopEnd,
+  });
+}
+
+function buildPlaybackConfig(config: SamplerConfig, sampleDuration: number): SamplerConfig {
+  return createSamplerConfig(config.audioKey, {
+    ...config,
+    trimStart: clamp(config.trimStart, 0, Math.max(0, sampleDuration - 0.01)),
+    trimEnd: clamp(config.trimEnd, 0.01, sampleDuration),
+    loopStart: clamp(config.loopStart, 0, Math.max(0, sampleDuration - 0.01)),
+    loopEnd: clamp(config.loopEnd, 0.01, sampleDuration),
   });
 }
 
 /**
- * Engine that manages Tone.js Sampler instances per track.
- * A sampler loads an audio buffer and pitch-shifts playback based on
- * the MIDI note relative to the configured root note.
+ * Engine that manages one-sample chromatic playback per track.
  */
 class SamplerEngine {
   private samplers = new Map<string, SamplerInstance>();
-  private previewSampler: Tone.Sampler | null = null;
-  private previewGain: Tone.Gain | null = null;
+  private previewVoices: SamplerVoice[] = [];
   private readonly bufferCache = new Map<string, AudioBuffer>();
 
   async ensureStarted() {
@@ -54,49 +92,42 @@ class SamplerEngine {
     }
   }
 
-  /**
-   * Create or update a Tone.js Sampler for a track.
-   * If the audioKey hasn't changed, returns the existing sampler.
-   */
   ensureTrackSampler(
     trackId: string,
     config: SamplerConfig,
     audioBuffer: AudioBuffer,
     connectTo?: Tone.InputNode,
-  ): Tone.Sampler {
+  ) {
+    const nextConfig = buildPlaybackConfig(config, audioBuffer.duration);
     const existing = this.samplers.get(trackId);
     if (existing && existing.audioKey === config.audioKey) {
-      this._applyEnvelope(existing.sampler, config);
-      return existing.sampler;
+      existing.audioBuffer = audioBuffer;
+      existing.buffer = new Tone.ToneAudioBuffer(audioBuffer);
+      existing.config = nextConfig;
+      this.bufferCache.set(config.audioKey, audioBuffer);
+      return;
     }
 
     if (existing) {
       this._disposeInstance(existing);
     }
 
-    const toneBuffer = new Tone.ToneAudioBuffer(audioBuffer);
-    const noteName = Tone.Frequency(config.rootNote, 'midi').toNote();
-    const sampler = new Tone.Sampler({
-      urls: { [noteName]: toneBuffer },
-      attack: config.attack,
-      release: config.release,
-    });
-
-    const gain = new Tone.Gain(0.55);
-    sampler.connect(gain);
+    const output = new Tone.Gain(0.55);
     if (connectTo) {
-      gain.connect(connectTo);
+      output.connect(connectTo);
     } else {
-      gain.toDestination();
+      output.toDestination();
     }
 
-    this.samplers.set(trackId, { sampler, gain, audioKey: config.audioKey });
+    this.samplers.set(trackId, {
+      audioBuffer,
+      audioKey: config.audioKey,
+      buffer: new Tone.ToneAudioBuffer(audioBuffer),
+      config: nextConfig,
+      output,
+      voices: new Map(),
+    });
     this.bufferCache.set(config.audioKey, audioBuffer);
-    return sampler;
-  }
-
-  getSampler(trackId: string): Tone.Sampler | null {
-    return this.samplers.get(trackId)?.sampler ?? null;
   }
 
   async getTrackBuffer(track: Track): Promise<AudioBuffer | null> {
@@ -119,29 +150,6 @@ class SamplerEngine {
   /**
    * Preview a sample at a given pitch (for audition / piano roll click).
    */
-  async previewNote(
-    audioBuffer: AudioBuffer,
-    rootNote: number,
-    pitch: number,
-    velocity = 100,
-    duration = 0.3,
-  ) {
-    await this.ensureStarted();
-    if (this.previewSampler) {
-      this.previewSampler.dispose();
-      this.previewGain?.dispose();
-    }
-
-    const toneBuffer = new Tone.ToneAudioBuffer(audioBuffer);
-    const noteName = Tone.Frequency(rootNote, 'midi').toNote();
-    this.previewSampler = new Tone.Sampler({ urls: { [noteName]: toneBuffer } });
-    this.previewGain = new Tone.Gain(0.3).toDestination();
-    this.previewSampler.connect(this.previewGain);
-
-    const freq = Tone.Frequency(pitch, 'midi').toNote();
-    this.previewSampler.triggerAttackRelease(freq, duration, undefined, velocity / 127);
-  }
-
   async previewTrackNote(
     track: Track,
     pitch: number,
@@ -153,30 +161,65 @@ class SamplerEngine {
 
     const buffer = await this.getTrackBuffer(track);
     if (!buffer) return;
-    await this.previewNote(buffer, config.rootNote, pitch, velocity, duration);
+
+    await this.ensureStarted();
+    this._disposeVoices(this.previewVoices);
+    this.previewVoices = [];
+
+    const previewConfig = buildPlaybackConfig(config, buffer.duration);
+    const voice = this._createVoice(new Tone.ToneAudioBuffer(buffer), previewConfig, pitch, velocity / 127);
+    voice.gain.connect(Tone.getDestination());
+    this.previewVoices.push(voice);
+    this._startVoice(voice, previewConfig, duration);
+  }
+
+  triggerAttackRelease(trackId: string, pitch: number, duration: number, velocity = 1) {
+    const instance = this.samplers.get(trackId);
+    if (!instance) return;
+    const voice = this._createVoice(instance.buffer, instance.config, pitch, velocity);
+    this._registerVoice(instance, voice);
+    this._startVoice(voice, instance.config, duration);
   }
 
   /** Trigger note on for a track sampler (for live playing / recording). */
   noteOn(trackId: string, pitch: number, velocity = 100) {
     const instance = this.samplers.get(trackId);
     if (!instance) return;
-    const note = Tone.Frequency(pitch, 'midi').toNote();
-    instance.sampler.triggerAttack(note, undefined, velocity / 127);
+
+    if (instance.config.playbackMode === 'oneShot') {
+      this.triggerAttackRelease(trackId, pitch, 0, velocity / 127);
+      return;
+    }
+
+    const voice = this._createVoice(instance.buffer, instance.config, pitch, velocity / 127);
+    this._registerVoice(instance, voice);
+    this._startVoice(voice, instance.config, Number.POSITIVE_INFINITY);
   }
 
   /** Trigger note off for a track sampler. */
   noteOff(trackId: string, pitch: number) {
     const instance = this.samplers.get(trackId);
     if (!instance) return;
-    const note = Tone.Frequency(pitch, 'midi').toNote();
-    instance.sampler.triggerRelease(note);
+
+    const voices = instance.voices.get(pitch) ?? [];
+    for (const voice of voices) {
+      this._releaseVoice(voice, instance.config.release);
+    }
+    instance.voices.delete(pitch);
   }
 
   /** Release all currently sounding notes on all track samplers. */
   releaseAll() {
     for (const instance of this.samplers.values()) {
-      instance.sampler.releaseAll();
+      for (const voices of instance.voices.values()) {
+        for (const voice of voices) {
+          this._releaseVoice(voice, instance.config.release);
+        }
+      }
+      instance.voices.clear();
     }
+    this._disposeVoices(this.previewVoices);
+    this.previewVoices = [];
   }
 
   removeTrackSampler(trackId: string) {
@@ -198,21 +241,114 @@ class SamplerEngine {
     for (const trackId of this.samplers.keys()) {
       this.removeTrackSampler(trackId);
     }
-    this.previewSampler?.dispose();
-    this.previewGain?.dispose();
-    this.previewSampler = null;
-    this.previewGain = null;
+    this._disposeVoices(this.previewVoices);
+    this.previewVoices = [];
   }
 
-  private _applyEnvelope(sampler: Tone.Sampler, config: SamplerConfig) {
-    sampler.attack = config.attack;
-    sampler.release = config.release;
+  private _createVoice(
+    buffer: Tone.ToneAudioBuffer,
+    config: SamplerConfig,
+    pitch: number,
+    velocity: number,
+  ): SamplerVoice {
+    const trimmedDuration = Math.max(0.01, config.trimEnd - config.trimStart);
+    const playbackRate = Math.pow(2, (pitch - config.rootNote) / 12);
+    const source = new Tone.BufferSource({
+      url: buffer,
+      loop: config.playbackMode === 'loop',
+      loopStart: config.loopStart,
+      loopEnd: config.loopEnd,
+      playbackRate,
+    });
+    const gain = new Tone.Gain(0);
+    source.connect(gain);
+
+    const now = Tone.now();
+    const attackEnd = now + Math.max(0.001, config.attack);
+    const sustainLevel = clamp(velocity * config.sustain, 0, 1);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(Math.max(0.0001, velocity), attackEnd);
+    gain.gain.linearRampToValueAtTime(Math.max(0.0001, sustainLevel), attackEnd + Math.max(0, config.decay));
+
+    return {
+      gain,
+      pitch,
+      releaseTimeoutId: null,
+      source,
+    };
+  }
+
+  private _registerVoice(instance: SamplerInstance, voice: SamplerVoice) {
+    voice.gain.connect(instance.output);
+    const existing = instance.voices.get(voice.pitch) ?? [];
+    instance.voices.set(voice.pitch, existing.concat(voice));
+  }
+
+  private _startVoice(voice: SamplerVoice, config: SamplerConfig, requestedDuration: number) {
+    const startTime = Tone.now();
+    const trimmedDuration = Math.max(0.01, config.trimEnd - config.trimStart);
+    const playbackRate = Math.max(0.001, voice.source.playbackRate.value);
+    const naturalDuration = trimmedDuration / playbackRate;
+
+    if (config.playbackMode === 'loop') {
+      voice.source.start(startTime, config.trimStart);
+      if (Number.isFinite(requestedDuration)) {
+        this._scheduleRelease(voice, Math.max(0.02, requestedDuration), config.release);
+      }
+      return;
+    }
+
+    const playbackDuration = config.playbackMode === 'oneShot'
+      ? naturalDuration
+      : Number.isFinite(requestedDuration)
+        ? Math.max(0.02, Math.min(naturalDuration, requestedDuration))
+        : naturalDuration;
+    const sourceDuration = Math.min(trimmedDuration, playbackDuration * playbackRate);
+    voice.source.start(startTime, config.trimStart, sourceDuration);
+    this._scheduleRelease(voice, playbackDuration, config.release);
+  }
+
+  private _scheduleRelease(voice: SamplerVoice, holdDuration: number, release: number) {
+    const totalDuration = Math.max(0.02, holdDuration);
+    voice.releaseTimeoutId = globalThis.setTimeout(() => {
+      this._releaseVoice(voice, release);
+    }, totalDuration * 1000);
+  }
+
+  private _releaseVoice(voice: SamplerVoice, release: number) {
+    if (voice.releaseTimeoutId !== null) {
+      globalThis.clearTimeout(voice.releaseTimeoutId);
+      voice.releaseTimeoutId = null;
+    }
+
+    const now = Tone.now();
+    const releaseEnd = now + Math.max(0.01, release);
+    voice.gain.gain.cancelScheduledValues(now);
+    voice.gain.gain.setValueAtTime(Math.max(0.0001, voice.gain.gain.value), now);
+    voice.gain.gain.linearRampToValueAtTime(0.0001, releaseEnd);
+    voice.source.stop(releaseEnd + 0.005);
+    globalThis.setTimeout(() => {
+      voice.source.dispose();
+      voice.gain.dispose();
+    }, Math.max(20, Math.ceil((release + 0.05) * 1000)));
+  }
+
+  private _disposeVoices(voices: SamplerVoice[]) {
+    for (const voice of voices) {
+      if (voice.releaseTimeoutId !== null) {
+        globalThis.clearTimeout(voice.releaseTimeoutId);
+      }
+      voice.source.dispose();
+      voice.gain.dispose();
+    }
   }
 
   private _disposeInstance(instance: SamplerInstance) {
-    instance.sampler.releaseAll();
-    instance.sampler.dispose();
-    instance.gain.dispose();
+    for (const voices of instance.voices.values()) {
+      this._disposeVoices(voices);
+    }
+    instance.voices.clear();
+    instance.output.dispose();
   }
 }
 

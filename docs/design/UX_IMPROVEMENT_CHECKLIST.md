@@ -148,7 +148,7 @@
 - ⬜ **Modulators** — Bitwig-style drag-modulator-onto-parameter system. LFO, step sequencer, envelope follower.
 - ⬜ **Nested devices** — Effects and instruments can contain sub-chains.
 - ⬜ **Capture MIDI** — Retroactive MIDI recording (Ableton-style). Always-on MIDI buffer, "Capture" saves last N bars.
-- ⬜ **Quick Sampler** — Drag any audio → instant playable instrument (Logic-style).
+- ✅ **Quick Sampler** — Drag any audio → instant playable instrument (Logic-style).
 - ⬜ **Smart Controls** — Macro knobs that control multiple parameters. Beginner-friendly, mappable.
 - ⬜ **Per-note expressions** — Pitch bend, pressure, timbre per note (MPE data model).
 - ⬜ **Comping** — Record multiple takes, visually comp best sections.

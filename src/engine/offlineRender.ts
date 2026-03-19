@@ -2,7 +2,7 @@ import * as Tone from 'tone';
 import type { ToneAudioBuffer } from 'tone';
 import { createDrumVoicesForKit } from './DrumEngine';
 import { createSynthForPreset } from './SynthEngine';
-import type { DrumKitName, MidiNote, SequencerPattern, SynthPreset } from '../types/project';
+import type { DrumKitName, MidiNote, SamplerConfig, SequencerPattern, SynthPreset } from '../types/project';
 
 const DRUM_PAD_INDEX_BY_SAMPLE_KEY: Record<string, number> = {
   kick: 0,
@@ -76,7 +76,7 @@ export async function renderSamplerTrackOffline(
   clipStartTime: number,
   bpm: number,
   sampleBuffer: AudioBuffer,
-  rootNote: number,
+  config: SamplerConfig,
   totalDuration: number,
   sampleRate: number = 48000,
 ): Promise<AudioBuffer> {
@@ -90,17 +90,30 @@ export async function renderSamplerTrackOffline(
     const noteEnd = noteStart + noteDuration;
     if (noteDuration <= 0 || noteEnd <= 0 || noteStart >= totalDuration) continue;
 
-    const playbackRate = Math.pow(2, (note.pitch - rootNote) / 12);
+    const trimStart = Math.max(0, Math.min(config.trimStart, sampleBuffer.duration - 0.01));
+    const trimEnd = Math.max(trimStart + 0.01, Math.min(config.trimEnd, sampleBuffer.duration));
+    const loopStart = Math.max(trimStart, Math.min(config.loopStart, trimEnd - 0.01));
+    const loopEnd = Math.max(loopStart + 0.01, Math.min(config.loopEnd, trimEnd));
+    const trimmedSpan = trimEnd - trimStart;
+    const playbackRate = Math.pow(2, (note.pitch - config.rootNote) / 12);
     const source = offlineCtx.createBufferSource();
     source.buffer = sampleBuffer;
     source.playbackRate.value = playbackRate;
+    source.loop = config.playbackMode === 'loop';
+    source.loopStart = loopStart;
+    source.loopEnd = loopEnd;
 
     const gain = offlineCtx.createGain();
     const velocity = Math.max(0, Math.min(1, note.velocity));
-    const attack = 0.005;
-    const release = 0.03;
-    const naturalDuration = sampleBuffer.duration / Math.max(playbackRate, 0.001);
-    const stopTime = Math.min(totalDuration, noteStart + Math.min(naturalDuration, noteDuration + release));
+    const attack = Math.max(0.001, config.attack);
+    const release = Math.max(0.01, config.release);
+    const naturalDuration = trimmedSpan / Math.max(playbackRate, 0.001);
+    const holdDuration = config.playbackMode === 'oneShot'
+      ? naturalDuration
+      : config.playbackMode === 'loop'
+        ? Math.max(0.02, noteDuration)
+        : Math.min(naturalDuration, Math.max(0.02, noteDuration));
+    const stopTime = Math.min(totalDuration, noteStart + holdDuration + release);
 
     gain.gain.setValueAtTime(0.0001, noteStart);
     gain.gain.linearRampToValueAtTime(velocity, Math.min(stopTime, noteStart + attack));
@@ -109,7 +122,11 @@ export async function renderSamplerTrackOffline(
 
     source.connect(gain);
     gain.connect(offlineCtx.destination);
-    source.start(noteStart);
+    if (config.playbackMode === 'loop') {
+      source.start(noteStart, trimStart);
+    } else {
+      source.start(noteStart, trimStart, Math.min(trimmedSpan, holdDuration * playbackRate));
+    }
     source.stop(stopTime);
   }
 

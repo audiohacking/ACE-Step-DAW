@@ -89,7 +89,14 @@ export function TrackLane({ track }: TrackLaneProps) {
     startTime: number; duration: number;
   } | null>(null);
 
-  const { importAudioToTrack, importMidiFile, importLoopToTrack, importAssetToTrack } = useAudioImport();
+  const {
+    importAssetAsQuickSampler,
+    importAudioFileAsSampler,
+    importAudioToTrack,
+    importMidiFile,
+    importLoopToTrack,
+    importAssetToTrack,
+  } = useAudioImport();
   const [fileDragOver, setFileDragOver] = useState(false);
 
   const resizeRef = useRef<{ startY: number; startH: number } | null>(null);
@@ -221,6 +228,10 @@ export function TrackLane({ track }: TrackLaneProps) {
     // Handle asset drop
     const assetId = e.dataTransfer.getData('application/x-asset-id');
     if (assetId) {
+      if (track.trackType === 'pianoRoll') {
+        await importAssetAsQuickSampler(assetId, track.id);
+        return;
+      }
       await importAssetToTrack(assetId, track.id, startTime);
       return;
     }
@@ -230,12 +241,16 @@ export function TrackLane({ track }: TrackLaneProps) {
     if (!files.length) return;
     for (const file of Array.from(files)) {
       if (file.type.startsWith('audio/') || /\.(wav|mp3|ogg|flac|aac|m4a|webm)$/i.test(file.name)) {
-        await importAudioToTrack(file, track.id, startTime);
+        if (track.trackType === 'pianoRoll') {
+          await importAudioFileAsSampler(file, track.id);
+        } else {
+          await importAudioToTrack(file, track.id, startTime);
+        }
       } else if (/\.(mid|midi)$/i.test(file.name)) {
         await importMidiFile(file, startTime);
       }
     }
-  }, [project, pixelsPerSecond, track.id, importAudioToTrack, importMidiFile, importLoopToTrack, importAssetToTrack]);
+  }, [project, pixelsPerSecond, track.id, track.trackType, importAssetAsQuickSampler, importAssetToTrack, importAudioFileAsSampler, importAudioToTrack, importMidiFile, importLoopToTrack]);
 
   const hasClips = track.clips.length > 0;
   const automationLanes = (project?.automationLanes ?? []).filter((l) => l.trackId === track.id);

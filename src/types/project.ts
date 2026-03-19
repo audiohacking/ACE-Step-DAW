@@ -8,6 +8,7 @@ export type TrackType = 'stems' | 'sample' | 'sequencer' | 'pianoRoll' | 'drumMa
 export type InputMonitoringMode = 'off' | 'auto' | 'on';
 export type SynthPreset = 'piano' | 'strings' | 'pad' | 'lead' | 'bass' | 'organ' | 'sampler';
 export type DrumKitName = '808' | 'acoustic' | 'electronic' | 'lofi';
+export type SamplerPlaybackMode = 'classic' | 'oneShot' | 'loop';
 /** Time-stretch algorithm mode. 'repitch' uses playbackRate (changes pitch), 'slice' uses warp markers. */
 export type StretchMode = 'repitch' | 'slice';
 export type PianoRollGrid = '1/4' | '1/8' | '1/16' | '1/32';
@@ -18,6 +19,16 @@ export interface SamplerConfig {
   audioKey: string;
   /** MIDI note number the sample was recorded at (default 60 = C4). */
   rootNote: number;
+  /** Sample trim start in seconds. */
+  trimStart: number;
+  /** Sample trim end in seconds. */
+  trimEnd: number;
+  /** Playback mode inspired by Quick Sampler. */
+  playbackMode: SamplerPlaybackMode;
+  /** Loop region start in seconds. */
+  loopStart: number;
+  /** Loop region end in seconds. */
+  loopEnd: number;
   /** ADSR attack time in seconds. */
   attack: number;
   /** ADSR decay time in seconds. */
@@ -389,6 +400,7 @@ export interface TrackPresetSettings {
   laneHeight?: number;
   synthPreset?: SynthPreset;
   sampler?: SamplerSettings;
+  samplerConfig?: SamplerConfig;
   drumKit?: DrumKitName;
   pan?: number;
   panMode?: 'stereo' | 'dual-mono';

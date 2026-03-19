@@ -14,9 +14,10 @@ export function InstrumentPicker() {
   const addTrack = useProjectStore((s) => s.addTrack);
   const updateTrack = useProjectStore((s) => s.updateTrack);
   const setTrackSampler = useProjectStore((s) => s.setTrackSampler);
+  const createQuickSamplerTrack = useProjectStore((s) => s.createQuickSamplerTrack);
   const applyTrackPreset = useProjectStore((s) => s.applyTrackPreset);
   const project = useProjectStore((s) => s.project);
-  const { openFilePicker, openSamplerFilePicker } = useAudioImport();
+  const { openFilePicker, openQuickSamplerFilePicker } = useAudioImport();
 
   const [step, setStep] = useState<PickerStep>('type');
   const [selectedType, setSelectedType] = useState<TrackType>('stems');
@@ -245,7 +246,7 @@ export function InstrumentPicker() {
             <button
               onClick={() => {
                 const track = addTrack('keyboard', 'pianoRoll');
-                updateTrack(track.id, { displayName: 'Sampler', synthPreset: 'sampler' });
+                updateTrack(track.id, { displayName: 'Quick Sampler', synthPreset: 'sampler' });
                 setTrackSampler(track.id, { rootNote: 60 });
                 close();
                 setOpenPianoRoll(track.id);
@@ -261,20 +262,16 @@ export function InstrumentPicker() {
             </button>
             <button
               onClick={() => {
-                const track = addTrack('keyboard', 'pianoRoll');
-                updateTrack(track.id, { displayName: 'Sampler', synthPreset: 'sampler' });
-                setTrackSampler(track.id, { rootNote: 60 });
                 close();
-                setOpenPianoRoll(track.id);
-                openSamplerFilePicker(track.id);
+                openQuickSamplerFilePicker();
               }}
               className="flex items-center gap-3 p-3 rounded-lg bg-daw-surface-2 hover:bg-[#484848] transition-colors text-left"
               style={{ borderLeft: `3px solid ${TRACK_TYPE_CATALOG.pianoRoll.color}` }}
             >
               <span className="text-xl">📥</span>
               <div>
-                <div className="text-sm font-medium">Sampler From Audio File</div>
-                <div className="text-[11px] text-zinc-400">Create a sampler track and load a source sample immediately.</div>
+                <div className="text-sm font-medium">Quick Sampler From Audio File</div>
+                <div className="text-[11px] text-zinc-400">Create a playable instrument and open the sample editor in one step.</div>
               </div>
             </button>
             <button

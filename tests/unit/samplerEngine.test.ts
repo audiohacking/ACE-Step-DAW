@@ -16,6 +16,11 @@ describe('createSamplerConfig', () => {
     expect(config).toEqual({
       audioKey: 'audio:proj:clip:iso:123',
       rootNote: 60,
+      trimStart: 0,
+      trimEnd: 1,
+      playbackMode: 'classic',
+      loopStart: 0,
+      loopEnd: 1,
       attack: 0.005,
       decay: 0.1,
       sustain: 1,
@@ -63,6 +68,11 @@ describe('SamplerConfig type integration', () => {
     const config: SamplerConfig = {
       audioKey: 'test-key',
       rootNote: 60,
+      trimStart: 0,
+      trimEnd: 1,
+      playbackMode: 'classic',
+      loopStart: 0,
+      loopEnd: 1,
       attack: 0.01,
       decay: 0.1,
       sustain: 0.8,

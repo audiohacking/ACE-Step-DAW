@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useProjectStore } from '../store/projectStore';
+import { useUIStore } from '../store/uiStore';
 import { getAudioEngine } from './useAudioEngine';
 import { saveAudioBlob, loadAudioBlobByKey } from '../services/audioFileManager';
 import { computeWaveformPeaks } from '../utils/waveformPeaks';
@@ -38,7 +39,7 @@ export function useAudioImport() {
   const addClip = useProjectStore((s) => s.addClip);
   const updateProject = useProjectStore((s) => s.updateProject);
   const updateTrack = useProjectStore((s) => s.updateTrack);
-  const setTrackSampler = useProjectStore((s) => s.setTrackSampler);
+  const createQuickSamplerTrack = useProjectStore((s) => s.createQuickSamplerTrack);
   const updateClipStatus = useProjectStore((s) => s.updateClipStatus);
 
   const maybeApplyImportedMidiMetadata = useCallback((fileName: string, bpm?: number, timeSignature?: number) => {
@@ -194,19 +195,40 @@ export function useAudioImport() {
     const wavBlob = audioBufferToWavBlob(audioBuffer);
     const audioKey = await saveAudioBlob(project.id, `sampler-${trackId}`, 'isolated', wavBlob);
     const sampleName = file.name.replace(/\.[^.]+$/, '');
-
-    updateTrack(trackId, {
-      trackType: 'pianoRoll',
-      synthPreset: 'sampler',
-    });
-    setTrackSampler(trackId, {
+    const track = createQuickSamplerTrack({
+      trackId,
       audioKey,
       sampleName,
       sampleDuration: audioBuffer.duration,
     });
-
+    if (track) {
+      useUIStore.getState().setOpenPianoRoll(track.id);
+    }
     toastSuccess(`Loaded sampler source: ${sampleName}`);
-  }, [setTrackSampler, updateTrack]);
+  }, [createQuickSamplerTrack]);
+
+  const importAudioFileAsNewQuickSampler = useCallback(async (file: File) => {
+    const project = useProjectStore.getState().project;
+    if (!project) return;
+
+    const engine = getAudioEngine();
+    await engine.resume();
+
+    const arrayBuffer = await file.arrayBuffer();
+    const audioBuffer = await engine.ctx.decodeAudioData(arrayBuffer);
+    const wavBlob = audioBufferToWavBlob(audioBuffer);
+    const sampleName = file.name.replace(/\.[^.]+$/, '');
+    const audioKey = await saveAudioBlob(project.id, `sampler-${sampleName}-${crypto.randomUUID()}`, 'isolated', wavBlob);
+    const track = createQuickSamplerTrack({
+      audioKey,
+      sampleName,
+      sampleDuration: audioBuffer.duration,
+    });
+    if (track) {
+      useUIStore.getState().setOpenPianoRoll(track.id);
+    }
+    toastSuccess(`Created Quick Sampler: ${sampleName}`);
+  }, [createQuickSamplerTrack]);
 
   const importMidiFile = useCallback(async (file: File, startTime: number = 0) => {
     const project = useProjectStore.getState().project;
@@ -294,6 +316,19 @@ export function useAudioImport() {
     input.click();
   }, [importAudioFileAsSampler]);
 
+  const openQuickSamplerFilePicker = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'audio/*';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (file) {
+        await importAudioFileAsNewQuickSampler(file);
+      }
+    };
+    input.click();
+  }, [importAudioFileAsNewQuickSampler]);
+
   const importLoopToTrack = useCallback(async (loopId: string, trackId: string, startTime: number) => {
     const project = useProjectStore.getState().project;
     if (!project) return;
@@ -368,15 +403,47 @@ export function useAudioImport() {
     });
   }, [addClip, updateClipStatus]);
 
+  const importAssetAsQuickSampler = useCallback(async (assetId: string, trackId?: string) => {
+    const project = useProjectStore.getState().project;
+    if (!project) return;
+
+    const asset = (project.assets ?? []).find((candidate) => candidate.id === assetId);
+    if (!asset) return;
+
+    const audioKey = asset.isolatedAudioKey ?? asset.cumulativeMixKey;
+    if (!audioKey) return;
+
+    const blob = await loadAudioBlobByKey(audioKey);
+    if (!blob) return;
+
+    const engine = getAudioEngine();
+    await engine.resume();
+    const audioBuffer = await engine.decodeAudioData(blob);
+    const track = createQuickSamplerTrack({
+      trackId,
+      audioKey,
+      sampleName: asset.prompt || asset.trackDisplayName,
+      sampleDuration: audioBuffer.duration,
+    });
+    if (track) {
+      useUIStore.getState().setOpenPianoRoll(track.id);
+    }
+    toastSuccess(`Created Quick Sampler: ${asset.prompt || asset.trackDisplayName}`);
+  }, [createQuickSamplerTrack]);
+
   return {
     importAudioFile,
     importAudioBufferToTrack,
     importAudioToTrack,
+    importAudioFileAsSampler,
+    importAudioFileAsNewQuickSampler,
     importMidiFile,
     importMultipleFiles,
     openFilePicker,
     openSamplerFilePicker,
+    openQuickSamplerFilePicker,
     importLoopToTrack,
     importAssetToTrack,
+    importAssetAsQuickSampler,
   };
 }

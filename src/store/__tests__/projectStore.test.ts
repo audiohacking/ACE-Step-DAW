@@ -118,6 +118,44 @@ describe('projectStore', () => {
         rootNote: 48,
         sampleDuration: 1.25,
       });
+      expect(updated.samplerConfig).toMatchObject({
+        audioKey: 'audio:test:sampler',
+        rootNote: 48,
+        trimStart: 0,
+        trimEnd: 1.25,
+        playbackMode: 'classic',
+        loopStart: 0,
+        loopEnd: 1.25,
+      });
+    });
+
+    it('creates a quick sampler track from an audio key via store API', () => {
+      const store = useProjectStore.getState();
+      const track = store.createQuickSamplerTrack({
+        audioKey: 'audio:test:quick-sampler',
+        sampleName: 'Quick Vox',
+        sampleDuration: 2.75,
+        rootNote: 57,
+      });
+
+      expect(track).toBeDefined();
+      expect(track?.trackType).toBe('pianoRoll');
+      expect(track?.synthPreset).toBe('sampler');
+      expect(track?.sampler).toMatchObject({
+        audioKey: 'audio:test:quick-sampler',
+        sampleName: 'Quick Vox',
+        sampleDuration: 2.75,
+        rootNote: 57,
+      });
+      expect(track?.samplerConfig).toMatchObject({
+        audioKey: 'audio:test:quick-sampler',
+        rootNote: 57,
+        trimStart: 0,
+        trimEnd: 2.75,
+        playbackMode: 'classic',
+        loopStart: 0,
+        loopEnd: 2.75,
+      });
     });
 
     it('increments order for each new track', () => {
