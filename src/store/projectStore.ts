@@ -48,6 +48,7 @@ import { exportStemToWav, type ExportClip } from '../engine/exportMix';
 import { loadAudioBlobByKey } from '../services/audioFileManager';
 import { getAudioEngine } from '../hooks/useAudioEngine';
 import { renderMidiTrackOffline, renderSequencerTrackOffline } from '../engine/offlineRender';
+import { convertClipAudioToMidi } from '../services/audioToMidi';
 
 function getBarDurationSec(bpm: number, timeSig: number): number {
   return (60 / bpm) * timeSig;
@@ -237,6 +238,9 @@ interface ProjectState {
   getTotalDuration: () => number;
   /** Actual audio duration without timeline padding: max(clip ends) */
   getAudioDuration: () => number;
+
+  /** Convert an audio clip to MIDI, creating a new piano roll track with detected notes. */
+  convertAudioToMidi: (clipId: string, options?: { threshold?: number; minConfidence?: number; minNoteDuration?: number }) => Promise<{ trackId: string; clipId: string } | undefined>;
 
   /** Export each track as a separate WAV file (stem export). */
   exportStems: () => Promise<void>;
@@ -2719,6 +2723,44 @@ export const useProjectStore = create<ProjectState>()(
       }
     }
     return Math.max(MIN_TIMELINE_DURATION, maxEnd);
+  },
+
+  convertAudioToMidi: async (clipId, options) => {
+    const state = get();
+    if (!state.project) return undefined;
+    const sourceTrack = state.project.tracks.find((t) => t.clips.some((c) => c.id === clipId));
+    if (!sourceTrack) return undefined;
+    const clip = sourceTrack.clips.find((c) => c.id === clipId);
+    if (!clip) return undefined;
+
+    const audioKey = clip.isolatedAudioKey ?? clip.cumulativeMixKey;
+    if (!audioKey) return undefined;
+
+    const bpm = state.project.bpm;
+    const result = await convertClipAudioToMidi(audioKey, bpm, {
+      threshold: options?.threshold ?? 0.15,
+      minConfidence: options?.minConfidence ?? 0.5,
+      minNoteDuration: options?.minNoteDuration ?? 0.05,
+    });
+
+    if (result.notes.length === 0) return undefined;
+
+    // Create a new piano roll track
+    const newTrack = get().addTrack('custom', 'pianoRoll');
+
+    // Rename the track to indicate source
+    get().renameTrack(newTrack.id, `${sourceTrack.displayName} (MIDI)`);
+
+    // Create a MIDI clip on the new track at the same position
+    const newClip = get().addClip(newTrack.id, {
+      startTime: clip.startTime,
+      duration: clip.duration,
+      prompt: `Converted from ${sourceTrack.displayName}`,
+      lyrics: '',
+      midiData: { notes: result.notes, grid: '1/16' },
+    });
+
+    return { trackId: newTrack.id, clipId: newClip.id };
   },
 
   exportStems: async () => {

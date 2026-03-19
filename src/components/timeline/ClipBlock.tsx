@@ -55,6 +55,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const updateClip = useProjectStore((s) => s.updateClip);
   const removeClip = useProjectStore((s) => s.removeClip);
   const duplicateClip = useProjectStore((s) => s.duplicateClip);
+  const convertAudioToMidi = useProjectStore((s) => s.convertAudioToMidi);
   const batchDuplicateClips = useProjectStore((s) => s.batchDuplicateClips);
   const batchMoveClips = useProjectStore((s) => s.batchMoveClips);
   const setActiveVersion = useProjectStore((s) => s.setActiveVersion);
@@ -446,11 +447,16 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
             closeCtxMenu();
             setAnalysisPanel(clip.id);
           }}
+          onConvertToMidi={() => {
+            closeCtxMenu();
+            convertAudioToMidi(clip.id);
+          }}
           onClose={closeCtxMenu}
           hasPrompt={!!clip.prompt}
           isReady={clip.generationStatus === 'ready'}
           isMidiClip={isMidiClip}
           isVocalTrack={track.trackName === 'vocals' || track.trackName === 'backing_vocals'}
+          hasAudio={!!(clip.isolatedAudioKey || clip.cumulativeMixKey)}
         />
       )}
 
