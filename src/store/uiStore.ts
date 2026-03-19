@@ -1,6 +1,20 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AIChatMessage } from '../types/aiAssistant';
+import { useProjectStore } from './projectStore';
+import { useTransportStore } from './transportStore';
+import type { AIChatContext } from '../utils/aiAssistantContext';
+import { buildAssistantContext } from '../utils/aiAssistantContext';
+import { getAssistantSuggestions, streamAssistantResponse } from '../services/aiAssistantService';
+
+function createAssistantMessage(role: AIChatMessage['role'], content: string): AIChatMessage {
+  return {
+    id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    role,
+    content,
+    timestamp: Date.now(),
+  };
+}
 
 interface UIState {
   pixelsPerSecond: number;
@@ -81,6 +95,8 @@ interface UIState {
   showAIAssistant: boolean;
   aiChatMessages: AIChatMessage[];
   aiAssistantStreaming: boolean;
+  aiAssistantSuggestions: string[];
+  aiAssistantError: string | null;
 
   setPixelsPerSecond: (pps: number) => void;
   toggleSnap: () => void;
@@ -158,13 +174,16 @@ interface UIState {
   addAIChatMessage: (msg: AIChatMessage) => void;
   clearAIChatMessages: () => void;
   setAIAssistantStreaming: (v: boolean) => void;
+  updateAIChatMessage: (id: string, updater: (message: AIChatMessage) => AIChatMessage) => void;
+  refreshAIAssistantSuggestions: () => void;
+  askAIAssistant: (question: string, options?: { delayMs?: number }) => Promise<void>;
 }
 
 const ZOOM_LEVELS = [10, 25, 50, 100, 200, 500];
 
 export const useUIStore = create<UIState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
   pixelsPerSecond: 50,
   snapEnabled: true,
   scrollX: 0,
@@ -227,6 +246,8 @@ export const useUIStore = create<UIState>()(
   showAIAssistant: false,
   aiChatMessages: [],
   aiAssistantStreaming: false,
+  aiAssistantSuggestions: [],
+  aiAssistantError: null,
 
   setPixelsPerSecond: (pps) => set({ pixelsPerSecond: pps }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
@@ -329,11 +350,83 @@ export const useUIStore = create<UIState>()(
   setShowGeneratePatternDialog: (v) => set(v ? { showGeneratePatternDialog: v } : { showGeneratePatternDialog: false, generatePatternClipId: null }),
   openGeneratePatternDialog: (clipId) => set({ showGeneratePatternDialog: true, generatePatternClipId: clipId }),
 
-  toggleAIAssistant: () => set((s) => ({ showAIAssistant: !s.showAIAssistant })),
-  setShowAIAssistant: (v) => set({ showAIAssistant: v }),
+  toggleAIAssistant: () => set((state) => {
+    const nextShow = !state.showAIAssistant;
+    return nextShow
+      ? {
+          showAIAssistant: true,
+          aiAssistantSuggestions: getAssistantSuggestions(getAssistantContext(state)),
+          aiAssistantError: null,
+        }
+      : { showAIAssistant: false };
+  }),
+  setShowAIAssistant: (v) => set((state) => (
+    v
+      ? {
+          showAIAssistant: true,
+          aiAssistantSuggestions: getAssistantSuggestions(getAssistantContext(state)),
+          aiAssistantError: null,
+        }
+      : { showAIAssistant: false }
+  )),
   addAIChatMessage: (msg) => set((s) => ({ aiChatMessages: [...s.aiChatMessages, msg] })),
-  clearAIChatMessages: () => set({ aiChatMessages: [] }),
+  clearAIChatMessages: () => set((state) => ({
+    aiChatMessages: [],
+    aiAssistantError: null,
+    aiAssistantSuggestions: getAssistantSuggestions(getAssistantContext(state)),
+  })),
   setAIAssistantStreaming: (v) => set({ aiAssistantStreaming: v }),
+  updateAIChatMessage: (id, updater) => set((state) => ({
+    aiChatMessages: state.aiChatMessages.map((message) => (
+      message.id === id ? updater(message) : message
+    )),
+  })),
+  refreshAIAssistantSuggestions: () => set((state) => ({
+    aiAssistantSuggestions: getAssistantSuggestions(getAssistantContext(state)),
+  })),
+  askAIAssistant: async (question, options) => {
+    const trimmed = question.trim();
+    if (!trimmed) return;
+
+    const userMessage = createAssistantMessage('user', trimmed);
+    const assistantMessage = createAssistantMessage('assistant', '');
+    const context = getAssistantContext(get());
+
+    set((state) => ({
+      showAIAssistant: true,
+      aiAssistantStreaming: true,
+      aiAssistantError: null,
+      aiChatMessages: [...state.aiChatMessages, userMessage, assistantMessage],
+      aiAssistantSuggestions: getAssistantSuggestions(context),
+    }));
+
+    try {
+      for await (const chunk of streamAssistantResponse(trimmed, context, options?.delayMs)) {
+        set((state) => ({
+          aiChatMessages: state.aiChatMessages.map((message) => (
+            message.id === assistantMessage.id
+              ? { ...message, content: `${message.content}${chunk}` }
+              : message
+          )),
+        }));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Assistant response failed.';
+      set((state) => ({
+        aiAssistantError: message,
+        aiChatMessages: state.aiChatMessages.map((item) => (
+          item.id === assistantMessage.id
+            ? { ...item, content: 'I ran into an error while preparing the reply. Please try again.' }
+            : item
+        )),
+      }));
+    } finally {
+      set((state) => ({
+        aiAssistantStreaming: false,
+        aiAssistantSuggestions: getAssistantSuggestions(getAssistantContext(state)),
+      }));
+    }
+  },
 }),
     {
       name: 'ace-step-daw-ui',
@@ -366,3 +459,7 @@ export const useUIStore = create<UIState>()(
     },
   ),
 );
+
+function getAssistantContext(state: UIState): AIChatContext {
+  return buildAssistantContext(useProjectStore.getState().project, state, useTransportStore.getState());
+}

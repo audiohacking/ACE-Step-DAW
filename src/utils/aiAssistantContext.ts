@@ -1,22 +1,59 @@
-/**
- * aiAssistantContext.ts — Build a context string for the AI assistant
- * that describes the current DAW project state, selected track, and effects.
- */
 import type { Project, Track } from '../types/project';
 
-/**
- * Build a context string summarizing the current DAW state for the AI assistant.
- * Includes project settings, track layout, selected track details, and effects.
- */
+interface AssistantUIContext {
+  expandedTrackId?: string | null;
+  openSequencerTrackId?: string | null;
+  openDrumMachineTrackId?: string | null;
+  openPianoRollTrackId?: string | null;
+  openEffectChainTrackId?: string | null;
+  openMidiEffectChainTrackId?: string | null;
+  selectedClipIds?: Set<string>;
+  showMixer?: boolean;
+  showLibrary?: boolean;
+  loopBrowserOpen?: boolean;
+  showSmartControls?: boolean;
+  showAIAssistant?: boolean;
+}
+
+interface AssistantTransportContext {
+  isPlaying?: boolean;
+  loopEnabled?: boolean;
+}
+
+export interface AIChatContext {
+  hasProject: boolean;
+  projectName: string | null;
+  projectBpm: number | null;
+  trackCount: number | null;
+  focusedTrack: Track | null;
+  selectedClipCount: number;
+  activePanels: string[];
+  summary: string;
+}
+
 export function buildAssistantContext(
   project: Project | null,
-  selectedTrackId: string | null,
-): string {
-  if (!project) return 'No project loaded.';
+  ui: AssistantUIContext = {},
+  transport: AssistantTransportContext = {},
+): AIChatContext {
+  if (!project) {
+    return {
+      hasProject: false,
+      projectName: null,
+      projectBpm: null,
+      trackCount: null,
+      focusedTrack: null,
+      selectedClipCount: 0,
+      activePanels: [],
+      summary: 'No project loaded.',
+    };
+  }
 
   const lines: string[] = [];
+  const focusedTrack = resolveFocusedTrack(project, ui);
+  const activePanels = getActivePanels(ui);
+  const selectedClipCount = ui.selectedClipIds?.size ?? 0;
 
-  // Project overview
   lines.push(`Project: "${project.name}"`);
   lines.push(`BPM: ${project.bpm} | Key: ${project.keyScale || 'none'} | Time Signature: ${project.timeSignature}/4`);
   lines.push(`Duration: ${fmtDur(project.totalDuration)} | Tracks: ${project.tracks.length}`);
@@ -25,7 +62,6 @@ export function buildAssistantContext(
     lines.push(`Description: ${project.globalCaption}`);
   }
 
-  // Track summary
   if (project.tracks.length > 0) {
     lines.push('');
     lines.push('Tracks:');
@@ -40,55 +76,108 @@ export function buildAssistantContext(
     }
   }
 
-  // Selected track detail
-  if (selectedTrackId) {
-    const track = project.tracks.find((t) => t.id === selectedTrackId);
-    if (track) {
-      lines.push('');
-      lines.push(`Selected track: ${track.displayName} (${track.trackType || 'stems'})`);
-      lines.push(`  Volume: ${Math.round(track.volume * 100)}% | Pan: ${track.pan ?? 0}`);
+  if (selectedClipCount > 0 || activePanels.length > 0 || transport.isPlaying || transport.loopEnabled) {
+    lines.push('');
+  }
 
-      if (track.localCaption) {
-        lines.push(`  Caption: ${track.localCaption}`);
-      }
+  if (selectedClipCount > 0) {
+    lines.push(`Selected clips: ${selectedClipCount}`);
+  }
 
-      // Effects
-      if (track.effects && track.effects.length > 0) {
-        const fxList = track.effects.map((e) => `${e.type}${e.enabled ? '' : ' (bypassed)'}`).join(', ');
-        lines.push(`  Effects: ${fxList}`);
-      }
+  if (activePanels.length > 0) {
+    lines.push(`Open panels: ${activePanels.join(', ')}`);
+  }
 
-      // MIDI effects
-      if (track.midiEffects && track.midiEffects.length > 0) {
-        const mfxList = track.midiEffects.map((e) => `${e.type}${e.enabled ? '' : ' (bypassed)'}`).join(', ');
-        lines.push(`  MIDI Effects: ${mfxList}`);
-      }
+  if (transport.isPlaying || transport.loopEnabled) {
+    const playback = [
+      transport.isPlaying ? 'playing' : 'stopped',
+      transport.loopEnabled ? 'loop enabled' : null,
+    ].filter(Boolean).join(', ');
+    lines.push(`Transport: ${playback}`);
+  }
 
-      // Synth/drum info
-      if (track.synthPreset) {
-        lines.push(`  Synth: ${track.synthPreset}`);
-      }
-      if (track.drumKit) {
-        lines.push(`  Drum Kit: ${track.drumKit}`);
-      }
+  if (focusedTrack) {
+    lines.push('');
+    lines.push(`Focused track: ${focusedTrack.displayName} (${focusedTrack.trackType || 'stems'})`);
+    lines.push(`  Volume: ${Math.round(focusedTrack.volume * 100)}% | Pan: ${focusedTrack.pan ?? 0}`);
 
-      // Clips detail
-      if (track.clips.length > 0) {
-        lines.push(`  Clips:`);
-        for (const clip of track.clips) {
-          const status = clip.generationStatus === 'ready' ? 'ready' : clip.generationStatus;
-          const type = clip.midiData ? `MIDI (${clip.midiData.notes.length} notes)` : (clip.prompt || 'audio');
-          lines.push(`    [${status}] ${fmtDur(clip.startTime)}-${fmtDur(clip.startTime + clip.duration)}: ${type}`);
-        }
+    if (focusedTrack.localCaption) {
+      lines.push(`  Caption: ${focusedTrack.localCaption}`);
+    }
+
+    if (focusedTrack.effects && focusedTrack.effects.length > 0) {
+      const fxList = focusedTrack.effects.map((effect) => `${effect.type}${effect.enabled ? '' : ' (bypassed)'}`).join(', ');
+      lines.push(`  Effects: ${fxList}`);
+    }
+
+    if (focusedTrack.midiEffects && focusedTrack.midiEffects.length > 0) {
+      const mfxList = focusedTrack.midiEffects.map((effect) => `${effect.type}${effect.enabled ? '' : ' (bypassed)'}`).join(', ');
+      lines.push(`  MIDI Effects: ${mfxList}`);
+    }
+
+    if (focusedTrack.synthPreset) {
+      lines.push(`  Synth: ${focusedTrack.synthPreset}`);
+    }
+
+    if (focusedTrack.drumKit) {
+      lines.push(`  Drum Kit: ${focusedTrack.drumKit}`);
+    }
+
+    if (focusedTrack.clips.length > 0) {
+      lines.push('  Clips:');
+      for (const clip of focusedTrack.clips) {
+        const status = clip.generationStatus === 'ready' ? 'ready' : clip.generationStatus;
+        const type = clip.midiData ? `MIDI (${clip.midiData.notes.length} notes)` : (clip.prompt || 'audio');
+        lines.push(`    [${status}] ${fmtDur(clip.startTime)}-${fmtDur(clip.startTime + clip.duration)}: ${type}`);
       }
     }
   }
 
-  return lines.join('\n');
+  return {
+    hasProject: true,
+    projectName: project.name,
+    projectBpm: project.bpm,
+    trackCount: project.tracks.length,
+    focusedTrack,
+    selectedClipCount,
+    activePanels,
+    summary: lines.join('\n'),
+  };
 }
 
 function fmtDur(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function resolveFocusedTrack(project: Project, ui: AssistantUIContext): Track | null {
+  const directTrackId = ui.expandedTrackId
+    ?? ui.openEffectChainTrackId
+    ?? ui.openMidiEffectChainTrackId
+    ?? ui.openPianoRollTrackId
+    ?? ui.openSequencerTrackId
+    ?? ui.openDrumMachineTrackId
+    ?? null;
+
+  if (directTrackId) {
+    return project.tracks.find((track) => track.id === directTrackId) ?? null;
+  }
+
+  const firstSelectedClipId = ui.selectedClipIds ? [...ui.selectedClipIds][0] : null;
+  if (firstSelectedClipId) {
+    return project.tracks.find((track) => track.clips.some((clip) => clip.id === firstSelectedClipId)) ?? null;
+  }
+
+  return project.tracks[0] ?? null;
+}
+
+function getActivePanels(ui: AssistantUIContext): string[] {
+  const panels: string[] = [];
+  if (ui.showMixer) panels.push('Mixer');
+  if (ui.showLibrary) panels.push('Library');
+  if (ui.loopBrowserOpen) panels.push('Loop Browser');
+  if (ui.showSmartControls) panels.push('Smart Controls');
+  if (ui.showAIAssistant) panels.push('AI Assistant');
+  return panels;
 }
