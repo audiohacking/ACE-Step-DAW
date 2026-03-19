@@ -78,7 +78,9 @@ export type DAWStore<T> = StoreApi<T> & { getState: () => T };
 export type AgentProjectState = ProjectState & Pick<
   UIState,
   'activePianoRollTool'
+  | 'activePianoRollChordShape'
   | 'setActivePianoRollTool'
+  | 'setActivePianoRollChordShape'
   | 'togglePianoRollPencilTool'
   | 'showGenerationPanel'
   | 'setShowGenerationPanel'
