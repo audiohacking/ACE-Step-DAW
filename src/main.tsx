@@ -12,6 +12,7 @@ import { generateProjectSummary, generateProjectStructure } from './utils/dawSta
 // Agents can call: window.__store.getState() / window.__store.setState(...)
 (window as unknown as Record<string, unknown>).__store = useProjectStore;
 (window as unknown as Record<string, unknown>).__uiStore = useUIStore;
+(window as unknown as Record<string, unknown>).__assistantStore = useUIStore;
 (window as unknown as Record<string, unknown>).__transportStore = useTransportStore;
 (window as unknown as Record<string, unknown>).__collaborationStore = useCollaborationStore;
 
