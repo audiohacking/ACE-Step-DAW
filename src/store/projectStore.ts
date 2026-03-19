@@ -2275,6 +2275,50 @@ export const useProjectStore = create<ProjectState>()(
     return Math.max(MIN_TIMELINE_DURATION, maxEnd);
   },
 
+  addMarker: (time: number, name: string) => {
+    const project = get().project;
+    if (!project) return;
+    const marker: Marker = {
+      id: crypto.randomUUID(),
+      time,
+      name,
+      color: '#facc15',
+    };
+    _pushHistory(project);
+    set({
+      project: {
+        ...project,
+        markers: [...(project.markers ?? []), marker],
+      },
+    });
+  },
+
+  removeMarker: (id: string) => {
+    const project = get().project;
+    if (!project) return;
+    _pushHistory(project);
+    set({
+      project: {
+        ...project,
+        markers: (project.markers ?? []).filter((m) => m.id !== id),
+      },
+    });
+  },
+
+  updateMarker: (id: string, updates: Partial<Pick<Marker, 'time' | 'name' | 'color'>>) => {
+    const project = get().project;
+    if (!project) return;
+    _pushHistory(project);
+    set({
+      project: {
+        ...project,
+        markers: (project.markers ?? []).map((m) =>
+          m.id === id ? { ...m, ...updates } : m,
+        ),
+      },
+    });
+  },
+
   exportStems: async () => {
     const project = get().project;
     if (!project) return;
