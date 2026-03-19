@@ -4,7 +4,7 @@ import { useProjectStore } from '../store/projectStore';
 import { useTransportStore } from '../store/transportStore';
 import { useUIStore } from '../store/uiStore';
 import { synthEngine } from '../engine/SynthEngine';
-import { samplerEngine } from '../engine/SamplerEngine';
+import { createSamplerConfig, samplerEngine } from '../engine/SamplerEngine';
 
 const KEYBOARD_TO_SEMITONE: Record<string, number> = {
   KeyA: 0,
@@ -34,14 +34,11 @@ async function ensureLiveInstrument(track: Track) {
     const buffer = await samplerEngine.getTrackBuffer(track);
     const config = track.samplerConfig ?? (
       track.sampler?.audioKey
-        ? {
-            audioKey: track.sampler.audioKey,
+        ? createSamplerConfig(track.sampler.audioKey, {
             rootNote: track.sampler.rootNote ?? 60,
-            attack: 0.005,
-            decay: 0.1,
-            sustain: 1,
-            release: 0.3,
-          }
+            trimEnd: track.sampler.sampleDuration,
+            loopEnd: track.sampler.sampleDuration,
+          })
         : null
     );
     if (buffer && config) {
