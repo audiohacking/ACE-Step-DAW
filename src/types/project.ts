@@ -311,6 +311,32 @@ export interface Project {
   returnTracks?: ReturnTrack[];
   /** Timeline markers (sorted by time). */
   markers?: Marker[];
+  /** Tempo map: discrete tempo changes sorted by beat. Empty = use project.bpm everywhere. */
+  tempoMap?: TempoEvent[];
+  /** Time signature map: changes sorted by bar. Empty = use project.timeSignature everywhere. */
+  timeSignatureMap?: TimeSignatureEvent[];
+}
+
+// ─── Tempo & Time Signature Map Types ────────────────────────────────────────
+
+/** A discrete tempo change at a specific beat position. */
+export interface TempoEvent {
+  /** Beat position (0-indexed) where the tempo change occurs. */
+  beat: number;
+  /** BPM value at this point. */
+  bpm: number;
+  /** Optional: if set, linearly ramp from previous BPM to this BPM over the beat range. */
+  ramp?: boolean;
+}
+
+/** A time signature change at a specific bar position. */
+export interface TimeSignatureEvent {
+  /** Bar number (1-indexed) where the time signature change occurs. */
+  bar: number;
+  /** Numerator (beats per bar). */
+  numerator: number;
+  /** Denominator (beat unit, e.g. 4 = quarter note). */
+  denominator: number;
 }
 
 // ─── Automation Types ────────────────────────────────────────────────────────

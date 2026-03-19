@@ -42,6 +42,9 @@ interface UIState {
   /** Which bottom editor is visible: null = none, 'smart' = smart controls, 'editor' = region editor */
   activeBottomPanel: 'smart' | 'editor' | 'pianoRoll' | 'effects' | null;
 
+  // Tempo lane
+  showTempoLane: boolean;
+
   // Loop Browser
   loopBrowserOpen: boolean;
   loopBrowserCategory: 'All' | 'Drums' | 'Bass' | 'Keys' | 'Synth';
@@ -92,6 +95,9 @@ interface UIState {
   setShowSmartControls: (v: boolean) => void;
   setShowLibrary: (v: boolean) => void;
   setActiveBottomPanel: (v: 'smart' | 'editor' | 'pianoRoll' | 'effects' | null) => void;
+
+  // Tempo lane
+  toggleTempoLane: () => void;
 
   // Loop Browser
   toggleLoopBrowser: () => void;
@@ -145,6 +151,8 @@ export const useUIStore = create<UIState>()(
   showSmartControls: false,
   showLibrary: false,
   activeBottomPanel: null,
+
+  showTempoLane: false,
 
   loopBrowserOpen: false,
   loopBrowserCategory: 'All',
@@ -228,6 +236,8 @@ export const useUIStore = create<UIState>()(
   setShowSmartControls: (v) => set({ showSmartControls: v }),
   setShowLibrary: (v) => set({ showLibrary: v }),
   setActiveBottomPanel: (v) => set({ activeBottomPanel: v }),
+
+  toggleTempoLane: () => set((s) => ({ showTempoLane: !s.showTempoLane })),
 
   toggleLoopBrowser: () => set((s) => ({ loopBrowserOpen: !s.loopBrowserOpen })),
   setLoopBrowserCategory: (v) => set({ loopBrowserCategory: v }),

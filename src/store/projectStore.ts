@@ -25,6 +25,8 @@ import type {
   ReturnTrack,
   Take,
   Marker,
+  TempoEvent,
+  TimeSignatureEvent,
 } from '../types/project';
 import { automationParamEquals } from '../types/project';
 import { TRACK_CATALOG, DEFAULT_DRUM_KIT } from '../constants/tracks';
@@ -185,6 +187,18 @@ interface ProjectState {
   moveTrackToGroup: (trackId: string, groupId: string | null) => void;
   toggleGroupCollapse: (groupId: string) => void;
   getGroupVolume: (groupId: string) => number;
+
+  // Tempo map
+  addTempoEvent: (event: TempoEvent) => void;
+  removeTempoEvent: (beat: number) => void;
+  updateTempoEvent: (beat: number, updates: Partial<TempoEvent>) => void;
+  clearTempoMap: () => void;
+
+  // Time signature map
+  addTimeSignatureEvent: (event: TimeSignatureEvent) => void;
+  removeTimeSignatureEvent: (bar: number) => void;
+  updateTimeSignatureEvent: (bar: number, updates: Partial<TimeSignatureEvent>) => void;
+  clearTimeSignatureMap: () => void;
 
   // Markers
   addMarker: (time: number, name: string) => void;
@@ -2232,6 +2246,92 @@ export const useProjectStore = create<ProjectState>()(
         }),
       },
     });
+  },
+
+  // ── Tempo Map ──────────────────────────────────────────────────────────────
+
+  addTempoEvent: (event: TempoEvent) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    const map = [...(state.project.tempoMap ?? [])];
+    const existingIdx = map.findIndex((e: TempoEvent) => e.beat === event.beat);
+    if (existingIdx >= 0) {
+      map[existingIdx] = event;
+    } else {
+      map.push(event);
+      map.sort((a: TempoEvent, b: TempoEvent) => a.beat - b.beat);
+    }
+    set({ project: { ...state.project, updatedAt: Date.now(), tempoMap: map } });
+  },
+
+  removeTempoEvent: (beat: number) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    const map = (state.project.tempoMap ?? []).filter((e: TempoEvent) => e.beat !== beat);
+    set({ project: { ...state.project, updatedAt: Date.now(), tempoMap: map } });
+  },
+
+  updateTempoEvent: (beat: number, updates: Partial<TempoEvent>) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    const map = (state.project.tempoMap ?? []).map((e: TempoEvent) =>
+      e.beat === beat ? { ...e, ...updates } : e,
+    );
+    if ('beat' in updates) map.sort((a: TempoEvent, b: TempoEvent) => a.beat - b.beat);
+    set({ project: { ...state.project, updatedAt: Date.now(), tempoMap: map } });
+  },
+
+  clearTempoMap: () => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({ project: { ...state.project, updatedAt: Date.now(), tempoMap: [] } });
+  },
+
+  // ── Time Signature Map ────────────────────────────────────────────────────
+
+  addTimeSignatureEvent: (event: TimeSignatureEvent) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    const map = [...(state.project.timeSignatureMap ?? [])];
+    const existingIdx = map.findIndex((e: TimeSignatureEvent) => e.bar === event.bar);
+    if (existingIdx >= 0) {
+      map[existingIdx] = event;
+    } else {
+      map.push(event);
+      map.sort((a: TimeSignatureEvent, b: TimeSignatureEvent) => a.bar - b.bar);
+    }
+    set({ project: { ...state.project, updatedAt: Date.now(), timeSignatureMap: map } });
+  },
+
+  removeTimeSignatureEvent: (bar: number) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    const map = (state.project.timeSignatureMap ?? []).filter((e: TimeSignatureEvent) => e.bar !== bar);
+    set({ project: { ...state.project, updatedAt: Date.now(), timeSignatureMap: map } });
+  },
+
+  updateTimeSignatureEvent: (bar: number, updates: Partial<TimeSignatureEvent>) => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    const map = (state.project.timeSignatureMap ?? []).map((e: TimeSignatureEvent) =>
+      e.bar === bar ? { ...e, ...updates } : e,
+    );
+    if ('bar' in updates) map.sort((a: TimeSignatureEvent, b: TimeSignatureEvent) => a.bar - b.bar);
+    set({ project: { ...state.project, updatedAt: Date.now(), timeSignatureMap: map } });
+  },
+
+  clearTimeSignatureMap: () => {
+    const state = get();
+    if (!state.project) return;
+    _pushHistory(state.project);
+    set({ project: { ...state.project, updatedAt: Date.now(), timeSignatureMap: [] } });
   },
 
   // ── Markers ────────────────────────────────────────────────────────────────

@@ -69,6 +69,7 @@ const SECTIONS: Section[] = [
       { keys: ['X'],                    description: 'Toggle Mixer' },
       { keys: ['B'],                    description: 'Toggle Smart Controls' },
       { keys: ['O'],                    description: 'Toggle Loop Browser' },
+      { keys: ['T'],                    description: 'Toggle Tempo Lane' },
     ],
   },
   {

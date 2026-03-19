@@ -9,6 +9,7 @@ import { snapToGrid } from '../../utils/time';
 import { MultiTrackGenerateModal } from '../generation/MultiTrackGenerateModal';
 import { useAudioImport } from '../../hooks/useAudioImport';
 import { Minimap } from './Minimap';
+import { TempoLane } from './TempoLane';
 
 /** @deprecated Inspector is now a modal; kept for potential future use */
 export const TRACK_INSPECTOR_HEIGHT = 220;
@@ -59,6 +60,7 @@ export function Timeline() {
   const updateTrack = useProjectStore((s) => s.updateTrack);
   const pixelsPerSecond = useUIStore((s) => s.pixelsPerSecond);
   const setPixelsPerSecond = useUIStore((s) => s.setPixelsPerSecond);
+  const showTempoLane = useUIStore((s) => s.showTempoLane);
   const contextWindow = useUIStore((s) => s.contextWindow);
   const setContextWindow = useUIStore((s) => s.setContextWindow);
   const selectWindow = useUIStore((s) => s.selectWindow);
@@ -341,6 +343,7 @@ export function Timeline() {
         )}
         <div className="relative" style={{ width: totalWidth, minWidth: '100%' }}>
           <TimeRuler />
+          {showTempoLane && <TempoLane />}
 
           <div ref={trackAreaRef} className="relative">
             <GridOverlay />

@@ -332,6 +332,12 @@ export function useKeyboardShortcuts() {
           ui.setShowLibrary(!ui.showLibrary);
           break;
 
+        // Tempo lane toggle (T)
+        case 'KeyT':
+          e.preventDefault();
+          ui.toggleTempoLane();
+          break;
+
         // Help
         case 'Slash':
           // ? key (Shift+/ on most keyboards)
