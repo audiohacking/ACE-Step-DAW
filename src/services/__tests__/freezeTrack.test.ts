@@ -98,4 +98,46 @@ describe('freeze / flatten store actions', () => {
     expect(track!.soloed).toBe(true);
     expect(track!.frozen).toBe(true);
   });
+
+  it('undo reverses freezeTrack', () => {
+    const trackId = useProjectStore.getState().project!.tracks[0].id;
+    useProjectStore.getState().freezeTrack(trackId, 'frozen-key');
+    expect(useProjectStore.getState().project!.tracks[0].frozen).toBe(true);
+
+    useProjectStore.getState().undo();
+    const track = useProjectStore.getState().project!.tracks.find((t) => t.id === trackId);
+    expect(track!.frozen).toBeFalsy();
+    expect(track!.frozenAudioKey).toBeUndefined();
+  });
+
+  it('undo reverses flattenTrack', () => {
+    const trackId = useProjectStore.getState().project!.tracks[0].id;
+    const originalType = useProjectStore.getState().project!.tracks[0].trackType;
+    const originalClipCount = useProjectStore.getState().project!.tracks[0].clips.length;
+
+    useProjectStore.getState().flattenTrack(trackId, 'flat-key', [0.5], 8);
+    expect(useProjectStore.getState().project!.tracks[0].trackType).toBe('sample');
+
+    useProjectStore.getState().undo();
+    const track = useProjectStore.getState().project!.tracks.find((t) => t.id === trackId)!;
+    expect(track.trackType).toBe(originalType);
+    expect(track.clips).toHaveLength(originalClipCount);
+  });
+
+  it('freeze then unfreeze round-trips correctly', () => {
+    const trackId = useProjectStore.getState().project!.tracks[0].id;
+
+    // Freeze
+    useProjectStore.getState().freezeTrack(trackId, 'audio-key-123');
+    expect(useProjectStore.getState().project!.tracks[0].frozen).toBe(true);
+    expect(useProjectStore.getState().project!.tracks[0].frozenAudioKey).toBe('audio-key-123');
+
+    // Unfreeze
+    useProjectStore.getState().unfreezeTrack(trackId);
+    const track = useProjectStore.getState().project!.tracks.find((t) => t.id === trackId)!;
+    expect(track.frozen).toBe(false);
+    expect(track.frozenAudioKey).toBeUndefined();
+    // Track type should remain unchanged
+    expect(track.trackType).toBe('stems');
+  });
 });

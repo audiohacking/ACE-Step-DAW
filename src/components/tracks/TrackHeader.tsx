@@ -216,22 +216,23 @@ export function TrackHeader({
             title={track.displayName}
             onDoubleClick={(e) => { e.stopPropagation(); startEditing(); }}
           >
-            {track.frozen && <span className="text-cyan-400 mr-0.5" title="Frozen">*</span>}
+            {track.frozen && <span className="text-cyan-400 mr-0.5" title="Frozen" aria-label="Frozen">{'\u2744'}</span>}
             {track.displayName}
           </span>
         )}
 
         {/* Volume slider + M/S buttons (only in non-compact mode) */}
         {!isCompact && (
-          <div className="flex items-center gap-1 w-full">
+          <div className={`flex items-center gap-1 w-full${track.frozen ? ' opacity-40 pointer-events-none' : ''}`}>
             <input
               type="range"
               min="0"
               max="100"
               value={Math.round(track.volume * 100)}
               onChange={(e) => updateTrack(track.id, { volume: parseInt(e.target.value) / 100 })}
+              disabled={track.frozen}
               className="flex-1 h-1 min-w-0"
-              title={`Volume: ${Math.round(track.volume * 100)}%`}
+              title={track.frozen ? 'Frozen \u2014 unfreeze to adjust' : `Volume: ${Math.round(track.volume * 100)}%`}
             />
           </div>
         )}
