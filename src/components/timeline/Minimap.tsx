@@ -2,19 +2,35 @@
  * Minimap.tsx — Project overview strip at top of timeline.
  * Shows all tracks and clips as colored blocks. Click to navigate.
  */
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { TIMELINE_MINIMAP_HEIGHT } from './timelineLayout';
 
-const TRACK_ROW_HEIGHT = 4;
+const TRACK_ROW_HEIGHT = 6;
 const TRACK_GAP = 1;
 
 export function Minimap() {
   const project = useProjectStore((s) => s.project);
   const pixelsPerSecond = useUIStore((s) => s.pixelsPerSecond);
-  const setPixelsPerSecond = useUIStore((s) => s.setPixelsPerSecond);
+  const scrollX = useUIStore((s) => s.scrollX);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [viewportWidthPx, setViewportWidthPx] = useState(0);
+
+  // Observe the scroll container width so the viewport indicator stays accurate
+  useEffect(() => {
+    const scrollContainer = containerRef.current?.parentElement?.querySelector(
+      '.overflow-auto',
+    ) as HTMLElement | null;
+    if (!scrollContainer) return;
+
+    const update = () => setViewportWidthPx(scrollContainer.clientWidth);
+    update();
+
+    const ro = new ResizeObserver(update);
+    ro.observe(scrollContainer);
+    return () => ro.disconnect();
+  }, []);
 
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -41,8 +57,12 @@ export function Minimap() {
   return (
     <div
       ref={containerRef}
-      className="relative bg-[#1a1a1a] border-b border-[#333] cursor-pointer select-none"
-      style={{ height: TIMELINE_MINIMAP_HEIGHT }}
+      className="relative cursor-pointer select-none"
+      style={{
+        height: TIMELINE_MINIMAP_HEIGHT,
+        background: 'linear-gradient(to bottom, #111111, #161616)',
+        borderBottom: '1px solid #444',
+      }}
       onClick={handleClick}
       title="Click to navigate"
       data-testid="timeline-minimap"
@@ -58,12 +78,13 @@ export function Minimap() {
                 <div
                   key={clip.id}
                   className="absolute rounded-[1px]"
+                  data-testid="minimap-clip"
                   style={{
                     left,
                     width,
                     height: TRACK_ROW_HEIGHT,
                     backgroundColor: track.color,
-                    opacity: clip.generationStatus === 'ready' ? 0.8 : 0.4,
+                    opacity: clip.generationStatus === 'ready' ? 1.0 : 0.6,
                   }}
                 />
               );
@@ -73,7 +94,12 @@ export function Minimap() {
       </div>
 
       {/* Viewport indicator — shows which portion of the timeline is currently visible */}
-      <ViewportIndicator totalDuration={totalDur} pixelsPerSecond={pixelsPerSecond} />
+      <ViewportIndicator
+        totalDuration={totalDur}
+        pixelsPerSecond={pixelsPerSecond}
+        scrollX={scrollX}
+        viewportWidthPx={viewportWidthPx}
+      />
     </div>
   );
 }
@@ -81,15 +107,54 @@ export function Minimap() {
 function ViewportIndicator({
   totalDuration,
   pixelsPerSecond,
+  scrollX,
+  viewportWidthPx,
 }: {
   totalDuration: number;
   pixelsPerSecond: number;
+  scrollX: number;
+  viewportWidthPx: number;
 }) {
-  // We'd need a ref to the scroll container to calculate viewport.
-  // For now, show a subtle gradient indicating the overview is navigable.
+  const totalWidthPx = totalDuration * pixelsPerSecond;
+  if (totalWidthPx <= 0) return null;
+
+  const leftFraction = Math.max(0, scrollX / totalWidthPx);
+  const widthFraction = Math.min(1 - leftFraction, viewportWidthPx / totalWidthPx);
+
+  const leftPercent = `${leftFraction * 100}%`;
+  const widthPercent = `${widthFraction * 100}%`;
+
   return (
-    <div className="absolute inset-0 pointer-events-none">
-      <div className="absolute left-0 top-0 bottom-0 w-1 bg-daw-accent/40 rounded" />
+    <div className="absolute inset-0 pointer-events-none" data-testid="minimap-viewport">
+      {/* Dimmed regions outside the viewport */}
+      <div
+        className="absolute top-0 bottom-0 left-0"
+        style={{
+          width: leftPercent,
+          backgroundColor: 'rgba(0, 0, 0, 0.45)',
+        }}
+        data-testid="minimap-dim-left"
+      />
+      <div
+        className="absolute top-0 bottom-0 right-0"
+        style={{
+          left: `${(leftFraction + widthFraction) * 100}%`,
+          backgroundColor: 'rgba(0, 0, 0, 0.45)',
+        }}
+        data-testid="minimap-dim-right"
+      />
+      {/* Viewport rectangle */}
+      <div
+        className="absolute top-0 bottom-0 rounded-sm"
+        style={{
+          left: leftPercent,
+          width: widthPercent,
+          border: '1.5px solid rgba(99, 179, 237, 0.8)',
+          backgroundColor: 'rgba(99, 179, 237, 0.08)',
+          boxShadow: '0 0 4px rgba(99, 179, 237, 0.3)',
+        }}
+        data-testid="minimap-viewport-rect"
+      />
     </div>
   );
 }
