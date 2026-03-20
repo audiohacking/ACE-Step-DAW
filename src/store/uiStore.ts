@@ -113,6 +113,10 @@ export interface UIState {
   // Playhead focus — true when timeline area is focused (after click-to-seek)
   timelineFocused: boolean;
 
+  // Auto-scroll — follow playhead during playback
+  autoScrollEnabled: boolean;
+  userScrolledDuringPlayback: boolean;
+
   // Loop Browser
   loopBrowserOpen: boolean;
   loopBrowserCategory: 'All' | 'Drums' | 'Bass' | 'Keys' | 'Synth';
@@ -247,6 +251,11 @@ export interface UIState {
 
   // Playhead focus
   setTimelineFocused: (focused: boolean) => void;
+
+  // Auto-scroll
+  setAutoScrollEnabled: (enabled: boolean) => void;
+  setUserScrolledDuringPlayback: (scrolled: boolean) => void;
+  toggleAutoScroll: () => void;
 
   // Loop Browser
   toggleLoopBrowser: () => void;
@@ -425,6 +434,9 @@ export const useUIStore = create<UIState>()(
 
   showTempoLane: false,
   timelineFocused: false,
+
+  autoScrollEnabled: true,
+  userScrolledDuringPlayback: false,
 
   loopBrowserOpen: false,
   loopBrowserCategory: 'All',
@@ -687,6 +699,10 @@ export const useUIStore = create<UIState>()(
 
   toggleTempoLane: () => set((s) => ({ showTempoLane: !s.showTempoLane })),
   setTimelineFocused: (focused) => set({ timelineFocused: focused }),
+
+  setAutoScrollEnabled: (enabled) => set({ autoScrollEnabled: enabled }),
+  setUserScrolledDuringPlayback: (scrolled) => set({ userScrolledDuringPlayback: scrolled }),
+  toggleAutoScroll: () => set((s) => ({ autoScrollEnabled: !s.autoScrollEnabled })),
 
   toggleLoopBrowser: () => set((s) => ({ loopBrowserOpen: !s.loopBrowserOpen })),
   setLoopBrowserCategory: (v) => set({ loopBrowserCategory: v }),
