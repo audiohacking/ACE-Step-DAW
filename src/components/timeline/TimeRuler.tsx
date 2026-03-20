@@ -134,13 +134,13 @@ export function TimeRuler() {
     return result;
   }, [project, pixelsPerSecond]);
 
-  if (!project) return <div className="bg-[#1e1e2e] border-b border-[#2a2a3d]" style={{ height: TIMELINE_RULER_HEIGHT }} />;
+  if (!project) return <div className="bg-[#1a1a28] border-b border-[#3a3a55]" style={{ height: TIMELINE_RULER_HEIGHT }} />;
 
   const totalWidth = project.totalDuration * pixelsPerSecond;
 
   return (
     <div
-      className="relative bg-[#1e1e2e] border-b border-[#2a2a3d] overflow-hidden select-none cursor-pointer"
+      className="relative bg-[#1a1a28] border-b border-[#3a3a55] overflow-hidden select-none cursor-pointer"
       style={{ width: totalWidth, height: TIMELINE_RULER_HEIGHT }}
       role="slider"
       aria-label="Timeline scrub ruler"
@@ -170,18 +170,24 @@ export function TimeRuler() {
         />
       )}
 
-      {/* Bar and beat markers */}
+      {/* Bar and beat markers — labels at top, tick marks extend down */}
       {markers.map(({ label, x, isBar, tsLabel }) => (
         <div
           key={label}
-          className="absolute top-0 h-full flex items-end pb-0.5 pointer-events-none"
+          className="absolute top-0 h-full pointer-events-none"
           style={{ left: x }}
         >
-          <div className={`w-px mr-1 ${isBar ? 'h-3 bg-[#5a5a75]' : 'h-2 bg-[#3a3a55]'}`} />
-          <span className={`font-medium ${isBar ? 'text-[10px] text-zinc-400/80' : 'text-[9px] text-zinc-500/60'}`}>{label}</span>
-          {tsLabel && (
-            <span className="text-[8px] text-amber-400/60 ml-0.5">{tsLabel}</span>
-          )}
+          {/* Vertical tick line from top */}
+          <div className={`absolute top-0 w-px ${isBar ? 'h-full bg-[#5a5a75]' : 'h-2/3 bg-[#3a3a55]'}`} />
+          {/* Label beside tick */}
+          <span
+            className={`absolute top-[2px] left-[4px] font-medium whitespace-nowrap ${isBar ? 'text-[10px] text-zinc-400/80' : 'text-[9px] text-zinc-500/60'}`}
+          >
+            {label}
+            {tsLabel && (
+              <span className="text-[8px] text-amber-400/60 ml-0.5">{tsLabel}</span>
+            )}
+          </span>
         </div>
       ))}
 
@@ -201,10 +207,10 @@ const PlayheadRulerIndicator = memo(function PlayheadRulerIndicator({ pixelsPerS
 
   return (
     <div
-      className="absolute top-0 z-30 pointer-events-none"
-      style={{ left: x, transform: 'translateX(-5px)' }}
+      className="absolute bottom-0 z-30 pointer-events-none"
+      style={{ left: x, transform: 'translate(-5px, 3px)' }}
     >
-      {/* Inverted triangle (▽) pointing down */}
+      {/* Inverted triangle (▽) pointing down, sitting on the ruler bottom border */}
       <div
         className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent"
         style={{
