@@ -18,6 +18,7 @@ export type AceStepTaskParams =
   | RepaintTaskParams
   | StemSeparationTaskParams;
 import { downsampleWavBlob } from '../utils/audioDownsample';
+import { createDebugLogger } from '../utils/debugLogger';
 
 const BACKEND_URL_KEY = 'ace-step-daw-backend-url';
 const HEALTH_CHECK_MIN_RETRY_DELAY_MS = 30_000;
@@ -25,6 +26,7 @@ const HEALTH_CHECK_MAX_RETRY_DELAY_MS = 5 * 60 * 1000;
 
 let healthCheckRetryDelayMs = 0;
 let healthCheckBlockedUntil = 0;
+const logger = createDebugLogger('ace-step:api');
 
 function resetHealthCheckBackoff() {
   healthCheckRetryDelayMs = 0;
@@ -162,7 +164,7 @@ async function releaseTask(
   const taskParams = params as Partial<LegoTaskParams>;
   const usePath = Boolean(taskParams.src_audio_path);
 
-  console.log(
+  logger.debug(
     `[aceStepApi] releaseTask: ${usePath ? `src_audio_path=${taskParams.src_audio_path}` : `src_audio blob size=${srcAudioBlob.size}`}`,
     `task_type=${params.task_type}`,
     'audio_duration' in params ? `audio_duration=${params.audio_duration}` : 'audio_duration=n/a',
@@ -190,7 +192,7 @@ async function releaseTask(
 
     try {
       if (attempt > 1) {
-        console.warn(`[aceStepApi] releaseLegoTask retry ${attempt}/${RELEASE_TASK_MAX_RETRIES}`);
+        logger.warn(`releaseLegoTask retry ${attempt}/${RELEASE_TASK_MAX_RETRIES}`);
       }
 
       const res = await fetch(`${base}/release_task`, {
@@ -214,10 +216,7 @@ async function releaseTask(
         lastError.message.includes('Failed to fetch') ||
         lastError.message.includes('network');
 
-      console.error(
-        `[aceStepApi] releaseLegoTask attempt ${attempt} failed:`,
-        lastError.message,
-      );
+      logger.error(`releaseLegoTask attempt ${attempt} failed:`, lastError.message);
 
       if (!isRetryable || attempt === RELEASE_TASK_MAX_RETRIES) break;
 
@@ -278,14 +277,14 @@ export async function downloadAudio(audioPath: string): Promise<Blob> {
 
     try {
       if (attempt > 1) {
-        console.warn(`[aceStepApi] downloadAudio retry ${attempt}/${DOWNLOAD_AUDIO_MAX_RETRIES}`);
+        logger.warn(`downloadAudio retry ${attempt}/${DOWNLOAD_AUDIO_MAX_RETRIES}`);
       }
       const res = await fetch(url, { signal: controller.signal });
       if (!res.ok) throw new Error(`downloadAudio failed: ${res.status} ${res.statusText}`);
       return await res.blob();
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      console.error(`[aceStepApi] downloadAudio attempt ${attempt} failed:`, lastError.message);
+      logger.error(`downloadAudio attempt ${attempt} failed:`, lastError.message);
 
       const isRetryable =
         lastError.name === 'AbortError' ||

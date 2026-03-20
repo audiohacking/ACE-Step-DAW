@@ -19,6 +19,9 @@ import { computeWaveformPeaks } from '../utils/waveformPeaks';
 import { POLL_INTERVAL_MS, MAX_POLL_DURATION_MS } from '../constants/defaults';
 import { extractContextAudioLazy } from './lazyContextAudioExtractor';
 import { computeEta } from '../utils/generationProgress';
+import { createDebugLogger } from '../utils/debugLogger';
+
+const logger = createDebugLogger('ace-step:generation');
 
 function extractProgressMetadata(entry: TaskResultEntry): { stage: string | null; progressPercent: number | null } {
   let stage: string | null = null;
@@ -133,7 +136,7 @@ export async function generateAllTracks(): Promise<void> {
       let previousCumulativeBlob: Blob | null = null;
       let allSucceeded = true;
 
-      console.log(`[GenerationPipeline] generateAllTracks: ${tracks.length} stems tracks (of ${allTracks.length} total) in order:`,
+      logger.debug(`generateAllTracks: ${tracks.length} stems tracks (of ${allTracks.length} total) in order:`,
         tracks.map(t => t.trackName));
 
       for (const track of tracks) {
@@ -143,20 +146,20 @@ export async function generateAllTracks(): Promise<void> {
               const blob = await loadAudioBlobByKey(clip.cumulativeMixKey);
               if (blob) {
                 previousCumulativeBlob = blob;
-                console.log(`[GenerationPipeline] Loaded existing cumulative for clip=${clip.id} (${track.trackName}), size=${blob.size}`);
+                logger.debug(`Loaded existing cumulative for clip=${clip.id} (${track.trackName}), size=${blob.size}`);
               }
             }
             continue;
           }
 
-          console.log(`[GenerationPipeline] Generating clip=${clip.id} (${track.trackName}), previousCumulative=${previousCumulativeBlob ? `${previousCumulativeBlob.size} bytes` : 'null'}`);
+          logger.debug(`Generating clip=${clip.id} (${track.trackName}), previousCumulative=${previousCumulativeBlob ? `${previousCumulativeBlob.size} bytes` : 'null'}`);
           const outcome = await generateClipInternal(
             clip.id,
             previousCumulativeBlob,
           );
           previousCumulativeBlob = outcome.cumulativeBlob;
           allSucceeded = allSucceeded && outcome.succeeded;
-          console.log(`[GenerationPipeline] After generate clip=${clip.id}, cumulativeBlob=${previousCumulativeBlob ? `${previousCumulativeBlob.size} bytes` : 'null'}`);
+          logger.debug(`After generate clip=${clip.id}, cumulativeBlob=${previousCumulativeBlob ? `${previousCumulativeBlob.size} bytes` : 'null'}`);
         }
       }
 
@@ -205,7 +208,7 @@ export async function generateSingleClip(clipId: string, options?: { sharedSeed?
 
     try {
       const previousBlob = await getPreviousCumulativeBlob(clipId);
-      console.log(`[GenerationPipeline] generateSingleClip: clip=${clipId}, previousBlob=${previousBlob ? `${previousBlob.size} bytes` : 'null'}`);
+      logger.debug(`generateSingleClip: clip=${clipId}, previousBlob=${previousBlob ? `${previousBlob.size} bytes` : 'null'}`);
       const outcome = await generateClipInternal(clipId, previousBlob, options ? { sharedSeed: options.sharedSeed } : {});
 
       if (outcome.succeeded) {
@@ -317,8 +320,8 @@ async function getPreviousCumulativeBlob(clipId: string): Promise<Blob | null> {
   if (!clipTrack) return null;
 
   const trackIndex = tracks.indexOf(clipTrack);
-  console.log(`[GenerationPipeline] getPreviousCumulativeBlob: clip=${clipId}, trackIndex=${trackIndex}/${tracks.length}, track=${clipTrack.trackName}`);
-  console.log(`[GenerationPipeline] Generation order:`, tracks.map((t, i) => `${i}:${t.trackName}(order=${t.order})`));
+  logger.debug(`getPreviousCumulativeBlob: clip=${clipId}, trackIndex=${trackIndex}/${tracks.length}, track=${clipTrack.trackName}`);
+  logger.debug('Generation order:', tracks.map((t, i) => `${i}:${t.trackName}(order=${t.order})`));
 
   // Strategy: Look for cumulative audio from already-generated tracks.
   //
@@ -338,7 +341,7 @@ async function getPreviousCumulativeBlob(clipId: string): Promise<Blob | null> {
       const prevClip = prevTrack.clips[j];
       if (prevClip.cumulativeMixKey) {
         const blob = await loadAudioBlobByKey(prevClip.cumulativeMixKey) ?? null;
-        console.log(`[GenerationPipeline] Found predecessor cumulative: track=${prevTrack.trackName}, key=${prevClip.cumulativeMixKey}, blob=${blob ? `${blob.size} bytes` : 'null'}`);
+        logger.debug(`Found predecessor cumulative: track=${prevTrack.trackName}, key=${prevClip.cumulativeMixKey}, blob=${blob ? `${blob.size} bytes` : 'null'}`);
         return blob;
       }
     }
@@ -354,13 +357,13 @@ async function getPreviousCumulativeBlob(clipId: string): Promise<Blob | null> {
       const laterClip = laterTrack.clips[j];
       if (laterClip.cumulativeMixKey) {
         const blob = await loadAudioBlobByKey(laterClip.cumulativeMixKey) ?? null;
-        console.log(`[GenerationPipeline] Found successor cumulative (out-of-order): track=${laterTrack.trackName}, key=${laterClip.cumulativeMixKey}, blob=${blob ? `${blob.size} bytes` : 'null'}`);
+        logger.debug(`Found successor cumulative (out-of-order): track=${laterTrack.trackName}, key=${laterClip.cumulativeMixKey}, blob=${blob ? `${blob.size} bytes` : 'null'}`);
         return blob;
       }
     }
   }
 
-  console.log(`[GenerationPipeline] No previous cumulative blob found for clip=${clipId}`);
+  logger.debug(`No previous cumulative blob found for clip=${clipId}`);
   return null;
 }
 
@@ -382,7 +385,7 @@ async function generateClipInternal(
 
   const trackType = track.trackType ?? 'stems';
   if (trackType !== 'stems') {
-    console.warn(`[GenerationPipeline] Skipping generation for non-stems track (type=${trackType}, track=${track.displayName})`);
+    logger.warn(`Skipping generation for non-stems track (type=${trackType}, track=${track.displayName})`);
     return { cumulativeBlob: previousCumulativeBlob, succeeded: false, errorMessage: 'Track type is not generatable' };
   }
 
@@ -425,8 +428,8 @@ async function generateClipInternal(
       : (options.forceSilence ? null : previousCumulativeBlob);
     const srcAudioBlob = srcBlob ?? generateSilenceWav(audioDuration);
 
-    console.log(
-      `[GenerationPipeline] clip=${clipId} track=${track.trackName}`,
+    logger.debug(
+      `clip=${clipId} track=${track.trackName}`,
       options.srcAudioPath
         ? `srcAudioPath=${options.srcAudioPath}`
         : `srcAudio: ${srcBlob ? 'previousCumulative' : 'silence'}`,
@@ -599,7 +602,7 @@ async function generateClipInternal(
     });
 
     const cumulativeBlob = await api.downloadAudio(resultAudioPath);
-    console.log(`[GenerationPipeline] Downloaded cumulative audio: size=${cumulativeBlob.size}, type=${cumulativeBlob.type}, path=${resultAudioPath}`);
+    logger.debug(`Downloaded cumulative audio: size=${cumulativeBlob.size}, type=${cumulativeBlob.type}, path=${resultAudioPath}`);
 
     // Store cumulative mix
     const cumulativeKey = await saveAudioBlob(project.id, clipId, 'cumulative', cumulativeBlob);

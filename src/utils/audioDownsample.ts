@@ -1,7 +1,10 @@
+import { createDebugLogger } from './debugLogger';
+
 const UPLOAD_SAMPLE_RATE = 16000;
 const UPLOAD_CHANNELS = 1;
 
 const SKIP_THRESHOLD_BYTES = 500_000; // 500KB — already small enough, skip
+const logger = createDebugLogger('ace-step:audio-downsample');
 
 /**
  * Downsample a WAV blob to 16kHz mono for faster upload over slow networks.
@@ -10,7 +13,7 @@ const SKIP_THRESHOLD_BYTES = 500_000; // 500KB — already small enough, skip
  */
 export async function downsampleWavBlob(blob: Blob): Promise<Blob> {
   if (blob.size < SKIP_THRESHOLD_BYTES) {
-    console.log(`[downsampleWavBlob] blob already small (${(blob.size / 1024).toFixed(0)}KB), skipping`);
+    logger.debug(`blob already small (${(blob.size / 1024).toFixed(0)}KB), skipping`);
     return blob;
   }
   const arrayBuffer = await blob.arrayBuffer();
@@ -19,7 +22,7 @@ export async function downsampleWavBlob(blob: Blob): Promise<Blob> {
   try {
     decoded = await audioCtx.decodeAudioData(arrayBuffer);
   } catch {
-    console.warn('[downsampleWavBlob] decode failed, returning original blob');
+    logger.warn('decode failed, returning original blob');
     return blob;
   }
 
@@ -36,8 +39,8 @@ export async function downsampleWavBlob(blob: Blob): Promise<Blob> {
   const rendered = await offlineCtx.startRendering();
   const result = audioBufferToWav16(rendered);
 
-  console.log(
-    `[downsampleWavBlob] ${(blob.size / 1024).toFixed(0)}KB → ${(result.size / 1024).toFixed(0)}KB` +
+  logger.debug(
+    `${(blob.size / 1024).toFixed(0)}KB → ${(result.size / 1024).toFixed(0)}KB` +
     ` (${decoded.sampleRate}Hz/${decoded.numberOfChannels}ch → ${UPLOAD_SAMPLE_RATE}Hz/${UPLOAD_CHANNELS}ch)`,
   );
   return result;
