@@ -351,7 +351,7 @@ export function TrackLane({ track }: TrackLaneProps) {
       {/* Take Lanes — rendered below the track lane when showTakeLanes is enabled */}
       {track.showTakeLanes && track.clips.map((clip) =>
         clip.takes && clip.takes.length > 0 ? (
-          <div key={`takes-${clip.id}`} className="relative border-b border-[#2a2a2a]" style={{ width: totalWidth }}>
+          <div key={`takes-${clip.id}`} className="relative border-b border-[#1e1e30]" style={{ width: totalWidth }}>
             <TakeLaneStrip clip={clip} track={track} />
           </div>
         ) : null,

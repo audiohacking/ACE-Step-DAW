@@ -3,7 +3,7 @@ import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { useTransportStore } from '../../store/transportStore';
 import { useTransport } from '../../hooks/useTransport';
-import { getBarDuration } from '../../utils/time';
+import { getBarDuration, getBeatDuration } from '../../utils/time';
 import { beatToTime, getBeatAtBar, getTimeSignatureAtBar } from '../../utils/tempoMap';
 import { getScrubPreviewRate } from '../../utils/scrubMath';
 import { TIMELINE_RULER_HEIGHT } from './timelineLayout';
@@ -80,18 +80,30 @@ export function TimeRuler() {
     const { tempoMap, timeSignatureMap, bpm, timeSignature, totalDuration } = project;
     const hasTempoMap = tempoMap && tempoMap.length > 0;
     const hasTsMap = timeSignatureMap && timeSignatureMap.length > 0;
+    const beatDur = getBeatDuration(bpm);
+    const beatPx = beatDur * pixelsPerSecond;
+    // Show beat subdivisions when zoomed in enough
+    const showBeats = beatPx >= 20;
 
     if (!hasTempoMap && !hasTsMap) {
       const barDur = getBarDuration(bpm, timeSignature);
       const totalBars = Math.ceil(totalDuration / barDur);
-      const result: { bar: number; x: number; tsLabel?: string }[] = [];
+      const result: { label: string; x: number; isBar: boolean; tsLabel?: string }[] = [];
       for (let bar = 1; bar <= totalBars; bar++) {
-        result.push({ bar, x: (bar - 1) * barDur * pixelsPerSecond });
+        const barTime = (bar - 1) * barDur;
+        result.push({ label: String(bar), x: barTime * pixelsPerSecond, isBar: true });
+        if (showBeats) {
+          for (let beat = 2; beat <= timeSignature; beat++) {
+            const beatTime = barTime + (beat - 1) * beatDur;
+            if (beatTime > totalDuration) break;
+            result.push({ label: `${bar}.${beat}`, x: beatTime * pixelsPerSecond, isBar: false });
+          }
+        }
       }
       return result;
     }
 
-    const result: { bar: number; x: number; tsLabel?: string }[] = [];
+    const result: { label: string; x: number; isBar: boolean; tsLabel?: string }[] = [];
     let prevTs = '';
     for (let bar = 1; bar <= 999; bar++) {
       const barBeat = getBeatAtBar(bar, timeSignatureMap, timeSignature);
@@ -107,7 +119,17 @@ export function TimeRuler() {
           prevTs = label;
         }
       }
-      result.push({ bar, x: time * pixelsPerSecond, tsLabel });
+      result.push({ label: String(bar), x: time * pixelsPerSecond, isBar: true, tsLabel });
+      if (showBeats) {
+        const ts = hasTsMap
+          ? getTimeSignatureAtBar(timeSignatureMap, bar, timeSignature, 4)
+          : { numerator: timeSignature, denominator: 4 };
+        for (let beat = 2; beat <= ts.numerator; beat++) {
+          const beatTime = beatToTime(barBeat + (beat - 1), tempoMap, bpm);
+          if (beatTime > totalDuration) break;
+          result.push({ label: `${bar}.${beat}`, x: beatTime * pixelsPerSecond, isBar: false });
+        }
+      }
     }
     return result;
   }, [project, pixelsPerSecond]);
@@ -148,15 +170,15 @@ export function TimeRuler() {
         />
       )}
 
-      {/* Bar markers */}
-      {markers.map(({ bar, x, tsLabel }) => (
+      {/* Bar and beat markers */}
+      {markers.map(({ label, x, isBar, tsLabel }) => (
         <div
-          key={bar}
+          key={label}
           className="absolute top-0 h-full flex items-end pb-0.5 pointer-events-none"
           style={{ left: x }}
         >
-          <div className="w-px h-3 bg-[#5a5a75] mr-1" />
-          <span className="text-[10px] text-zinc-400/80 font-medium">{bar}</span>
+          <div className={`w-px mr-1 ${isBar ? 'h-3 bg-[#5a5a75]' : 'h-2 bg-[#3a3a55]'}`} />
+          <span className={`font-medium ${isBar ? 'text-[10px] text-zinc-400/80' : 'text-[9px] text-zinc-500/60'}`}>{label}</span>
           {tsLabel && (
             <span className="text-[8px] text-amber-400/60 ml-0.5">{tsLabel}</span>
           )}
