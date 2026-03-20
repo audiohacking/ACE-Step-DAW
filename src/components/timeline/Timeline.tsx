@@ -80,7 +80,6 @@ export function Timeline() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const trackAreaRef = useRef<HTMLDivElement>(null);
 
-  const selectClips = useUIStore((s) => s.selectClips);
   const deselectAllTracks = useUIStore((s) => s.deselectAllTracks);
   const setRegionRegenerateTarget = useUIStore((s) => s.setRegionRegenerateTarget);
   const regionRegenerateTarget = useUIStore((s) => s.regionRegenerateTarget);
@@ -90,7 +89,6 @@ export function Timeline() {
   const [regionCtxMenu, setRegionCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [ctxDrag, setCtxDrag] = useState<DragRect | null>(null);
   const [selDrag, setSelDrag] = useState<DragRect | null>(null);
-  const [normalDrag, setNormalDrag] = useState<DragRect | null>(null);
   const [fileDragOver, setFileDragOver] = useState(false);
   const dragCounterRef = useRef(0);
   const { importMultipleFiles, importLoopToTrack, importAssetToTrack, importAudioFileAsNewQuickSampler, importAssetAsQuickSampler } = useAudioImport();
@@ -268,8 +266,7 @@ export function Timeline() {
       if (target.closest?.('[data-timeline-scrubber="true"]')) return;
 
       const isCtx = e.altKey;
-      const isSel = !isCtx && (e.metaKey || e.ctrlKey);
-      const isNormal = !isCtx && !isSel;
+      const isSel = !isCtx;
 
       e.preventDefault();
       e.stopPropagation();
@@ -290,7 +287,7 @@ export function Timeline() {
       const startViewY = startClientY - cRect.top + container.scrollTop;
 
       let hasDragged = false;
-      const setDrag = isCtx ? setCtxDrag : isSel ? setSelDrag : setNormalDrag;
+      const setDrag = isCtx ? setCtxDrag : setSelDrag;
 
       const onMouseMove = (ev: MouseEvent) => {
         const dx = ev.clientX - startClientX;
@@ -306,18 +303,13 @@ export function Timeline() {
         const minY = Math.min(startViewY, curViewY);
         const maxY = Math.max(startViewY, curViewY);
 
-        if (isNormal) {
-          const trackAreaTop = trackArea.getBoundingClientRect().top - cRect.top + container.scrollTop;
-          setDrag({ left, width, top: minY - trackAreaTop, height: maxY - minY });
-        } else {
-          const vRange = getTrackVerticalRange(
-            container, getIntersectedTrackIds(container, minY, maxY),
-          );
-          const trackAreaTop = trackArea.getBoundingClientRect().top - cRect.top + container.scrollTop;
-          const top = vRange ? vRange.top - trackAreaTop : minY - trackAreaTop;
-          const height = vRange ? vRange.height : maxY - minY;
-          setDrag({ left, width, top, height });
-        }
+        const vRange = getTrackVerticalRange(
+          container, getIntersectedTrackIds(container, minY, maxY),
+        );
+        const trackAreaTop = trackArea.getBoundingClientRect().top - cRect.top + container.scrollTop;
+        const top = vRange ? vRange.top - trackAreaTop : minY - trackAreaTop;
+        const height = vRange ? vRange.height : maxY - minY;
+        setDrag({ left, width, top, height });
       };
 
       const onMouseUp = (ev: MouseEvent) => {
@@ -337,35 +329,17 @@ export function Timeline() {
         const minY = Math.min(startViewY, endViewY);
         const maxY = Math.max(startViewY, endViewY);
 
-        if (isNormal) {
-          const rawStart = leftPx / pixelsPerSecond;
-          const rawEnd = rightPx / pixelsPerSecond;
-          const trackIds = new Set(getIntersectedTrackIds(container, minY, maxY));
-          const tracks = project?.tracks ?? [];
-          const hitClipIds: string[] = [];
-          for (const t of tracks) {
-            if (!trackIds.has(t.id)) continue;
-            for (const c of t.clips) {
-              const clipEnd = c.startTime + c.duration;
-              if (clipEnd > rawStart && c.startTime < rawEnd) {
-                hitClipIds.push(c.id);
-              }
-            }
-          }
-          selectClips(hitClipIds);
-        } else {
-          const rawStart = leftPx / pixelsPerSecond;
-          const rawEnd = rightPx / pixelsPerSecond;
-          const startTime = Math.max(0, snapToGrid(rawStart, bpm, 1));
-          const endTime = snapToGrid(rawEnd, bpm, 1);
-          const trackIds = getIntersectedTrackIds(container, minY, maxY);
+        const rawStart = leftPx / pixelsPerSecond;
+        const rawEnd = rightPx / pixelsPerSecond;
+        const startTime = Math.max(0, snapToGrid(rawStart, bpm, 1));
+        const endTime = snapToGrid(rawEnd, bpm, 1);
+        const trackIds = getIntersectedTrackIds(container, minY, maxY);
 
-          if (endTime > startTime && trackIds.length > 0) {
-            if (isCtx) {
-              setContextWindow({ startTime, endTime, trackIds });
-            } else {
-              setSelectWindow({ startTime, endTime, trackIds });
-            }
+        if (endTime > startTime && trackIds.length > 0) {
+          if (isCtx) {
+            setContextWindow({ startTime, endTime, trackIds });
+          } else {
+            setSelectWindow({ startTime, endTime, trackIds });
           }
         }
         setDrag(null);
@@ -374,7 +348,7 @@ export function Timeline() {
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('mouseup', onMouseUp);
     },
-    [pixelsPerSecond, project, setContextWindow, setSelectWindow, selectClips, deselectAllTracks],
+    [pixelsPerSecond, project, setContextWindow, setSelectWindow, deselectAllTracks],
   );
 
 
@@ -550,20 +524,6 @@ export function Timeline() {
               />
             )}
 
-            {/* Live rubber-band clip selection overlay — Apple Blue (#007AFF) */}
-            {normalDrag && (
-              <div
-                className="absolute pointer-events-none z-10"
-                style={{
-                  left: normalDrag.left,
-                  width: normalDrag.width,
-                  top: normalDrag.top,
-                  height: normalDrag.height,
-                  background: 'rgba(0, 122, 255, 0.10)',
-                  border: '1px solid rgba(0, 122, 255, 0.45)',
-                }}
-              />
-            )}
 
             {sortedTracks.map((track) => (
               <TrackLane key={track.id} track={track} />
