@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { Toolbar } from '../../src/components/layout/Toolbar';
 import { useProjectStore } from '../../src/store/projectStore';
 import { useUIStore } from '../../src/store/uiStore';
 import { useTransportStore } from '../../src/store/transportStore';
+
+const healthCheckMock = vi.fn();
+const listModelsMock = vi.fn();
 
 // Mock all external dependencies
 vi.mock('../../src/store/collaborationStore', () => ({
@@ -40,13 +43,27 @@ vi.mock('../../src/services/projectStorage', () => ({
   saveProject: vi.fn(),
 }));
 
+vi.mock('../../src/services/aceStepApi', () => ({
+  healthCheck: () => healthCheckMock(),
+  listModels: () => listModelsMock(),
+}));
+
 describe('Toolbar visual hierarchy and grouping (#544)', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.clearAllMocks();
     useProjectStore.setState(useProjectStore.getInitialState(), true);
     useUIStore.setState(useUIStore.getInitialState(), true);
     useTransportStore.setState(useTransportStore.getInitialState(), true);
     useProjectStore.getState().createProject({ name: 'Toolbar Test' });
+    healthCheckMock.mockResolvedValue(false);
+    listModelsMock.mockResolvedValue({
+      models: [],
+      default_model: null,
+      lm_models: [],
+      loaded_lm_model: null,
+      llm_initialized: false,
+    });
   });
 
   it('renders a transport pill container with distinct background', () => {
@@ -121,5 +138,76 @@ describe('Toolbar visual hierarchy and grouping (#544)', () => {
     expect(screen.getByTitle('Keyboard Shortcuts (?)')).toBeInTheDocument();
     expect(screen.getByTitle('Zoom Out')).toBeInTheDocument();
     expect(screen.getByTitle('Zoom In')).toBeInTheDocument();
+  });
+
+  it('shows the loaded model badge and opens the library panel when clicked', async () => {
+    useProjectStore.setState((state) => ({
+      project: state.project
+        ? {
+          ...state.project,
+          generationDefaults: {
+            ...state.project.generationDefaults,
+            model: 'ace-step-large',
+          },
+        }
+        : state.project,
+    }));
+    healthCheckMock.mockResolvedValue(true);
+    listModelsMock.mockResolvedValue({
+      models: [
+        { name: 'ace-step-large', is_default: true, is_loaded: true },
+      ],
+      default_model: 'ace-step-large',
+      lm_models: [],
+      loaded_lm_model: null,
+      llm_initialized: false,
+    });
+
+    render(<Toolbar />);
+
+    const badge = await screen.findByRole('button', { name: /model status: ace-step-large/i });
+    expect(badge).toHaveTextContent('ace-step-large');
+    expect(badge.querySelector('[data-testid="toolbar-model-status-dot"]')).toHaveClass('bg-emerald-500');
+
+    fireEvent.click(badge);
+    expect(useUIStore.getState().showLibrary).toBe(true);
+  });
+
+  it('shows loading and empty badge states as the model status changes', async () => {
+    healthCheckMock.mockResolvedValue(true);
+    listModelsMock.mockResolvedValue({
+      models: [
+        { name: 'switching-model', is_default: true, is_loaded: false },
+      ],
+      default_model: 'switching-model',
+      lm_models: [],
+      loaded_lm_model: null,
+      llm_initialized: false,
+    });
+
+    const { rerender } = render(<Toolbar />);
+
+    const emptyBadge = await screen.findByRole('button', { name: /model status: no model/i });
+    expect(emptyBadge).toHaveTextContent('No model');
+    expect(emptyBadge.querySelector('[data-testid="toolbar-model-status-dot"]')).toHaveClass('bg-zinc-500');
+
+    useProjectStore.setState((state) => ({
+      project: state.project
+        ? {
+          ...state.project,
+          generationDefaults: {
+            ...state.project.generationDefaults,
+            model: 'switching-model',
+          },
+        }
+        : state.project,
+    }));
+    rerender(<Toolbar />);
+
+    await waitFor(() => {
+      const loadingBadge = screen.getByRole('button', { name: /model status: switching-model/i });
+      expect(loadingBadge).toHaveTextContent('switching-model');
+      expect(loadingBadge.querySelector('[data-testid="toolbar-model-status-dot"]')).toHaveClass('bg-amber-400');
+    });
   });
 });
