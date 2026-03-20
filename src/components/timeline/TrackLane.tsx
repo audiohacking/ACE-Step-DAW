@@ -85,6 +85,7 @@ function LaneContextMenu({ x, y, onAddLayer, onOpenSequencer, onOpenPianoRoll, o
 
 const MIN_LANE_HEIGHT = 40;
 const MAX_LANE_HEIGHT = 400;
+const EMPTY_LANE_SURFACE_OVERLAY_OPACITY = 0.55;
 
 export function TrackLane({ track }: TrackLaneProps) {
   const pixelsPerSecond = useUIStore((s) => s.pixelsPerSecond);
@@ -300,7 +301,6 @@ export function TrackLane({ track }: TrackLaneProps) {
           width: totalWidth,
           height: laneHeight,
           opacity: track.muted ? 0.4 : 1,
-          backgroundColor: fileDragOver ? undefined : shouldHighlightEmptyLane ? ARRANGEMENT_EMPTY_LANE_BG : undefined,
           borderColor: ARRANGEMENT_ROW_SEPARATOR_COLOR,
         }}
         onContextMenu={handleContextMenu}
@@ -309,6 +309,18 @@ export function TrackLane({ track }: TrackLaneProps) {
         onDragLeave={handleFileDragLeave}
         onDrop={handleFileDrop}
       >
+        {shouldHighlightEmptyLane && !fileDragOver && (
+          <div
+            aria-hidden="true"
+            data-testid={`track-lane-surface-overlay-${track.id}`}
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundColor: ARRANGEMENT_EMPTY_LANE_BG,
+              opacity: EMPTY_LANE_SURFACE_OVERLAY_OPACITY,
+            }}
+          />
+        )}
+
         {fileDragOver && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 border border-dashed border-blue-400/60 rounded-sm">
             <span className="text-[10px] text-blue-300 bg-blue-950/80 px-2 py-0.5 rounded">Drop audio or MIDI here {track.trackType !== 'pianoRoll' ? '(Alt = Quick Sampler)' : ''}</span>

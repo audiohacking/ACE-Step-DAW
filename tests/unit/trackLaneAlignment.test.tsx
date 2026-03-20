@@ -56,9 +56,11 @@ describe('TrackLane empty-lane alignment', () => {
     render(<TrackLane track={track} />);
 
     const lane = screen.getByTestId(`track-lane-${track.id}`);
+    const overlay = screen.getByTestId(`track-lane-surface-overlay-${track.id}`);
     expect(lane).toHaveAttribute('data-lane-surface', 'empty');
-    expect(lane.getAttribute('style')).toContain('background-color: var(--color-daw-arrangement-empty-lane-bg)');
     expect(lane.getAttribute('style')).toContain('border-color: var(--color-daw-arrangement-separator)');
+    expect(overlay.getAttribute('style')).toContain('background-color: var(--color-daw-arrangement-empty-lane-bg)');
+    expect(overlay.getAttribute('style')).toContain('opacity: 0.55');
   });
 
   it('keeps populated lanes on the default surface', () => {
@@ -76,8 +78,6 @@ describe('TrackLane empty-lane alignment', () => {
 
     const lane = screen.getByTestId(`track-lane-${track.id}`);
     expect(lane).toHaveAttribute('data-lane-surface', 'default');
-    expect(lane).not.toHaveStyle({
-      backgroundColor: 'var(--color-daw-arrangement-empty-lane-bg)',
-    });
+    expect(screen.queryByTestId(`track-lane-surface-overlay-${track.id}`)).toBeNull();
   });
 });

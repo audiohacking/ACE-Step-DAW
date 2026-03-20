@@ -46,6 +46,24 @@ test.describe('Visual Regression Screenshots', () => {
     await page.screenshot({ path: 'test-screenshots/vr-arrangement-empty-lanes.png', fullPage: true });
   });
 
+  test('empty stems lane gridlines screenshot', async ({ page }) => {
+    await page.evaluate(() => {
+      const store = (window as any).__store;
+      const uiStore = (window as any).__uiStore;
+      uiStore.getState().setShowOnboarding(false);
+      uiStore.getState().setShowNewProjectDialog(false);
+      uiStore.setState({
+        dismissedOnboardingTipIds: ['genr-first-pass', 'loop-browser', 'timeline-selection'],
+      });
+      store.getState().createProject({ name: 'Empty Stems Lane Gridline Test' });
+      store.getState().addTrack('drums');
+      store.getState().addTrack('keyboard', 'pianoRoll');
+    });
+    await page.mouse.click(1100, 120);
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: 'test-screenshots/vr-empty-stems-lane-gridlines.png', fullPage: true });
+  });
+
   test('arrangement track-header alignment with clips screenshot', async ({ page }) => {
     await page.evaluate(() => {
       const store = (window as any).__store;
