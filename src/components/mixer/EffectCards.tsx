@@ -625,7 +625,7 @@ export function ParametricEQCard({
               {selectedBand.enabled ? 'Band On' : 'Band Off'}
             </button>
             <select
-              className="bg-white/5 border border-white/10 rounded px-1.5 py-1 text-[9px] text-white/70"
+              className="bg-white/5 border border-white/10 rounded px-1.5 py-1 text-[10px] text-white/70"
               value={selectedBand.type}
               onChange={(e) => updateBand(selectedBand.id, { type: e.target.value as ParametricEQBandType })}
               aria-label="Selected EQ band type"
@@ -707,7 +707,7 @@ export function CompressorCard({ effect, trackId }: { effect: TrackEffect & { ty
           <span className="text-[7px] text-white/30 uppercase w-6">SC</span>
           <select
             data-testid="sidechain-source-select"
-            className="flex-1 text-[9px] bg-white/5 border border-white/10 rounded px-1 py-0.5 text-white/70 outline-none focus:border-amber-500/50"
+            className="flex-1 text-[10px] bg-white/5 border border-white/10 rounded px-1 py-0.5 text-white/70 outline-none focus:border-amber-500/50"
             value={p.sidechainSourceTrackId ?? ''}
             onChange={(e) => handleSidechainChange(e.target.value)}
           >

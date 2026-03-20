@@ -72,7 +72,7 @@ export function BeatPad({ trackId }: BeatPadProps) {
 
   return (
     <div className="h-full flex flex-col p-2 gap-1">
-      <div className="text-[9px] text-white/30 text-center uppercase tracking-wider mb-1">Beat Pads</div>
+      <div className="text-[10px] text-white/30 text-center uppercase tracking-wider mb-1">Beat Pads</div>
       <div className="grid grid-cols-4 gap-1 flex-1">
         {DRUM_PAD_NAMES.slice(0, 16).map((name, i) => {
           const isActive = activePads.has(i);

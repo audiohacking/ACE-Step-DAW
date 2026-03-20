@@ -44,7 +44,7 @@ function ShortcutRow({
     >
       <div className="flex-1 min-w-0">
         <div className="text-xs text-zinc-300 truncate">{label}</div>
-        <div className="text-[10px] text-zinc-500 truncate">{contextsLabel}</div>
+        <div className="text-[10px] text-zinc-400 truncate">{contextsLabel}</div>
         {conflictLabel && (
           <div className="text-[10px] text-amber-400 truncate">
             Conflicts with {conflictLabel}
@@ -78,7 +78,7 @@ function ShortcutRow({
       {isCustom && (
         <button
           onClick={onReset}
-          className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="text-[10px] text-zinc-400 hover:text-zinc-300 transition-colors"
           title={`Reset to default: ${comboToDisplay(defaultCombo)}`}
         >
           ↺
@@ -225,7 +225,7 @@ export function ShortcutEditorDialog() {
           <h2 className="text-sm font-semibold text-zinc-100">Shortcut Editor</h2>
           <button
             onClick={() => setShow(false)}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors text-lg leading-none"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors text-lg leading-none"
           >
             ×
           </button>
@@ -233,7 +233,7 @@ export function ShortcutEditorDialog() {
 
         {/* ── Preset selector + search ────────────────────────────── */}
         <div className="flex items-center gap-3 px-5 py-2.5 border-b border-daw-border">
-          <label className="text-[10px] uppercase tracking-widest text-zinc-500">Preset</label>
+          <label className="text-[10px] uppercase tracking-widest text-zinc-400">Preset</label>
           <select
             value={activePresetId}
             onChange={(e) => handlePresetChange(e.target.value)}
@@ -282,7 +282,7 @@ export function ShortcutEditorDialog() {
               e.currentTarget.value = '';
             }}
           />
-          <div className="ml-auto text-[10px] text-zinc-500">
+          <div className="ml-auto text-[10px] text-zinc-400">
             Presets for ACE-Step, Ableton, Logic, FL Studio, and Pro Tools
           </div>
         </div>
@@ -303,7 +303,7 @@ export function ShortcutEditorDialog() {
                 className={`px-2.5 py-1 rounded text-[10px] font-semibold uppercase tracking-wide transition-colors whitespace-nowrap ${
                   activeCategory === cat.id
                     ? 'bg-daw-accent text-white'
-                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'
+                    : 'text-zinc-400 hover:text-zinc-300 hover:bg-white/5'
                 }`}
               >
                 {cat.label}
@@ -315,7 +315,7 @@ export function ShortcutEditorDialog() {
         {/* ── Shortcut list ───────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto min-h-0 px-5 py-3 space-y-0.5">
           {filteredActions.length === 0 && (
-            <p className="text-xs text-zinc-500 text-center py-8">No shortcuts match your search.</p>
+            <p className="text-xs text-zinc-400 text-center py-8">No shortcuts match your search.</p>
           )}
           {filteredActions.map((action) => {
             const combo = getCombo(action.id);

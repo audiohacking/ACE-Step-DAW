@@ -56,7 +56,7 @@ export function GenerationPanel() {
                         <span className="text-red-400">✕</span>
                       )}
                       <span className="uppercase">{job.trackName}</span>
-                      <span className="text-[9px] opacity-70">
+                      <span className="text-[10px] opacity-70">
                         {job.status === 'error'
                           ? (job.actionableMessage ?? job.error ?? 'Failed')
                           : (job.stage ?? job.progress)}
@@ -77,7 +77,7 @@ export function GenerationPanel() {
                           />
                         </div>
                       )}
-                      {eta !== '' && <span className="text-[9px] opacity-60">ETA {eta}</span>}
+                      {eta !== '' && <span className="text-[10px] opacity-60">ETA {eta}</span>}
                     </div>
                   );
                 })}
@@ -86,7 +86,7 @@ export function GenerationPanel() {
               {hasCompletedJobs && (
                 <button
                   onClick={clearCompletedJobs}
-                  className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                  className="text-[10px] text-zinc-400 hover:text-zinc-300 transition-colors"
                 >
                   Clear
                 </button>

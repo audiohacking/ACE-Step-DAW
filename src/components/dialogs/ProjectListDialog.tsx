@@ -113,7 +113,7 @@ export function ProjectListDialog() {
           <h2 className="text-sm font-medium">Projects</h2>
           <button
             onClick={() => setShow(false)}
-            className="text-zinc-500 hover:text-zinc-300 text-lg leading-none"
+            className="text-zinc-400 hover:text-zinc-300 text-lg leading-none"
           >
             &times;
           </button>
@@ -121,9 +121,9 @@ export function ProjectListDialog() {
 
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
-            <p className="text-xs text-zinc-500 text-center py-8">Loading...</p>
+            <p className="text-xs text-zinc-400 text-center py-8">Loading...</p>
           ) : projects.length === 0 ? (
-            <p className="text-xs text-zinc-500 text-center py-8">
+            <p className="text-xs text-zinc-400 text-center py-8">
               No saved projects yet. Your current project is auto-saved.
             </p>
           ) : (
@@ -139,7 +139,7 @@ export function ProjectListDialog() {
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-zinc-200 truncate">{p.name}</p>
-                    <p className="text-[10px] text-zinc-500">
+                    <p className="text-[10px] text-zinc-400">
                       {p.trackCount} track{p.trackCount !== 1 ? 's' : ''} &middot; {formatDate(p.updatedAt)}
                     </p>
                   </div>

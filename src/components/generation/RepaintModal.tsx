@@ -89,13 +89,13 @@ export function RepaintModal() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-daw-border">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-white">Repaint Selection</span>
-            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-rose-700/60 text-rose-200">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-rose-700/60 text-rose-200">
               Repaint
             </span>
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors text-base leading-none"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors text-base leading-none"
           >
             ✕
           </button>
@@ -105,7 +105,7 @@ export function RepaintModal() {
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
           {/* Clip info */}
           <div className="bg-[#222]/60 rounded px-3 py-2.5 border border-[#3a3a3a] space-y-0.5">
-            <p className="text-[9px] text-zinc-500 uppercase tracking-wide">Target clip</p>
+            <p className="text-[10px] text-zinc-400 uppercase tracking-wide">Target clip</p>
             <p className="text-[11px] font-medium text-zinc-200">
               {track.displayName ?? track.trackName}
             </p>
@@ -169,7 +169,7 @@ export function RepaintModal() {
               />
             </div>
             <div className="flex gap-4 mt-1">
-              <span className="flex items-center gap-1 text-[8px] text-zinc-500">
+              <span className="flex items-center gap-1 text-[8px] text-zinc-400">
                 <span className="inline-block w-3 h-2 rounded-sm bg-zinc-600/50 border border-zinc-500/50" />
                 Clip
               </span>
@@ -262,7 +262,7 @@ export function RepaintModal() {
             )}
           </div>
 
-          <p className="text-[9px] text-zinc-600">
+          <p className="text-[10px] text-zinc-600">
             Only the selected range will be regenerated. Audio outside the repaint region is preserved.
           </p>
         </div>
@@ -280,7 +280,7 @@ export function RepaintModal() {
             disabled={isGenerating || !hasAudio || !repaintSupported || selEnd <= selStart}
             className={`px-4 py-1.5 rounded text-xs font-medium transition-colors ${
               isGenerating || !hasAudio || !repaintSupported || selEnd <= selStart
-                ? 'bg-[#444] text-zinc-500 cursor-not-allowed'
+                ? 'bg-[#444] text-zinc-400 cursor-not-allowed'
                 : 'bg-rose-600 hover:bg-rose-500 text-white'
             }`}
           >

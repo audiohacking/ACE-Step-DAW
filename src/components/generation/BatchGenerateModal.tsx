@@ -127,20 +127,20 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
         <div className="flex items-center justify-between px-4 py-3 border-b border-daw-border">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold text-white">{title}</span>
-            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
               isSilence ? 'bg-violet-700/60 text-violet-200' : 'bg-teal-700/60 text-teal-200'
             }`}>
               {isSilence ? 'Parallel' : 'Sequential'}
             </span>
             {initialRange && (
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-[#444] text-zinc-300">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-[#444] text-zinc-300">
                 {initialRange.startTime.toFixed(1)}s — {(initialRange.startTime + initialRange.duration).toFixed(1)}s
               </span>
             )}
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors text-base leading-none"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors text-base leading-none"
           >
             ✕
           </button>
@@ -201,12 +201,12 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
                         className="accent-daw-accent flex-shrink-0"
                       />
                       <span className={`font-bold text-[10px] uppercase tracking-wider flex-1 ${
-                        row.checked ? 'text-daw-accent' : 'text-zinc-500'
+                        row.checked ? 'text-daw-accent' : 'text-zinc-400'
                       }`}>
                         {row.displayName}
                       </span>
                       {row.hasExistingAudio && (
-                        <span className="text-[9px] text-zinc-500 italic">has audio</span>
+                        <span className="text-[10px] text-zinc-400 italic">has audio</span>
                       )}
                     </div>
 
@@ -226,7 +226,7 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
                     {/* Lyrics — vocals / backing_vocals only */}
                     {VOCAL_TRACKS.has(row.trackName) && (
                       <div className="px-2 pb-2">
-                        <label className={`block text-[10px] mb-1 ${row.checked ? 'text-zinc-500' : 'text-zinc-600'}`}>
+                        <label className={`block text-[10px] mb-1 ${row.checked ? 'text-zinc-400' : 'text-zinc-600'}`}>
                           Lyrics
                         </label>
                         <textarea
@@ -290,7 +290,7 @@ export function BatchGenerateModal({ mode, onClose }: Props) {
                 ? isSilence
                   ? 'bg-violet-600 hover:bg-violet-500 text-white'
                   : 'bg-teal-600 hover:bg-teal-500 text-white'
-                : 'bg-[#444] text-zinc-500 cursor-not-allowed'
+                : 'bg-[#444] text-zinc-400 cursor-not-allowed'
             }`}
           >
             {isSilence ? '⬜' : '🎵'}

@@ -71,7 +71,7 @@ export function ContextualTips() {
           type="button"
           aria-label={`Dismiss tip ${tip.title}`}
           onClick={() => dismissOnboardingTip(tip.id)}
-          className="text-sm text-zinc-500 transition-colors hover:text-white"
+          className="text-sm text-zinc-400 transition-colors hover:text-white"
         >
           ×
         </button>

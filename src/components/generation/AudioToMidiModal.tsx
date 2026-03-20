@@ -134,13 +134,13 @@ export function AudioToMidiModal() {
         <div className="flex items-center justify-between border-b border-daw-border px-4 py-3">
           <div>
             <h2 className="text-sm font-semibold text-white">Convert to MIDI</h2>
-            <p className="mt-1 text-[10px] text-zinc-500">Detect pitches in audio and create editable MIDI notes.</p>
+            <p className="mt-1 text-[10px] text-zinc-400">Detect pitches in audio and create editable MIDI notes.</p>
           </div>
           <button
             type="button"
             aria-label="Close audio to MIDI modal"
             onClick={onClose}
-            className="text-base leading-none text-zinc-500 transition-colors hover:text-zinc-200"
+            className="text-base leading-none text-zinc-400 transition-colors hover:text-zinc-200"
           >
             x
           </button>
@@ -148,7 +148,7 @@ export function AudioToMidiModal() {
 
         <div className="space-y-4 px-4 py-4">
           <div className="rounded-lg border border-[#3a3a3a] bg-[#202020] px-3 py-2.5">
-            <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-500">Source Clip</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Source Clip</p>
             <p className="mt-1 text-[11px] font-medium text-zinc-100">{track.displayName}</p>
             <p className="mt-0.5 truncate text-[10px] text-zinc-400">{clip.prompt || 'Imported audio clip'}</p>
             {!hasAudio && (
@@ -159,7 +159,7 @@ export function AudioToMidiModal() {
           </div>
 
           <div className="space-y-3">
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-500">Detection Settings</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-400">Detection Settings</p>
             <div className="grid grid-cols-3 gap-3">
               <label className="space-y-1">
                 <span className="block text-[10px] text-zinc-400">Sensitivity</span>
@@ -172,7 +172,7 @@ export function AudioToMidiModal() {
                   onChange={(e) => setThreshold(Number(e.target.value))}
                   className="w-full accent-violet-500"
                 />
-                <span className="block text-[10px] text-zinc-500 text-center">{threshold.toFixed(2)}</span>
+                <span className="block text-[10px] text-zinc-400 text-center">{threshold.toFixed(2)}</span>
               </label>
               <label className="space-y-1">
                 <span className="block text-[10px] text-zinc-400">Min Confidence</span>
@@ -185,7 +185,7 @@ export function AudioToMidiModal() {
                   onChange={(e) => setMinConfidence(Number(e.target.value))}
                   className="w-full accent-violet-500"
                 />
-                <span className="block text-[10px] text-zinc-500 text-center">{(minConfidence * 100).toFixed(0)}%</span>
+                <span className="block text-[10px] text-zinc-400 text-center">{(minConfidence * 100).toFixed(0)}%</span>
               </label>
               <label className="space-y-1">
                 <span className="block text-[10px] text-zinc-400">Min Duration</span>
@@ -198,15 +198,15 @@ export function AudioToMidiModal() {
                   onChange={(e) => setMinNoteDuration(Number(e.target.value))}
                   className="w-full accent-violet-500"
                 />
-                <span className="block text-[10px] text-zinc-500 text-center">{(minNoteDuration * 1000).toFixed(0)}ms</span>
+                <span className="block text-[10px] text-zinc-400 text-center">{(minNoteDuration * 1000).toFixed(0)}ms</span>
               </label>
             </div>
           </div>
 
           <div className="rounded-lg border border-[#3a3a3a] bg-[#181818] overflow-hidden">
             <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#3a3a3a]">
-              <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Preview</span>
-              <span className="text-[10px] text-zinc-500">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Preview</span>
+              <span className="text-[10px] text-zinc-400">
                 {preview.status === 'analyzing'
                   ? 'Analyzing\u2026'
                   : `${preview.midiNotes.length} note${preview.midiNotes.length !== 1 ? 's' : ''} detected`}
@@ -224,7 +224,7 @@ export function AudioToMidiModal() {
                 </div>
               )}
               {preview.status === 'done' && preview.midiNotes.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-500">
+                <div className="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-400">
                   No notes detected. Try adjusting sensitivity.
                 </div>
               )}

@@ -220,7 +220,7 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-200 text-lg leading-none"
+            className="text-zinc-400 hover:text-zinc-200 text-lg leading-none"
           >
             ×
           </button>
@@ -325,7 +325,7 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
                 disabled={previewState !== 'playing'}
                 className="flex-1 h-1 accent-blue-400 cursor-pointer disabled:opacity-40"
               />
-              <span className="text-[9px] font-mono text-blue-300 shrink-0 w-[60px] text-right">
+              <span className="text-[10px] font-mono text-blue-300 shrink-0 w-[60px] text-right">
                 {fmtTime(previewCurrentTime)} / {fmtTime(previewDuration)}
               </span>
             </div>
@@ -349,7 +349,7 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
           {/* Track list */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
+              <span className="text-[10px] text-zinc-400 uppercase tracking-wider">
                 Tracks ({checkedCount} selected)
               </span>
             </div>
@@ -370,7 +370,7 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
                     className="accent-teal-500"
                   />
                   <span className="text-[11px] font-medium text-zinc-200">{row.displayName}</span>
-                  <span className="text-[9px] text-zinc-500">({row.trackName})</span>
+                  <span className="text-[10px] text-zinc-400">({row.trackName})</span>
                 </label>
                 {row.checked && (
                   <div className="pl-5 space-y-1">
@@ -398,7 +398,7 @@ export function MultiTrackGenerateModal({ selectWindow, contextWindow, onClose }
 
           {/* Global caption */}
           <div>
-            <label className="text-[10px] text-zinc-500 uppercase tracking-wider block mb-1">
+            <label className="text-[10px] text-zinc-400 uppercase tracking-wider block mb-1">
               Global Song Description
             </label>
             <textarea

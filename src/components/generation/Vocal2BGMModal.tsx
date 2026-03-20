@@ -87,13 +87,13 @@ export function Vocal2BGMModal() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-daw-border">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-white">Generate Accompaniment</span>
-            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-emerald-700/60 text-emerald-200">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-emerald-700/60 text-emerald-200">
               Vocal2BGM
             </span>
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors text-base leading-none"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors text-base leading-none"
           >
             ✕
           </button>
@@ -103,12 +103,12 @@ export function Vocal2BGMModal() {
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
           {/* Source clip info */}
           <div className="bg-[#222]/60 rounded px-3 py-2.5 border border-[#3a3a3a] space-y-0.5">
-            <p className="text-[9px] text-zinc-500 uppercase tracking-wide">Source vocal</p>
+            <p className="text-[10px] text-zinc-400 uppercase tracking-wide">Source vocal</p>
             <p className="text-[11px] font-medium text-zinc-200">
               {track.displayName ?? track.trackName}
             </p>
             <p className="text-[10px] text-zinc-400 truncate">{clip.prompt || '(no prompt)'}</p>
-            <p className="text-[10px] text-zinc-500">
+            <p className="text-[10px] text-zinc-400">
               {clip.duration.toFixed(1)}s
               {clip.inferredMetas?.bpm ? ` | ${clip.inferredMetas.bpm} BPM` : ''}
               {clip.inferredMetas?.keyScale ? ` | ${clip.inferredMetas.keyScale}` : ''}
@@ -147,7 +147,7 @@ export function Vocal2BGMModal() {
             <div className="flex flex-wrap gap-1 mb-2">
               <button
                 onClick={() => setPresetCategory('')}
-                className={`px-2 py-0.5 rounded text-[9px] font-medium transition-colors ${
+                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
                   !presetCategory ? 'bg-daw-accent text-white' : 'bg-[#333] text-zinc-400 hover:bg-[#444]'
                 }`}
               >
@@ -157,7 +157,7 @@ export function Vocal2BGMModal() {
                 <button
                   key={cat}
                   onClick={() => setPresetCategory(cat === presetCategory ? '' : cat)}
-                  className={`px-2 py-0.5 rounded text-[9px] font-medium transition-colors ${
+                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
                     cat === presetCategory ? 'bg-daw-accent text-white' : 'bg-[#333] text-zinc-400 hover:bg-[#444]'
                   }`}
                 >
@@ -173,7 +173,7 @@ export function Vocal2BGMModal() {
                   className="text-left px-2 py-1.5 rounded bg-[#2a2a2a] hover:bg-[#383838] border border-[#3a3a3a] transition-colors"
                 >
                   <p className="text-[10px] font-medium text-zinc-200">{preset.name}</p>
-                  <p className="text-[9px] text-zinc-500 truncate">{preset.suggestedBpm} BPM | {preset.suggestedKey}</p>
+                  <p className="text-[10px] text-zinc-400 truncate">{preset.suggestedBpm} BPM | {preset.suggestedKey}</p>
                 </button>
               ))}
             </div>
@@ -262,7 +262,7 @@ export function Vocal2BGMModal() {
             disabled={isGenerating || !hasAudio || !caption.trim() || !targetTrackId}
             className={`px-4 py-1.5 rounded text-xs font-medium transition-colors ${
               isGenerating || !hasAudio || !caption.trim() || !targetTrackId
-                ? 'bg-[#444] text-zinc-500 cursor-not-allowed'
+                ? 'bg-[#444] text-zinc-400 cursor-not-allowed'
                 : 'bg-emerald-600 hover:bg-emerald-500 text-white'
             }`}
           >

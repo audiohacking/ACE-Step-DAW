@@ -92,7 +92,7 @@ export function FirstRunOnboarding() {
                   <h2 className="text-lg font-semibold text-white">1. Pick a starter</h2>
                   <p className="mt-1 text-sm text-zinc-400">Templates create a fresh scaffold. Demo projects open with content ready for editing.</p>
                 </div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">Template + Demo</p>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-400">Template + Demo</p>
               </div>
 
               <div className="grid gap-3 lg:grid-cols-2">
@@ -129,7 +129,7 @@ export function FirstRunOnboarding() {
                           </span>
                         ))}
                       </div>
-                      <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                      <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-zinc-400">
                         {starter.keyScale}
                       </p>
                     </button>
@@ -161,19 +161,19 @@ export function FirstRunOnboarding() {
                     >
                       <div className="flex items-center justify-between gap-3">
                         <h3 className="text-sm font-semibold text-white">{tier.title}</h3>
-                        <span className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                        <span className="text-[10px] uppercase tracking-[0.18em] text-zinc-400">
                           {active ? 'Selected' : 'Available'}
                         </span>
                       </div>
                       <p className="mt-2 text-sm leading-6 text-zinc-300">{tier.description}</p>
-                      <p className="mt-2 text-xs leading-5 text-zinc-500">{tier.details}</p>
+                      <p className="mt-2 text-xs leading-5 text-zinc-400">{tier.details}</p>
                     </button>
                   );
                 })}
               </div>
 
               <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">What happens next</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">What happens next</p>
                 <ul className="mt-3 space-y-2 text-sm leading-6 text-zinc-300">
                   <li>First launch opens into the selected starter, not an empty DAW.</li>
                   <li>A skippable 5-step tutorial points out timeline, transport, genr, mixer, and Cmd+K search.</li>

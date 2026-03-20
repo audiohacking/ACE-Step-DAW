@@ -101,7 +101,7 @@ export function ShareDialog() {
           <h2 className="text-sm font-medium">Share Project</h2>
           <button
             onClick={() => setShow(false)}
-            className="text-zinc-500 hover:text-zinc-300 text-lg leading-none"
+            className="text-zinc-400 hover:text-zinc-300 text-lg leading-none"
           >
             ×
           </button>
@@ -188,7 +188,7 @@ export function ShareDialog() {
 
                 {/* Download bundle section */}
                 <div className="pt-2 border-t border-daw-border space-y-2">
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-zinc-400">
                     Or export as a shareable file (project data only, no audio):
                   </p>
                   <div className="flex gap-2">
@@ -224,7 +224,7 @@ export function ShareDialog() {
               </button>
 
               <div className="space-y-1">
-                <p className="text-xs text-zinc-500">Or paste bundle JSON:</p>
+                <p className="text-xs text-zinc-400">Or paste bundle JSON:</p>
                 <textarea
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}

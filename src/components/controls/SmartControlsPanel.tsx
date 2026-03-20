@@ -7,7 +7,7 @@ import { TRACK_CATALOG } from '../../constants/tracks';
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-medium mb-1">{children}</div>
+    <div className="text-[10px] text-zinc-400 uppercase tracking-widest font-medium mb-1">{children}</div>
   );
 }
 
@@ -15,7 +15,7 @@ function SmartKnobGroup({ children, label }: { children: React.ReactNode; label:
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="flex gap-2">{children}</div>
-      <span className="text-[9px] text-zinc-500 uppercase tracking-wider">{label}</span>
+      <span className="text-[10px] text-zinc-400 uppercase tracking-wider">{label}</span>
     </div>
   );
 }
@@ -45,7 +45,7 @@ function TrackSmartControls({ track }: { track: Track }) {
           {info.emoji}
         </div>
         <span className="text-[11px] text-zinc-300 font-medium truncate max-w-[80px]">{track.displayName}</span>
-        <span className="text-[9px] text-zinc-500">{track.trackType ?? 'stems'}</span>
+        <span className="text-[10px] text-zinc-400">{track.trackType ?? 'stems'}</span>
       </div>
 
       <div className="w-px h-16 bg-[#444] self-center" />
@@ -149,7 +149,7 @@ export function SmartControlsPanel() {
         <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-medium">Smart Controls</span>
         <span className="flex-1" />
         {selectedTrack && (
-          <span className="text-[10px] text-zinc-500">{selectedTrack.displayName}</span>
+          <span className="text-[10px] text-zinc-400">{selectedTrack.displayName}</span>
         )}
       </div>
 

@@ -159,7 +159,7 @@ export function MiniKnob({
             setShowPrecisionInput(false);
           }}
           onCancel={() => setShowPrecisionInput(false)}
-          className="mt-1 w-14 rounded border border-white/20 bg-[#1a1a1a] px-1 py-0.5 text-[9px] text-white outline-none"
+          className="mt-1 w-14 rounded border border-white/20 bg-[#1a1a1a] px-1 py-0.5 text-[10px] text-white outline-none"
         />
       )}
       {label && (

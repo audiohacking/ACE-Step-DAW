@@ -66,7 +66,7 @@ function ScaleLockCard({ effect, trackId }: { effect: MidiEffect & { type: 'scal
   return (
     <div className="flex flex-col gap-2 p-2">
       <div className="flex items-center gap-2">
-        <label className="text-[9px] text-white/50 w-10">Root</label>
+        <label className="text-[10px] text-white/50 w-10">Root</label>
         <select
           className="bg-[#1a1a2e] text-[10px] text-white/80 border border-white/10 rounded px-1 py-0.5 flex-1"
           value={params.root}
@@ -78,7 +78,7 @@ function ScaleLockCard({ effect, trackId }: { effect: MidiEffect & { type: 'scal
         </select>
       </div>
       <div className="flex items-center gap-2">
-        <label className="text-[9px] text-white/50 w-10">Scale</label>
+        <label className="text-[10px] text-white/50 w-10">Scale</label>
         <select
           className="bg-[#1a1a2e] text-[10px] text-white/80 border border-white/10 rounded px-1 py-0.5 flex-1"
           value={params.scale}
@@ -108,7 +108,7 @@ function ArpeggiatorCard({ effect, trackId }: { effect: MidiEffect & { type: 'ar
   return (
     <div className="flex flex-col gap-2 p-2">
       <div className="flex items-center gap-2">
-        <label className="text-[9px] text-white/50 w-12">Rate</label>
+        <label className="text-[10px] text-white/50 w-12">Rate</label>
         <select
           className="bg-[#1a1a2e] text-[10px] text-white/80 border border-white/10 rounded px-1 py-0.5 flex-1"
           value={params.rate}
@@ -121,7 +121,7 @@ function ArpeggiatorCard({ effect, trackId }: { effect: MidiEffect & { type: 'ar
         </select>
       </div>
       <div className="flex items-center gap-2">
-        <label className="text-[9px] text-white/50 w-12">Pattern</label>
+        <label className="text-[10px] text-white/50 w-12">Pattern</label>
         <select
           className="bg-[#1a1a2e] text-[10px] text-white/80 border border-white/10 rounded px-1 py-0.5 flex-1"
           value={params.pattern}
@@ -134,7 +134,7 @@ function ArpeggiatorCard({ effect, trackId }: { effect: MidiEffect & { type: 'ar
         </select>
       </div>
       <div className="flex items-center gap-2">
-        <label className="text-[9px] text-white/50 w-12">Octaves</label>
+        <label className="text-[10px] text-white/50 w-12">Octaves</label>
         <select
           className="bg-[#1a1a2e] text-[10px] text-white/80 border border-white/10 rounded px-1 py-0.5 flex-1"
           value={params.octaves}
@@ -162,7 +162,7 @@ function ChordGenCard({ effect, trackId }: { effect: MidiEffect & { type: 'chord
   return (
     <div className="flex flex-col gap-2 p-2">
       <div className="flex items-center gap-2">
-        <label className="text-[9px] text-white/50 w-12">Type</label>
+        <label className="text-[10px] text-white/50 w-12">Type</label>
         <select
           className="bg-[#1a1a2e] text-[10px] text-white/80 border border-white/10 rounded px-1 py-0.5 flex-1"
           value={params.chordType}
@@ -177,7 +177,7 @@ function ChordGenCard({ effect, trackId }: { effect: MidiEffect & { type: 'chord
         </select>
       </div>
       <div className="flex items-center gap-2">
-        <label className="text-[9px] text-white/50 w-12">Inversion</label>
+        <label className="text-[10px] text-white/50 w-12">Inversion</label>
         <select
           className="bg-[#1a1a2e] text-[10px] text-white/80 border border-white/10 rounded px-1 py-0.5 flex-1"
           value={params.inversion}
@@ -307,7 +307,7 @@ function AddMidiEffectButton({ trackId }: { trackId: string }) {
               onClick={() => { addMidiEffect(trackId, type); setOpen(false); }}
             >
               <span className="font-medium" style={{ color: MIDI_EFFECT_COLORS[type] }}>{label}</span>
-              <span className="text-[9px] text-white/40">{desc}</span>
+              <span className="text-[10px] text-white/40">{desc}</span>
             </button>
           ))}
         </div>
@@ -382,8 +382,8 @@ export function MidiEffectChain() {
       <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0e0e24] border-b border-white/5 shrink-0">
         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: track.color }} />
         <span className="text-[11px] text-white/70 font-medium">{track.displayName}</span>
-        <span className="text-[9px] text-emerald-400/60 ml-1 font-medium">MIDI FX</span>
-        <span className="text-[9px] text-white/30 ml-1">
+        <span className="text-[10px] text-emerald-400/60 ml-1 font-medium">MIDI FX</span>
+        <span className="text-[10px] text-white/30 ml-1">
           — {effects.length} effect{effects.length !== 1 ? 's' : ''}
         </span>
         <button

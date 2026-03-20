@@ -71,7 +71,7 @@ export function CommandPalette() {
         <div className="border-b border-white/8 px-4 py-3">
           <div className="mb-2 flex items-center justify-between gap-3">
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-zinc-500">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-zinc-400">
                 Command Palette
               </div>
               <div className="text-xs text-zinc-400">
@@ -154,7 +154,7 @@ export function CommandPalette() {
           ) : (
             <div className="px-4 py-8 text-center">
               <div className="text-sm font-medium text-zinc-200">No matching commands</div>
-              <div className="mt-1 text-xs text-zinc-500">
+              <div className="mt-1 text-xs text-zinc-400">
                 Try a track intent, action name, or parameter such as “tempo 128”.
               </div>
             </div>

@@ -197,7 +197,7 @@ export function ExportDialog() {
           <h2 className="text-sm font-medium">Export Mix</h2>
           <button
             onClick={() => setShow(false)}
-            className="text-zinc-500 hover:text-zinc-300 text-lg leading-none"
+            className="text-zinc-400 hover:text-zinc-300 text-lg leading-none"
           >
             ×
           </button>
@@ -294,7 +294,7 @@ export function ExportDialog() {
                 }
                 className="w-full accent-daw-accent"
               />
-              <div className="flex justify-between text-[10px] text-zinc-500 mt-0.5">
+              <div className="flex justify-between text-[10px] text-zinc-400 mt-0.5">
                 <span>Smaller</span>
                 <span>~{Math.round(32 + exportOptions.oggQuality * 288)} kbps</span>
                 <span>Better</span>
@@ -326,7 +326,7 @@ export function ExportDialog() {
           )}
 
           {/* File info */}
-          <div className="flex items-center justify-between text-xs text-zinc-500">
+          <div className="flex items-center justify-between text-xs text-zinc-400">
             <span>
               {readyClips.length} clip{readyClips.length !== 1 ? 's' : ''} across{' '}
               {project.tracks.length} track{project.tracks.length !== 1 ? 's' : ''}

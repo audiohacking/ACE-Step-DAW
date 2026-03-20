@@ -341,19 +341,19 @@ export function PianoRoll() {
           </button>
         )}
 
-        {clip && <span className="text-[10px] text-zinc-500 ml-1 truncate max-w-[200px]">{clip.prompt}</span>}
+        {clip && <span className="text-[10px] text-zinc-400 ml-1 truncate max-w-[200px]">{clip.prompt}</span>}
 
         <div className="ml-auto flex items-center gap-2">
           <button
             aria-label="Zoom out piano roll horizontally"
-            className="text-[9px] text-zinc-400 hover:text-zinc-200 px-1"
+            className="text-[10px] text-zinc-400 hover:text-zinc-200 px-1"
             onClick={() => setPrZoomX((zoom) => Math.max(0.25, zoom - 0.25))}
           >
             -H
           </button>
           <button
             aria-label="Zoom in piano roll horizontally"
-            className="text-[9px] text-zinc-400 hover:text-zinc-200 px-1"
+            className="text-[10px] text-zinc-400 hover:text-zinc-200 px-1"
             onClick={() => setPrZoomX((zoom) => Math.min(8, zoom + 0.25))}
           >
             +H

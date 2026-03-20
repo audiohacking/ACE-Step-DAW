@@ -328,7 +328,7 @@ export function TrackHeader({
                 className={`${primaryButtonClass} ${
                   track.muted
                     ? 'bg-amber-600/90 text-white'
-                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-[#444]'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-[#444]'
                 }`}
                 title="Mute (M)"
                 aria-label={`Mute ${track.displayName}`}
@@ -352,7 +352,7 @@ export function TrackHeader({
                 className={`${primaryButtonClass} ${
                   track.soloed
                     ? 'bg-emerald-600/90 text-white'
-                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-[#444]'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-[#444]'
                 }`}
                 title="Solo (S)"
                 aria-label={`Solo ${track.displayName}`}
@@ -392,7 +392,7 @@ export function TrackHeader({
                     ? 'bg-cyan-600/90 text-white'
                     : monitorMode === 'auto'
                       ? 'bg-cyan-600/50 text-cyan-200'
-                      : 'text-zinc-500 hover:text-cyan-300 hover:bg-[#444]'
+                      : 'text-zinc-400 hover:text-cyan-300 hover:bg-[#444]'
                 }`}
                 title={`Input monitoring: ${monitorMode} (click to cycle off→auto→on)`}
                 aria-label={`Input monitoring ${track.displayName}: ${monitorMode}`}
@@ -411,7 +411,7 @@ export function TrackHeader({
                     ? 'bg-cyan-600/90 text-white'
                     : isFreezing
                       ? 'text-cyan-400 animate-pulse'
-                      : 'text-zinc-500 hover:text-cyan-300 hover:bg-[#444]'
+                      : 'text-zinc-400 hover:text-cyan-300 hover:bg-[#444]'
                 }`}
                 title={track.frozen ? 'Unfreeze Track' : 'Freeze Track'}
                 aria-label={`${track.frozen ? 'Unfreeze' : 'Freeze'} ${track.displayName}`}
@@ -445,7 +445,7 @@ export function TrackHeader({
                 className={`${secondaryButtonClass} ${
                   hasAutomationLane
                     ? 'bg-amber-600/80 text-white'
-                    : 'text-zinc-500 hover:text-amber-300 hover:bg-[#444]'
+                    : 'text-zinc-400 hover:text-amber-300 hover:bg-[#444]'
                 }`}
                 title="Toggle automation lane (A)"
                 aria-label={`Toggle automation ${track.displayName}`}
@@ -518,7 +518,7 @@ export function TrackHeader({
                 className={`${primaryButtonClass} ${
                   track.muted
                     ? 'bg-amber-600/90 text-white'
-                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-[#444]'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-[#444]'
                 }`}
                 title="Mute (M)"
                 aria-label={`Mute ${track.displayName}`}
@@ -542,7 +542,7 @@ export function TrackHeader({
                 className={`${primaryButtonClass} ${
                   track.soloed
                     ? 'bg-emerald-600/90 text-white'
-                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-[#444]'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-[#444]'
                 }`}
                 title="Solo (S)"
                 aria-label={`Solo ${track.displayName}`}
@@ -583,7 +583,7 @@ export function TrackHeader({
                     ? 'bg-cyan-600/90 text-white'
                     : monitorMode === 'auto'
                       ? 'bg-cyan-600/50 text-cyan-200'
-                      : 'text-zinc-500 hover:text-cyan-300 hover:bg-[#444]'
+                      : 'text-zinc-400 hover:text-cyan-300 hover:bg-[#444]'
                 }`}
                 title={`Input monitoring: ${monitorMode} (click to cycle off→auto→on)`}
                 aria-label={`Input monitoring ${track.displayName}: ${monitorMode}`}
@@ -602,7 +602,7 @@ export function TrackHeader({
                     ? 'bg-cyan-600/90 text-white'
                     : isFreezing
                       ? 'text-cyan-400 animate-pulse'
-                      : 'text-zinc-500 hover:text-cyan-300 hover:bg-[#444]'
+                      : 'text-zinc-400 hover:text-cyan-300 hover:bg-[#444]'
                 }`}
                 title={track.frozen ? 'Unfreeze Track' : 'Freeze Track'}
                 aria-label={`${track.frozen ? 'Unfreeze' : 'Freeze'} ${track.displayName}`}
@@ -636,7 +636,7 @@ export function TrackHeader({
                 className={`${secondaryButtonClass} ${
                   hasAutomationLane
                     ? 'bg-amber-600/80 text-white'
-                    : 'text-zinc-500 hover:text-amber-300 hover:bg-[#444]'
+                    : 'text-zinc-400 hover:text-amber-300 hover:bg-[#444]'
                 }`}
                 title="Toggle automation lane (A)"
                 aria-label={`Toggle automation ${track.displayName}`}
@@ -715,7 +715,7 @@ export function TrackHeader({
               className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors flex items-center justify-between"
             >
               Track Height
-              <span className="text-zinc-500 text-[9px] ml-2">&#8250;</span>
+              <span className="text-zinc-400 text-[9px] ml-2">&#8250;</span>
             </button>
             {heightSubmenu && (
               <div className="absolute left-full top-0 bg-[#383838] border border-[#555] rounded-lg shadow-2xl py-1 min-w-[130px] z-50">
@@ -766,7 +766,7 @@ export function TrackHeader({
                   className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors flex items-center justify-between"
                 >
                   Move to Group
-                  <span className="text-zinc-500 text-[9px] ml-2">&#8250;</span>
+                  <span className="text-zinc-400 text-[9px] ml-2">&#8250;</span>
                 </button>
                 {groupSubmenu && (
                   <div className="absolute left-full top-0 bg-[#383838] border border-[#555] rounded-lg shadow-2xl py-1 min-w-[130px] z-50">

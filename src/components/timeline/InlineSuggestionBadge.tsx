@@ -83,7 +83,7 @@ export function InlineSuggestionBadge({ suggestion, pixelsPerSecond }: InlineSug
             </span>
             <button
               onClick={handleDismiss}
-              className="text-zinc-500 hover:text-zinc-200 text-[10px] leading-none transition-colors"
+              className="text-zinc-400 hover:text-zinc-200 text-[10px] leading-none transition-colors"
               title="Dismiss suggestion"
             >
               ✕
@@ -92,7 +92,7 @@ export function InlineSuggestionBadge({ suggestion, pixelsPerSecond }: InlineSug
           <p className="text-[11px] text-zinc-200 leading-relaxed mt-1">
             {suggestion.text}
           </p>
-          <p className="text-[9px] text-zinc-600 mt-2">
+          <p className="text-[10px] text-zinc-600 mt-2">
             Click away or press Esc to close. This suggestion will not be auto-applied.
           </p>
         </div>

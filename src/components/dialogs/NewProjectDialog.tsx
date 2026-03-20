@@ -78,7 +78,7 @@ function ProjectThumbnail({
         />
       ))}
       {trackCount === 0 && (
-        <div className="text-[9px] text-zinc-600 text-center">Empty</div>
+        <div className="text-[10px] text-zinc-600 text-center">Empty</div>
       )}
     </div>
   );
@@ -156,7 +156,7 @@ export function NewProjectDialog() {
           <h2 className="text-sm font-medium">New Project</h2>
           <button
             onClick={() => setShow(false)}
-            className="text-zinc-500 hover:text-zinc-300 text-lg leading-none"
+            className="text-zinc-400 hover:text-zinc-300 text-lg leading-none"
           >
             ×
           </button>
@@ -182,7 +182,7 @@ export function NewProjectDialog() {
                     <p className="text-xs text-zinc-200 truncate mt-1.5 group-hover:text-white">
                       {p.name}
                     </p>
-                    <p className="text-[10px] text-zinc-500">
+                    <p className="text-[10px] text-zinc-400">
                       {p.trackCount} track{p.trackCount !== 1 ? 's' : ''}
                       {' · '}{p.bpm} BPM · {p.keyScale}
                     </p>
@@ -221,7 +221,7 @@ export function NewProjectDialog() {
                       <p className="text-xs text-zinc-200 truncate mt-1.5 group-hover:text-white">
                         {t.name}
                       </p>
-                      <p className="text-[10px] text-zinc-500 truncate">
+                      <p className="text-[10px] text-zinc-400 truncate">
                         {t.trackCount} track{t.trackCount !== 1 ? 's' : ''}
                         {t.description ? ` · ${t.description}` : ''}
                       </p>
@@ -296,7 +296,7 @@ export function NewProjectDialog() {
               </div>
             </div>
 
-            <p className="text-[10px] text-zinc-500">
+            <p className="text-[10px] text-zinc-400">
               Duration is determined automatically by your clips. Individual clips can override BPM, key, and time signature.
             </p>
           </div>
