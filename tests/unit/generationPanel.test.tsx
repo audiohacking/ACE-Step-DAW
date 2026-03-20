@@ -24,7 +24,7 @@ describe('GenerationSidePanel', () => {
   it('shows actionable validation, syncs UI changes into the store, and starts generation', () => {
     render(<GenerationSidePanel />);
 
-    expect(screen.getByText('Enter a prompt that describes what you want to generate.')).toBeInTheDocument();
+    expect(screen.getByText('Add a prompt that describes the material you want to generate.')).toBeInTheDocument();
     expect(screen.getByLabelText('Generation target track')).toHaveValue(
       useProjectStore.getState().project?.tracks.find((track) => track.trackType === 'stems')?.id ?? '',
     );
@@ -32,25 +32,27 @@ describe('GenerationSidePanel', () => {
     fireEvent.change(screen.getByLabelText('Generation prompt'), {
       target: { value: 'Dusty lo-fi beat with soft piano chords' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle style tag Lo-fi' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lo-Fi' }).find(
+      (btn) => btn.getAttribute('aria-pressed') !== null,
+    )!);
     fireEvent.change(screen.getByLabelText('Generation BPM'), { target: { value: '88' } });
     fireEvent.change(screen.getByLabelText('Generation key'), { target: { value: 'D minor' } });
     fireEvent.change(screen.getByLabelText('Generation length'), { target: { value: '45' } });
     fireEvent.change(screen.getByLabelText('Generation temperature'), { target: { value: '0.9' } });
     fireEvent.change(screen.getByLabelText('Generation variation count'), { target: { value: '3' } });
 
-    const draft = useGenerationStore.getState().generationPanelDraft;
-    expect(draft).toMatchObject({
+    const form = useGenerationStore.getState().generationForm;
+    expect(form).toMatchObject({
       prompt: 'Dusty lo-fi beat with soft piano chords',
       bpm: 88,
       keyScale: 'D minor',
       lengthSeconds: 45,
       temperature: 0.9,
       variationCount: 3,
-      styleTags: ['Lo-fi'],
+      styleTags: ['Lo-Fi'],
     });
 
-    const generateButton = screen.getByRole('button', { name: 'Generate 3 variations' });
+    const generateButton = screen.getByRole('button', { name: 'Generate 3 Variations' });
     expect(generateButton).toBeEnabled();
 
     fireEvent.click(generateButton);
@@ -61,12 +63,12 @@ describe('GenerationSidePanel', () => {
       bpm: 88,
       keyScale: 'D minor',
       duration: 45,
-      guidanceScale: useProjectStore.getState().project?.generationDefaults.guidanceScale,
+      guidanceScale: 0.9,
       temperature: 0.9,
-      styleTags: ['Lo-fi'],
+      styleTags: ['Lo-Fi'],
       variationCount: 3,
     });
-    expect(screen.getByRole('button', { name: 'Generating 3 variations' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Generating...' })).toBeDisabled();
   });
 
   it('renders actionable request errors from the store', () => {
@@ -79,9 +81,9 @@ describe('GenerationSidePanel', () => {
     });
 
     expect(
-      screen.getByRole('alert'),
+      screen.getByRole('status'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent(
+    expect(screen.getByRole('status')).toHaveTextContent(
       'Generation failed. Add more detail to the prompt or reduce the variation count.',
     );
   });
