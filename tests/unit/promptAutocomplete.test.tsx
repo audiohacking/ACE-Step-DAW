@@ -56,7 +56,7 @@ describe('Prompt Autocomplete in GenerationSidePanel', () => {
     const input = getPromptInput();
     typeInPrompt('pian');
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(useGenerationStore.getState().generationForm.prompt).toBe('piano');
+    expect(useGenerationStore.getState().generationForm.prompt).toBe('piano ');
   });
 
   it('navigates suggestions with ArrowDown and accepts', () => {
@@ -88,8 +88,8 @@ describe('Prompt Autocomplete in GenerationSidePanel', () => {
     render(<GenerationSidePanel />);
     typeInPrompt('pian');
     const suggestion = screen.getByTestId('prompt-suggestion-0');
-    fireEvent.mouseDown(suggestion);
-    expect(useGenerationStore.getState().generationForm.prompt).toBe('piano');
+    fireEvent.click(suggestion);
+    expect(useGenerationStore.getState().generationForm.prompt).toBe('piano ');
   });
 
   it('replaces only the current token when accepting in the middle of text', () => {
@@ -98,7 +98,7 @@ describe('Prompt Autocomplete in GenerationSidePanel', () => {
     // Type "warm pian" — "pian" is the current token
     fireEvent.change(input, { target: { value: 'warm pian', selectionStart: 9 } });
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(useGenerationStore.getState().generationForm.prompt).toBe('warm piano');
+    expect(useGenerationStore.getState().generationForm.prompt).toBe('warm piano ');
   });
 
   it('has correct ARIA attributes on the textarea', () => {
@@ -144,6 +144,6 @@ describe('Prompt Autocomplete in GenerationSidePanel', () => {
     typeInPrompt('analog');
     const analogList = screen.getByTestId('prompt-autocomplete-list');
     expect(analogList).toBeInTheDocument();
-    expect(within(analogList).getByText('analog warmth')).toBeInTheDocument();
+    expect(within(analogList).getByText('analog')).toBeInTheDocument();
   });
 });

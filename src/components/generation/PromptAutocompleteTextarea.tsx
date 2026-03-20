@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { PromptAutocompleteSuggestion } from '../../utils/promptAutocomplete';
 
 interface PromptAutocompleteTextareaProps {
@@ -18,7 +18,7 @@ export function PromptAutocompleteTextarea({
 }: PromptAutocompleteTextareaProps) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const blurTimeoutRef = useRef<number | null>(null);
-  const listboxId = useId();
+  const listboxId = 'prompt-autocomplete-list';
   const [caretIndex, setCaretIndex] = useState<number | undefined>(undefined);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isComposing, setIsComposing] = useState(false);
@@ -33,7 +33,7 @@ export function PromptAutocompleteTextarea({
   useEffect(() => {
     setHighlightedIndex((current) => {
       if (suggestions.length === 0) return -1;
-      if (current < 0) return -1;
+      if (current < 0) return suggestions.length > 0 ? 0 : -1;
       return Math.min(current, suggestions.length - 1);
     });
   }, [suggestions]);
@@ -139,6 +139,7 @@ export function PromptAutocompleteTextarea({
         className="w-full resize-none rounded border border-[#444] bg-[#2a2a2a] px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
         rows={4}
         disabled={disabled}
+        role="combobox"
         aria-label="Generation prompt"
         aria-autocomplete="list"
         aria-controls={suggestions.length > 0 ? listboxId : undefined}
@@ -153,7 +154,7 @@ export function PromptAutocompleteTextarea({
           role="listbox"
           aria-label="Prompt autocomplete suggestions"
           className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-md border border-[#444] bg-[#191919] shadow-xl"
-          data-testid="generation-prompt-autocomplete"
+          data-testid="prompt-autocomplete-list"
         >
           {suggestions.map((suggestion, index) => {
             const isActive = index === highlightedIndex;
@@ -163,6 +164,7 @@ export function PromptAutocompleteTextarea({
                 id={`${listboxId}-option-${index}`}
                 type="button"
                 role="option"
+                data-testid={`prompt-suggestion-${index}`}
                 aria-label={`${suggestion.value} ${suggestion.category}`}
                 aria-selected={isActive}
                 className={`flex w-full items-center justify-between gap-3 px-2 py-2 text-left text-xs transition-colors ${
@@ -173,8 +175,8 @@ export function PromptAutocompleteTextarea({
                 onClick={() => commitSuggestion(suggestion.value)}
               >
                 <span>{suggestion.value}</span>
-                <span className="rounded-full border border-[#444] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500">
-                  {suggestion.category}
+                <span className="rounded-full border border-[#444] px-1.5 py-0.5 text-[10px] tracking-wide text-zinc-500">
+                  {suggestion.category.charAt(0).toUpperCase() + suggestion.category.slice(1)}
                 </span>
               </button>
             );
