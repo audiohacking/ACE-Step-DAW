@@ -16,6 +16,7 @@ import { Minimap } from './Minimap';
 import { TempoLane } from './TempoLane';
 import { ArrangementMarkers } from './ArrangementMarkers';
 import { TimelineEmptyState } from './TimelineEmptyState';
+import { SelectionFloatingToolbar } from './SelectionFloatingToolbar';
 import { toastInfo } from '../../hooks/useToast';
 import { getTimelineFitViewport } from '../../utils/timelineZoom';
 
@@ -502,6 +503,13 @@ export function Timeline() {
                 </span>
               </div>
             )}
+
+            {/* Floating toolbar below select window */}
+            <SelectionFloatingToolbar
+              selLeft={selLeft}
+              selWidth={selWidth}
+              selBottom={selVRange ? selVRange.top + selVRange.height : null}
+            />
 
             {/* Live context drag overlay — Apple Teal (#5AC8FA) */}
             {ctxDrag && (

@@ -1,0 +1,102 @@
+import { useUIStore } from '../../store/uiStore';
+import { useProjectStore } from '../../store/projectStore';
+
+interface SelectionFloatingToolbarProps {
+  /** Left edge of the selection in pixels (absolute within trackArea) */
+  selLeft: number | null;
+  /** Width of the selection in pixels */
+  selWidth: number | null;
+  /** Bottom edge of the selection in pixels (absolute within trackArea) */
+  selBottom: number | null;
+}
+
+/**
+ * Floating pill toolbar that appears below a committed selectWindow.
+ * Provides quick actions: Music Enhancer, Add Layer, + MIDI.
+ */
+export function SelectionFloatingToolbar({ selLeft, selWidth, selBottom }: SelectionFloatingToolbarProps) {
+  const selectWindow = useUIStore((s) => s.selectWindow);
+  const ensureMidiClip = useProjectStore((s) => s.ensureMidiClip);
+
+  if (!selectWindow || selLeft === null || selWidth === null || selBottom === null) {
+    return null;
+  }
+
+  const centerX = selLeft + selWidth / 2;
+  const topY = selBottom + 8;
+
+  const handleMusicEnhancer = () => {
+    // Future: open music enhancer modal
+    // For now, placeholder — will be wired when musicEnhancerOpen state is added
+  };
+
+  const handleAddLayer = () => {
+    // Future: open add layer modal
+    // For now, placeholder — will be wired when addLayerOpen state is added
+  };
+
+  const handleAddMidi = () => {
+    const duration = selectWindow.endTime - selectWindow.startTime;
+    for (const trackId of selectWindow.trackIds) {
+      ensureMidiClip(trackId, selectWindow.startTime, duration);
+    }
+  };
+
+  return (
+    <div
+      data-testid="selection-floating-toolbar"
+      className="absolute z-20 flex items-center gap-1 px-2 py-1.5 rounded-full border border-[#444] bg-[#2a2a2a]/95 backdrop-blur-sm shadow-lg transition-opacity duration-150 pointer-events-auto"
+      style={{
+        left: centerX,
+        top: topY,
+        transform: 'translateX(-50%)',
+      }}
+    >
+      {/* Music Enhancer */}
+      <button
+        type="button"
+        aria-label="Music Enhancer"
+        className="flex items-center justify-center w-8 h-8 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+        onClick={handleMusicEnhancer}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M10 3v14M6 7l4-4 4 4M6 13l4 4 4-4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {/* Add Layer */}
+      <button
+        type="button"
+        aria-label="Add Layer"
+        className="flex items-center justify-center w-8 h-8 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+        onClick={handleAddLayer}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M11 3L5 11h4l-1 6 6-8h-4l1-6z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {/* + MIDI */}
+      <button
+        type="button"
+        aria-label="+ MIDI"
+        className="flex items-center justify-center h-8 px-2.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors text-xs font-medium whitespace-nowrap"
+        onClick={handleAddMidi}
+      >
+        + MIDI
+      </button>
+    </div>
+  );
+}
