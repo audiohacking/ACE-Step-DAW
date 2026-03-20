@@ -9,6 +9,7 @@ import { useRecording } from '../../hooks/useRecording';
 import { getMidiCaptureService } from '../../services/midiCaptureService';
 import { formatTime, formatBarsBeats } from '../../utils/time';
 import { Button } from '../ui/Button';
+import { ModelStatusBadge } from './ModelStatusBadge';
 
 function LCDDisplay() {
   const currentTime = useTransportStore((s) => s.currentTime);
@@ -172,6 +173,7 @@ function FileMenu({ disabled }: { disabled: boolean }) {
 
 export function Toolbar() {
   const project = useProjectStore((s) => s.project);
+  const modelName = useProjectStore((s) => s.project?.generationDefaults.model ?? '');
   const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
   const setShowSettingsDialog = useUIStore((s) => s.setShowSettingsDialog);
   const setShowProjectListDialog = useUIStore((s) => s.setShowProjectListDialog);
@@ -316,6 +318,7 @@ export function Toolbar() {
           New
         </Button>
         <FileMenu disabled={!project} />
+        <ModelStatusBadge modelName={modelName} onClick={() => setShowLibrary(true)} />
       </div>
 
       <div className="flex-1" />
