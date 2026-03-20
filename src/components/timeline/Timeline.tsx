@@ -407,7 +407,7 @@ export function Timeline() {
         role="grid"
         tabIndex={0}
         data-onboarding-target="timeline"
-        className="flex-1 overflow-auto bg-[#242424] relative group"
+        className="flex-1 overflow-auto bg-[#1a1a2a] relative group"
         onWheel={handleWheel}
         onMouseDownCapture={handleMouseDownCapture}
         onFocus={() => { setKeyboardContext('timeline'); setTimelineFocused(true); }}

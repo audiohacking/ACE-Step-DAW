@@ -17,14 +17,14 @@ export function Playhead() {
       style={{
         left: x,
         backgroundColor: blinking ? undefined : '#ffffff',
-        animation: blinking ? 'playhead-blink-line 1s step-end infinite' : 'none',
+        animation: blinking ? 'playhead-blink-line 1.2s ease-in-out infinite' : 'none',
       }}
     >
       <div
-        className="absolute -top-0 -left-[4px] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent"
+        className="absolute -top-0 -left-[6px] w-0 h-0 border-l-[7px] border-r-[7px] border-t-[8px] border-l-transparent border-r-transparent"
         style={{
           borderTopColor: blinking ? undefined : '#000000',
-          animation: blinking ? 'playhead-blink-triangle 1s step-end infinite' : 'none',
+          animation: blinking ? 'playhead-blink-triangle 1.2s ease-in-out infinite' : 'none',
           filter: 'drop-shadow(0 0 0.5px white)',
         }}
       />

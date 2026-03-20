@@ -112,13 +112,13 @@ export function TimeRuler() {
     return result;
   }, [project, pixelsPerSecond]);
 
-  if (!project) return <div className="bg-[#333] border-b border-[#2a2a2a]" style={{ height: TIMELINE_RULER_HEIGHT }} />;
+  if (!project) return <div className="bg-[#1e1e2e] border-b border-[#2a2a3d]" style={{ height: TIMELINE_RULER_HEIGHT }} />;
 
   const totalWidth = project.totalDuration * pixelsPerSecond;
 
   return (
     <div
-      className="relative bg-[#353535] border-b border-[#2a2a2a] overflow-hidden select-none cursor-pointer"
+      className="relative bg-[#1e1e2e] border-b border-[#2a2a3d] overflow-hidden select-none cursor-pointer"
       style={{ width: totalWidth, height: TIMELINE_RULER_HEIGHT }}
       role="slider"
       aria-label="Timeline scrub ruler"
@@ -155,8 +155,8 @@ export function TimeRuler() {
           className="absolute top-0 h-full flex items-end pb-0.5 pointer-events-none"
           style={{ left: x }}
         >
-          <div className="w-px h-3 bg-[#666] mr-1" />
-          <span className="text-[10px] text-zinc-400 font-medium">{bar}</span>
+          <div className="w-px h-3 bg-[#5a5a75] mr-1" />
+          <span className="text-[10px] text-zinc-400/80 font-medium">{bar}</span>
           {tsLabel && (
             <span className="text-[8px] text-amber-400/60 ml-0.5">{tsLabel}</span>
           )}
