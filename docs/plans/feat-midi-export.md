@@ -2,6 +2,11 @@
 
 Issue: #215
 
+## QA Stories Affected
+
+- `OUT-001` open the export surface from the keyboard
+- `OUT-002` export readiness reflects project content
+
 ## User Story
 
 As a user, I want to export a MIDI clip as a `.mid` file from the clip itself, so that I can reuse the pattern outside ACE-Step.

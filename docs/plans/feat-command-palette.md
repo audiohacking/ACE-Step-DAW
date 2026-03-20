@@ -2,6 +2,10 @@
 
 Issue: #322
 
+## QA Stories Affected
+
+- `TRN-002` keyboard shortcuts open major surfaces
+
 ## 1. Problem
 
 ACE-Step’s design documentation treats `Cmd+K` as a core navigation and execution surface, but the application has no command palette implementation.

@@ -1,5 +1,9 @@
 # Plan: Bounce / Render In Place
 
+## QA Stories Affected
+
+- `OUT-002` export readiness reflects project content
+
 ## User Stories
 
 - As a human user, I want to right-click a track and bounce it in place, so that I can turn MIDI or processed audio into an editable audio clip without leaving the arrangement.

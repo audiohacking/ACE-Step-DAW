@@ -1,5 +1,10 @@
 # Plan: Persist UI Layout State Across Reloads
 
+## QA Stories Affected
+
+- No canonical story ids assigned yet.
+- Add layout-persistence story ids to `docs/qa/story-matrix.md` before implementation expands further.
+
 ## User Story
 As a user, my panel sizes (Mixer height, Piano Roll height), panel open/close states, and zoom level should be saved when I reload the page.
 

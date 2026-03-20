@@ -1,3 +1,15 @@
+/**
+ * Covered story ids:
+ * - ONB-001, ONB-002
+ * - PRJ-001
+ *
+ * Persona: first-time user
+ * Workflow summary: validate the first-run onboarding surface, skip path, and
+ * demo-oriented entry behavior.
+ * Why this test exists: protects the first-launch story bundle before the user
+ * reaches the main DAW workflow.
+ * Left to other layers: subjective copy quality and long-term onboarding retention.
+ */
 import { test, expect } from '@playwright/test';
 
 test.describe('first-run onboarding', () => {

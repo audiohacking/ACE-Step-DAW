@@ -1,3 +1,13 @@
+/**
+ * Covered story ids:
+ * - TRN-001, TRN-002
+ *
+ * Persona: keyboard-first DAW user
+ * Workflow summary: verify transport presence and the basic keyboard and button
+ * interactions around playback control.
+ * Why this test exists: protects the transport surface separately from larger bundles.
+ * Left to other layers: detailed focus routing and human audible timing checks.
+ */
 import { test, expect } from '@playwright/test';
 
 test.describe('Transport Controls', () => {

@@ -1,9 +1,20 @@
 /**
  * Real User-Scenario E2E Tests (Issue #110)
  *
- * Every test in this file interacts with the actual UI — clicking buttons,
- * typing into inputs, pressing keyboard shortcuts — instead of calling the
- * store API directly.  If a test here fails, a real user would hit the same bug.
+ * Covered story ids:
+ * - ONB-001, PRJ-001, PRJ-002, PRJ-003
+ * - TRK-001, TRK-002, TRK-003, TRK-004
+ * - TRN-001, TRN-002
+ * - PNR-001
+ * - OUT-001
+ *
+ * Persona: first-time or returning end user
+ * Workflow summary: the suite stays close to real pointer and keyboard usage
+ * for project creation, track setup, keyboard workflow, and basic editing entry.
+ * Why this test exists: if these stories fail here, a real user would hit the
+ * same bug in the visible product flow.
+ * Left to other layers: exact store contracts, detailed MIDI semantics, and
+ * human-only audio quality checks remain outside this suite.
  */
 import { test, expect, type Page } from '@playwright/test';
 import {

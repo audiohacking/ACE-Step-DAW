@@ -2,6 +2,11 @@
 
 Issue: #242
 
+## QA Stories Affected
+
+- No canonical story ids assigned yet.
+- Add AI assistant story ids to `docs/qa/story-matrix.md` before implementation expands further.
+
 ## 1. Problem
 
 ACE-Step has an AI assistant panel scaffold on `origin/main`, but it does not yet satisfy the issue acceptance criteria.

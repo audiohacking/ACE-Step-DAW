@@ -1,3 +1,14 @@
+/**
+ * Covered story ids:
+ * - TRK-002
+ * - PNR-001, PNR-002
+ *
+ * Persona: melodic editor user and QA agent
+ * Workflow summary: seed piano roll state, open the editor, and verify note
+ * creation, editing, and tool behavior.
+ * Why this test exists: this is the detailed editor suite for core MIDI stories.
+ * Left to other layers: human feel judgment and higher-level arrangement flows.
+ */
 import { test, expect } from '@playwright/test';
 
 type PianoRollTestStore = {

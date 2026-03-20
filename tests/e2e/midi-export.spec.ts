@@ -1,3 +1,13 @@
+/**
+ * Covered story ids:
+ * - OUT-001, OUT-002
+ *
+ * Persona: exporting user and QA agent
+ * Workflow summary: create MIDI content, reach the export path, and verify the
+ * output workflow is available when content exists.
+ * Why this test exists: protects the export story bundle for content readiness.
+ * Left to other layers: human output quality review and broader audio export flows.
+ */
 import { test, expect } from '@playwright/test';
 
 test.describe('MIDI Export Workflow', () => {

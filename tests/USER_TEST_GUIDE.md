@@ -1,267 +1,253 @@
-# ACE-Step DAW — User Test Guide
+# ACE-Step DAW - Human QA Story Guide
 
-> For human testers. Each test has a clear user story, step-by-step flow, and expected result.
-> After each test, record a short GIF (screen recording) and note PASS/FAIL.
+> Human execution guide derived from [docs/qa/story-matrix.md](../docs/qa/story-matrix.md).
+> Use this file for stories marked `H-required`.
 
----
+## How To Use This Guide
 
-## How to Test
+1. Open the matching capability doc under `docs/qa/capabilities/`.
+2. Run the stories by story id, not by section letter.
+3. Record PASS / FAIL per story and attach evidence.
+4. For audio stories, listen and write what you heard.
 
-1. Start the app: `npm run dev` → open http://127.0.0.1:5174
-2. Follow each test flow below step by step
-3. Record a screen GIF for each test section (use any screen recorder)
-4. Mark each step PASS ✅ or FAIL ❌
-5. For audio tests (marked 🔊): **listen** and note what you hear
+## Evidence Rules
 
----
+- Screenshot for every UI-only story
+- GIF for multi-step flows that could regress visually
+- Notes for any focus, layering, or pacing issues
+- Human listening notes for all audio-sensitive stories
 
-## Test A: Project Lifecycle
+## Onboarding
 
-### A1: Create New Project
-1. Open the app (should see "New Project" dialog)
-2. Set name: "Test Project", BPM: 128, Key: "D minor", Time Sig: 4/4
-3. Click "Create"
-4. **Expected**: Empty project with toolbar showing "128 bpm", timeline with measure grid
-5. 📸 Screenshot
+### ONB-001 First launch shows onboarding before project setup
 
-### A2: Save and Reload
-1. Add any track and make a change
-2. Close browser tab
-3. Reopen the app
-4. **Expected**: Your project is still there (persisted in IndexedDB)
+1. Start from a clean profile.
+2. Open the app.
+3. Confirm onboarding appears before the project dialog.
 
-### A3: Project List
-1. Click "Projects" in toolbar
-2. **Expected**: See your saved project(s) in the list
-3. Create a second project
-4. Switch between projects
-5. Delete one
+Expected:
+- onboarding is the first visible surface
+- the project setup dialog stays hidden until onboarding is completed or skipped
 
----
+Evidence:
+- first-load screenshot
+- note any overlay conflicts or confusing copy
 
-## Test B: Track Types
+### ONB-002 Skip onboarding to project creation
 
-### B1: Add Stems Track (AI Generation)
-1. Click "+ Track"
-2. Select "Stems" → pick any instrument (e.g., Drums)
-3. **Expected**: New track appears in track list with correct icon and color
-4. 📸 Screenshot of track list
+1. Start from the onboarding surface.
+2. Click or keyboard-activate the skip action.
+3. Confirm the project dialog appears.
 
-### B2: Add Sample Track (Audio Import)
-1. Click "+ Track" → "Sample"
-2. **Expected**: Empty sample track appears
-3. Drag an audio file (MP3/WAV) onto the track lane
-4. **Expected**: Clip appears with waveform visualization
-5. Press Play → 🔊 **Listen**: Does the audio play correctly?
+Expected:
+- skip is reachable and clearly labeled
+- the app moves directly into project setup without a blank intermediate state
 
-### B3: Add Sequencer Track (Drum Pattern)
-1. Click "+ Track" → "Sequencer" → pick "Drums"
-2. **Expected**: Track appears with "SEQ" indicator
-3. Double-click the track lane to open sequencer
-4. **Expected**: Step sequencer editor opens in bottom panel
-5. Click some steps to create a pattern
-6. Press Play → 🔊 **Listen**: Does the drum pattern play?
-7. Try the Beat Pad (if visible) — click pads, use keyboard (QWER/ASDF rows)
-8. 📸 Screenshot of sequencer + beat pads
+Evidence:
+- screenshot of the resulting project dialog
+- note whether skip felt obvious or risky
 
-### B4: Add Piano Roll Track (MIDI)
-1. Click "+ Track" → "Piano Roll" → pick any instrument
-2. **Expected**: Track appears with piano icon
-3. Double-click track lane to create/open MIDI clip
-4. **Expected**: Piano Roll editor opens in bottom panel
-5. 📸 Screenshot of Piano Roll
+## Project Lifecycle
 
-### B5: Track Controls
-For each track type, test:
-1. Adjust volume slider → 🔊 volume changes?
-2. Click Mute (M) → 🔊 track silenced?
-3. Click Solo (S) → 🔊 only this track plays?
-4. Drag to reorder tracks → order changes?
-5. Rename track → name updates?
-6. Delete track → removed cleanly?
+### PRJ-001 Create a project with default settings
 
----
+1. Open the project dialog.
+2. Create a project without changing defaults.
 
-## Test C: Piano Roll (MIDI Editing)
+Expected:
+- a usable workspace opens
+- transport and timeline are visible
 
-### C1: Draw Notes
-1. Open Piano Roll (double-click a MIDI clip)
-2. Double-click in the grid to add a note
-3. **Expected**: Note block appears at that pitch/time
-4. 🔊 **Listen**: Does it make a sound when added? (if preview is on)
+Evidence:
+- workspace screenshot
 
-### C2: Edit Notes
-1. Click a note to select it (should highlight)
-2. Drag it left/right → moves in time
-3. Drag it up/down → changes pitch
-4. Drag right edge → changes duration
-5. Press Delete → note removed
-6. 📸 GIF of editing flow
+### PRJ-002 Create a project with custom name and BPM
 
-### C3: Velocity
-1. Look at the velocity lane at the bottom of Piano Roll
-2. Drag velocity bars up/down
-3. 🔊 **Listen**: Louder notes = higher velocity?
+1. Open the project dialog.
+2. Enter a custom name and BPM.
+3. Create the project.
 
-### C4: Grid & Snap
-1. Change grid size (1/4, 1/8, 1/16)
-2. Draw notes → they should snap to grid
-3. Hold Alt while dragging → should bypass snap
+Expected:
+- the project name persists
+- the BPM is visible in the resulting workspace
 
-### C5: Synth Presets
-1. Change instrument preset in track header (Piano, Strings, Pad, Lead, Bass, Organ)
-2. Draw a note
-3. 🔊 **Listen**: Does the sound change with each preset?
+Evidence:
+- screenshot showing the resulting name and BPM
 
----
+### PRJ-003 Cancel project creation without mutating state
 
-## Test D: Step Sequencer
+1. Open the project dialog.
+2. Click `Cancel` or close the dialog.
 
-### D1: Pattern Editing
-1. Open sequencer for a drum track
-2. Click cells to toggle steps on/off
-3. **Expected**: Active steps light up with track color
-4. Press Play → 🔊 **Listen**: Pattern plays correctly?
+Expected:
+- no project is created
+- the app is stable for another creation attempt
 
-### D2: Controls
-1. Adjust swing → 🔊 changes feel?
-2. Change steps per bar (8/16/32) → grid updates?
-3. Mute individual drum rows → 🔊 specific drums silenced?
-4. Adjust row volume → 🔊 individual drum volume changes?
+Evidence:
+- screenshot of the post-cancel state
 
----
+## Track Management
 
-## Test E: Effects
+### TRK-001 Add a stems track from the instrument picker
 
-### E1: Add Effects
-1. Select a track
-2. Open Effects panel (if available via bottom panel tabs or toolbar)
-3. Add an effect (e.g., Reverb)
-4. **Expected**: Effect card appears with knobs/sliders
-5. 🔊 **Listen**: Effect audible during playback?
+1. Open the instrument picker.
+2. Choose a stems instrument such as Drums.
 
-### E2: Per-Effect UI
-1. Add EQ3 → should show 3 sliders + frequency curve
-2. Add Compressor → should show threshold/ratio knobs + GR meter
-3. Add Reverb → should show decay/predelay knobs
-4. Add Delay → should show time/feedback knobs
-5. Add Distortion → should show amount knob + type selector
-6. Add Filter → should show cutoff/resonance + filter type + LFO section
-7. 📸 Screenshot of each effect UI
+Expected:
+- exactly one new track appears
+- track identity matches the chosen instrument
 
-### E3: Effect Controls
-1. Toggle bypass (power icon) → 🔊 effect on/off?
-2. Drag to reorder effects → chain order changes?
-3. Remove effect → removed cleanly?
-4. Try presets for each effect → parameters change?
+Evidence:
+- screenshot of the track list
 
----
+### TRK-002 Add a piano roll track
 
-## Test F: AI Generation (requires API connection)
+1. Open the instrument picker.
+2. Create a piano roll track.
 
-> ⚠️ These tests require ACE-Step API running locally or cloud API configured.
-> If "Offline" status is shown, skip to Test G.
+Expected:
+- the track is visible and clearly identifiable as melodic / MIDI-focused
 
-### F1: Generate a Track
-1. Add a Stems track (e.g., Drums)
-2. Click on the clip → enter a prompt (e.g., "upbeat rock drums")
-3. Click Generate
-4. **Expected**: Loading spinner → clip fills with audio → waveform visible
-5. Press Play → 🔊 **Listen**: Generated music plays?
+Evidence:
+- screenshot of the new track and its open-editor affordance
 
-### F2: Cover Generation
-1. Right-click a generated clip → "Create Cover..."
-2. Enter new style, adjust strength slider
-3. Click Generate
-4. **Expected**: New clip with the cover version
+### TRK-004 Mute and solo track controls
 
-### F3: Repaint
-1. Right-click a clip → "Repaint Selection..."
-2. Adjust the repaint range
-3. Enter new prompt for that section
-4. Click Generate
-5. **Expected**: Only the selected portion changes
+1. Create at least two tracks.
+2. Toggle mute and solo on different tracks.
 
-### F4: Multi-Track Generation
-1. Add multiple tracks (Drums, Bass, Guitar)
-2. Use "Generate All" or batch generation
-3. **Expected**: Tracks generate sequentially with context awareness
+Expected:
+- mute and solo states are visually clear
+- audible behavior matches the visible buttons
 
----
+Evidence:
+- screenshot of button states
+- listening note describing what changed
 
-## Test G: Mixer
+## Transport and Keyboard
 
-### G1: Mixer Panel
-1. Open Mixer (toolbar icon or keyboard shortcut)
-2. **Expected**: Channel strip per track + Master fader
-3. Adjust volume faders → 🔊 volume changes?
-4. Adjust pan knobs → 🔊 stereo position changes?
-5. 📸 Screenshot
+### TRN-001 Space toggles play/pause
 
----
+1. Create a simple playable project.
+2. Press `Space`.
+3. Press `Space` again.
 
-## Test H: Loop Browser
+Expected:
+- playback starts and then stops
+- no focus trap or silent failure occurs
 
-### H1: Browse Loops
-1. Open Loop Browser (Library icon in toolbar, if available)
-2. **Expected**: List of loops with categories (Drums, Bass, Keys, Synth)
-3. Click play on a loop → 🔊 preview plays?
-4. Filter by category → list updates?
-5. Search by name → results filter?
+Evidence:
+- short note on audible playback behavior
 
-### H2: Add Loop to Timeline
-1. Drag a loop from browser onto a track lane
-2. **Expected**: Audio region appears with waveform
-3. Press Play → 🔊 loop plays in context?
+### TRN-002 Keyboard shortcuts open major surfaces
 
----
+1. Use documented shortcuts for export, mixer, and keyboard help.
+2. Confirm the intended surface opens.
 
-## Test I: Recording (requires microphone)
+Expected:
+- shortcuts feel reliable from a keyboard-only flow
 
-### I1: Audio Recording
-1. Add a Sample track
-2. Arm the track for recording (red dot button)
-3. Press Record + Play
-4. 🔊 Speak/play into microphone
-5. Press Stop
-6. **Expected**: New clip appears with recorded waveform
-7. Press Play → 🔊 hear your recording?
+Evidence:
+- screenshot or GIF of at least one shortcut path
+- note any focus-routing surprises
 
----
+## Piano Roll
 
-## Audio Tests Summary (human ear required 🔊)
+### PNR-001 Open the piano roll for a track
 
-These CANNOT be tested by AI — human must listen:
+1. Create a piano roll track.
+2. Open the editor from the visible track context.
 
-| Test | What to Listen For |
-|------|--------------------|
-| B2 | Imported audio plays without distortion |
-| B3 | Drum pattern timing is correct, no clicks/pops |
-| B5 | Volume/mute/solo work as expected |
-| C1 | Synth sounds on note preview |
-| C3 | Velocity affects loudness |
-| C5 | Each preset sounds distinctly different |
-| D1 | Drum pattern loops cleanly |
-| D2 | Swing changes the groove feel |
-| E1 | Effect is audible (reverb tail, delay echoes, etc.) |
-| E3 | Bypass cleanly removes effect |
-| F1 | AI-generated music sounds musical |
-| G1 | Volume/pan control is smooth, no artifacts |
-| H1 | Loop preview plays correctly |
-| I1 | Recording captures audio cleanly |
+Expected:
+- the editor opens for the correct track
 
----
+Evidence:
+- screenshot of the opened editor
 
-## GIF Recording Guide
+### PNR-002 Create and edit basic MIDI notes
 
-For each test section (A-I), record one GIF showing the complete flow:
+1. Add a note.
+2. Move it, resize it, and delete it.
 
-1. **macOS**: Use built-in screen recording (Cmd+Shift+5) → convert to GIF
-2. **Any platform**: Use [LICEcap](https://www.cockos.com/licecap/) or [Gifski](https://gif.ski/)
-3. Keep GIFs under 10MB (resize to 720p if needed)
-4. Name: `test-X-description.gif` (e.g., `test-C-piano-roll-editing.gif`)
-5. Save to `demos/` directory
+Expected:
+- note editing feels stable and visually correct
+- preview behavior is understandable
 
----
+Evidence:
+- GIF of the editing flow
+- listening note if preview is audible
 
-_Thank you for testing! Your feedback directly improves the product._
+## AI Generation
+
+### GEN-001 Generate a stems clip from a prompt
+
+1. Ensure the backend/API is reachable.
+2. Add a stems track.
+3. Enter a prompt and generate content.
+
+Expected:
+- generation completes into visible track content
+
+Evidence:
+- screenshot or GIF of the generation flow
+- listening note about usefulness and musical quality
+
+### GEN-002 See progress, success, and failure states
+
+1. Submit a generation request.
+2. Observe loading and terminal states.
+3. If possible, repeat with the backend offline.
+
+Expected:
+- success and failure states are visible and understandable
+
+Evidence:
+- screenshot of progress state
+- screenshot of success or failure state
+
+## Output and Mixing
+
+### OUT-001 Open the export surface from the keyboard
+
+1. Press the documented export shortcut.
+
+Expected:
+- export dialog opens cleanly
+- readiness information is visible
+
+Evidence:
+- export dialog screenshot
+
+### OUT-002 Export readiness reflects project content
+
+1. Check export on an empty project.
+2. Add musical content and reopen export.
+
+Expected:
+- export is disabled when empty
+- export becomes enabled when content exists
+
+Evidence:
+- pair of screenshots: empty vs ready
+
+### OUT-003 Open the mixer and verify basic channel visibility
+
+1. Open the mixer.
+2. Confirm tracks appear as channel strips.
+
+Expected:
+- channel layout is readable
+- controls look aligned and intentional
+
+Evidence:
+- mixer screenshot
+- note any clipping, overlap, or crowding
+
+## Human-Only Listening Checklist
+
+- TRK-004: mute / solo audibility feels correct
+- TRN-001: transport starts and stops without audible glitches
+- PNR-002: note preview feels responsive
+- SEQ-001: sequencer groove loops cleanly
+- GEN-001: generated result is musically usable
+- OUT-003: mixer changes have clear audible meaning

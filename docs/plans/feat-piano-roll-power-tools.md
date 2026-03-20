@@ -2,6 +2,12 @@
 
 Issue: #341
 
+## QA Stories Affected
+
+- `TRK-002` add a piano roll track
+- `PNR-001` open the piano roll for a track
+- `PNR-002` create and edit basic MIDI notes
+
 ## User Story
 
 As a composer, I want explicit pencil, paint, erase, resize, and slide-note tools in the piano roll, so that I can edit MIDI quickly without modal friction.

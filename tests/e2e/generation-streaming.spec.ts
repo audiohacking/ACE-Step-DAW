@@ -1,3 +1,13 @@
+/**
+ * Covered story ids:
+ * - GEN-002
+ *
+ * Persona: user waiting on streamed generation feedback
+ * Workflow summary: verify progress and early-result behavior while generation
+ * is still in flight.
+ * Why this test exists: protects visible generation status semantics.
+ * Left to other layers: backend music quality and manual usability review.
+ */
 import { expect, test } from '@playwright/test';
 
 function createWavBuffer(durationSeconds = 0.1, sampleRate = 44100): Buffer {

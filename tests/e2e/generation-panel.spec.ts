@@ -1,3 +1,14 @@
+/**
+ * Covered story ids:
+ * - GEN-001, GEN-002
+ *
+ * Persona: user invoking AI generation
+ * Workflow summary: open and interact with the generation panel around the
+ * prompt-to-content workflow.
+ * Why this test exists: covers the visible AI generation surface tied to the
+ * matrix generation stories.
+ * Left to other layers: backend-dependent success quality and human music judgment.
+ */
 import { expect, test } from '@playwright/test';
 
 test.describe('Generation Panel', () => {

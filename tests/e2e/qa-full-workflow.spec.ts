@@ -1,8 +1,20 @@
 /**
  * QA Full Workflow Test Suite — Comprehensive user-facing tests
- * Tests all core workflows: project creation, track management, piano roll,
- * keyboard shortcuts, mute/solo, and export.
- * Screenshots saved to test-screenshots/ for bug reporting.
+ *
+ * Covered story ids:
+ * - ONB-001, PRJ-001, PRJ-002, PRJ-003
+ * - TRK-001, TRK-002, TRK-003, TRK-004
+ * - TRN-001, TRN-002, TRN-003
+ * - PNR-001
+ * - OUT-001, OUT-002, OUT-003
+ *
+ * Persona: human QA and browser-driven QA agent
+ * Workflow summary: create a project, add core track types, open editing and
+ * output surfaces, and validate the keyboard-first core regression path.
+ * Why this test exists: this is the matrix-linked story bundle for release-
+ * critical and core-regression DAW workflows.
+ * Left to other layers: precise store contracts, audio quality judgment, and
+ * deep editor semantics remain covered by unit/spec-specific suites or manual QA.
  */
 import { test, expect, type Page } from '@playwright/test';
 import path from 'path';

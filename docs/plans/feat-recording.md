@@ -1,5 +1,10 @@
 # Feature Plan: Wire RecordingEngine to UI
 
+## QA Stories Affected
+
+- No canonical story ids assigned yet.
+- Add recording story ids to `docs/qa/story-matrix.md` before implementation expands further.
+
 ## Status: PLAN ONLY — Do not implement yet
 
 ---

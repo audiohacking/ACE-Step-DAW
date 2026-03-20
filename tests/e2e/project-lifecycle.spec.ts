@@ -1,3 +1,15 @@
+/**
+ * Covered story ids:
+ * - PRJ-001, PRJ-002
+ * - TRN-003
+ *
+ * Persona: QA agent and automation engineer
+ * Workflow summary: validate browser-exposed store contracts and minimal
+ * project lifecycle setup paths needed by higher-level story suites.
+ * Why this test exists: protects the agent-operable contract that other E2E
+ * tests depend on for deterministic setup.
+ * Left to other layers: user-visible dialog affordances and manual feel checks.
+ */
 import { test, expect } from '@playwright/test';
 
 test.describe('Project Lifecycle', () => {

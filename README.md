@@ -98,6 +98,14 @@ See [AGENTS.md](AGENTS.md) for the complete development workflow, rules, and req
 
 See [docs/dev-process.md](docs/dev-process.md) for competitive research index and system test checklists.
 
+For story-driven QA planning and release runlists:
+
+```bash
+npm run qa:runlist
+npm run qa:runlist -- --status=release-critical,core-regression
+npm run qa:validate
+```
+
 ## Keyboard Shortcuts
 
 | Key | Action |

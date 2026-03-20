@@ -1,7 +1,17 @@
 /**
- * User Workflow E2E Tests — Real DOM interaction, not store API calls.
- * These tests simulate what a real user does with mouse and keyboard.
- * If these pass, the DAW is usable. If they fail, we shipped a bug.
+ * User Workflow E2E Tests
+ *
+ * Covered story ids:
+ * - PRJ-001
+ * - TRK-001
+ * - TRN-001, TRN-002
+ *
+ * Persona: end user exercising a lightweight happy path
+ * Workflow summary: create a project, add a track, use transport, and verify
+ * the app stays alive under simple keyboard-driven operation.
+ * Why this test exists: this is a thin smoke bundle for the core user loop.
+ * Left to other layers: onboarding sequencing, deep track-type behavior, and
+ * strict state contracts belong to dedicated story suites.
  */
 import { test, expect } from '@playwright/test';
 

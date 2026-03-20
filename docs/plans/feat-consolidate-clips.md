@@ -1,5 +1,10 @@
 # Feature Plan: Consolidate / Glue Clips
 
+## QA Stories Affected
+
+- No canonical story ids assigned yet.
+- Add clip-editing story ids to `docs/qa/story-matrix.md` before future implementation work.
+
 ## User stories
 
 - As a user, I want to select multiple clips on one track and press `Cmd+J`, so that I can turn fragmented edits into one clip.

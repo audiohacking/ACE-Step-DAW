@@ -1,5 +1,10 @@
 # Fix Playwright E2E Startup Regression
 
+## QA Stories Affected
+
+- `PRJ-001` create a project with default settings
+- `ONB-001` first launch shows onboarding before project setup
+
 ## User Stories
 
 As a developer, I want `npx playwright test tests/e2e/` to launch the DAW on an isolated local port, so that e2e runs are deterministic even when another local dev server is already running.

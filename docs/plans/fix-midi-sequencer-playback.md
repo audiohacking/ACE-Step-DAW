@@ -1,5 +1,11 @@
 # Plan: Fix MIDI + Sequencer Real-Time Playback
 
+## QA Stories Affected
+
+- `TRK-003` add a sequencer track
+- `SEQ-001` program a basic step pattern
+- `PNR-002` create and edit basic MIDI notes
+
 ## User Stories
 - As a user, I want to press Play and hear my Piano Roll melody (C-D-E-F-G-A) play through the built-in synth.
 - As a user, I want to press Play and hear my drum pattern (Kick/Snare/HH) play through the built-in drum engine.

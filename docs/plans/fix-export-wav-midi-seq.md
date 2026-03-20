@@ -1,5 +1,9 @@
 # Plan: Export WAV for MIDI + Sequencer Tracks
 
+## QA Stories Affected
+
+- `OUT-002` export readiness reflects project content
+
 ## User Story
 As a user, I want to click Export and get a WAV file that includes my Piano Roll melodies and Sequencer drum patterns, not just AI-generated audio.
 

@@ -1,3 +1,14 @@
+/**
+ * Covered story ids:
+ * - TRN-002
+ *
+ * Persona: keyboard-first user
+ * Workflow summary: open the command palette, search, and execute commands from
+ * the keyboard-centric action surface.
+ * Why this test exists: this suite protects the command-surface branch of the
+ * keyboard workflow stories.
+ * Left to other layers: future story ids for deeper command semantics.
+ */
 import { expect, test } from '@playwright/test';
 
 test.describe('Command Palette', () => {

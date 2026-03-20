@@ -1,3 +1,14 @@
+/**
+ * Covered story ids:
+ * - TRK-003
+ * - SEQ-001
+ *
+ * Persona: beat-making user and QA agent
+ * Workflow summary: create a sequencer track, program a pattern, and verify
+ * the pattern state remains stable.
+ * Why this test exists: protects the step-pattern editing story bundle.
+ * Left to other layers: human groove judgment and richer performance workflows.
+ */
 import { test, expect } from '@playwright/test';
 
 test.describe('Sequencer Workflow', () => {

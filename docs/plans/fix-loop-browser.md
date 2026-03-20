@@ -1,5 +1,10 @@
 # Plan: Fix Loop Browser — Show 15 Built-in Loops
 
+## QA Stories Affected
+
+- No canonical story ids assigned yet.
+- Add loop-browser story ids to `docs/qa/story-matrix.md` before implementation expands further.
+
 ## Problem
 The "Loop Browser (O)" toolbar button opens `AssetsPanel.tsx` which shows 0 items with tabs "All / ★ / AI / Imported". The real `LoopBrowser.tsx` component (which has 15 synthesized loops from `LoopLibrary.ts`) is never shown.
 

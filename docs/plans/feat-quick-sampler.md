@@ -1,5 +1,10 @@
 # Plan: Quick Sampler Workflow
 
+## QA Stories Affected
+
+- No canonical story ids assigned yet.
+- Add sampler story ids to `docs/qa/story-matrix.md` before implementation expands further.
+
 ## Problem
 
 ACE-Step already had sampler playback primitives, but no explicit “audio in, playable instrument out” Quick Sampler workflow. Users could load a sample onto a sampler track, but not through a first-class store action or an in-context sample editor.

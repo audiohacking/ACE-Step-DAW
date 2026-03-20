@@ -56,6 +56,13 @@ Every feature must be researched at interaction-detail level before coding.
 
 ## System Test Checklist (Every 5 Versions)
 
+Use the QA matrix before running a large test pass:
+
+- Generate the release-critical runlist: `npm run qa:runlist`
+- Generate a broader regression runlist: `npm run qa:runlist -- --status=release-critical,core-regression`
+- Validate story references before handoff: `npm run qa:validate`
+- Use `--format=json` or `--output=...` when handing the runlist to another agent or attaching it to a report
+
 ### Cold Start
 - [ ] Clear browser cache / IndexedDB
 - [ ] Open app from scratch

@@ -1,3 +1,13 @@
+/**
+ * Covered story ids:
+ * - OUT-003
+ *
+ * Persona: mixing user
+ * Workflow summary: open the mixer, inspect channels, and verify basic strip
+ * state manipulation.
+ * Why this test exists: covers the current matrix story for mixer visibility.
+ * Left to other layers: human audible mix judgment and dense layout review.
+ */
 import { test, expect } from '@playwright/test';
 
 test.describe('Mixer Operations', () => {

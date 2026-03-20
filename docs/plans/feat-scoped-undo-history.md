@@ -3,6 +3,11 @@
 Issue: #334
 Date: 2026-03-19
 
+## QA Stories Affected
+
+- No canonical story ids assigned yet.
+- Add undo-history story ids to `docs/qa/story-matrix.md` before implementation expands further.
+
 ## User Stories
 
 - As a producer, I want `Cmd/Ctrl+Z` to target the panel I am actively editing, so that I can undo MIDI or mixer work without feeling like the whole song state is at risk.

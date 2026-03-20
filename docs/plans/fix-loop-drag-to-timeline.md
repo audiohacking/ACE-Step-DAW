@@ -1,5 +1,10 @@
 # Plan: Fix Loop Browser Drag-to-Timeline
 
+## QA Stories Affected
+
+- No canonical story ids assigned yet.
+- Add loop-drag story ids to `docs/qa/story-matrix.md` before implementation expands further.
+
 ## User Story
 As a user, I want to drag a loop from the Loop Browser and drop it onto a track in the timeline, so that it creates a new audio clip with that loop's rendered audio.
 

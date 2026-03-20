@@ -2,6 +2,12 @@
 
 Issue: #328
 
+## QA Stories Affected
+
+- `ONB-001` first launch shows onboarding before project setup
+- `ONB-002` skip onboarding to project creation
+- `PRJ-001` create a project with default settings
+
 ## 1. Problem
 
 ACE-Step has onboarding guidance in the design docs, but the product still drops first-time users into an empty DAW plus the generic new-project dialog. That misses the issue scope for starter templates, complexity tiers, a skippable tutorial, contextual tips, and immediately explorable demo sessions.
