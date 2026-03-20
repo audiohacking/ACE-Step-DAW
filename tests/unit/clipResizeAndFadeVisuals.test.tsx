@@ -80,9 +80,7 @@ describe('Clip resize handle width and fade visuals', () => {
   it('fade-in triangle uses correct clip path (upper-left triangle)', () => {
     useProjectStore.getState().setClipFade('clip-1', { fadeInDuration: 1 });
     const { container } = renderClip();
-    const fadeOverlays = container.querySelectorAll('.pointer-events-none.absolute.inset-y-0');
-    // First overlay is fade-in (left-positioned)
-    const fadeIn = fadeOverlays[0] as HTMLElement;
+    const fadeIn = container.querySelector('[data-testid="fade-in-overlay"]') as HTMLElement;
     expect(fadeIn).toBeTruthy();
     expect(fadeIn.style.clipPath).toBe('polygon(0 0, 100% 0, 0 100%)');
   });
@@ -90,21 +88,19 @@ describe('Clip resize handle width and fade visuals', () => {
   it('fade-out triangle uses correct clip path (upper-right triangle)', () => {
     useProjectStore.getState().setClipFade('clip-1', { fadeOutDuration: 1 });
     const { container } = renderClip();
-    const fadeOverlays = container.querySelectorAll('.pointer-events-none.absolute.inset-y-0');
-    // Find the right-positioned one
-    const fadeOut = Array.from(fadeOverlays).find(
-      (el) => (el as HTMLElement).className.includes('right-0'),
-    ) as HTMLElement;
+    const fadeOut = container.querySelector('[data-testid="fade-out-overlay"]') as HTMLElement;
     expect(fadeOut).toBeTruthy();
     expect(fadeOut.style.clipPath).toBe('polygon(0 0, 100% 0, 100% 100%)');
   });
 
-  it('fade overlay uses reduced opacity', () => {
-    useProjectStore.getState().setClipFade('clip-1', { fadeInDuration: 1 });
+  it('fade overlays use reduced opacity', () => {
+    useProjectStore.getState().setClipFade('clip-1', { fadeInDuration: 1, fadeOutDuration: 1 });
     const { container } = renderClip();
-    const fadeOverlays = container.querySelectorAll('.pointer-events-none.absolute.inset-y-0');
-    const fadeIn = fadeOverlays[0] as HTMLElement;
+    const fadeIn = container.querySelector('[data-testid="fade-in-overlay"]') as HTMLElement;
+    const fadeOut = container.querySelector('[data-testid="fade-out-overlay"]') as HTMLElement;
     expect(fadeIn.style.background).toContain('0.35');
     expect(fadeIn.style.background).not.toContain('0.72');
+    expect(fadeOut.style.background).toContain('0.35');
+    expect(fadeOut.style.background).not.toContain('0.72');
   });
 });

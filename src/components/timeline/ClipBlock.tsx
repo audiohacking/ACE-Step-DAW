@@ -501,6 +501,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
             {fadeInWidth > 0 && (
               <div
                 className="absolute inset-y-0 left-0 pointer-events-none"
+                data-testid="fade-in-overlay"
                 style={{
                   width: fadeInWidth,
                   background: 'linear-gradient(90deg, rgba(10, 12, 18, 0.35) 0%, rgba(10, 12, 18, 0.05) 100%)',
@@ -511,6 +512,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
             {fadeOutWidth > 0 && (
               <div
                 className="absolute inset-y-0 right-0 pointer-events-none"
+                data-testid="fade-out-overlay"
                 style={{
                   width: fadeOutWidth,
                   background: 'linear-gradient(270deg, rgba(10, 12, 18, 0.35) 0%, rgba(10, 12, 18, 0.05) 100%)',
