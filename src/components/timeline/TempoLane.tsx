@@ -183,7 +183,7 @@ export function TempoLane() {
       style={{ height: TEMPO_LANE_HEIGHT, background: 'rgba(245, 158, 11, 0.03)' }}
       data-tempo-lane
     >
-      <div className="absolute left-1 top-0.5 text-[9px] font-mono select-none pointer-events-none z-10 text-amber-400/60">
+      <div className="absolute left-1 top-0.5 text-[10px] font-mono select-none pointer-events-none z-10 text-amber-400/60">
         Tempo
       </div>
 

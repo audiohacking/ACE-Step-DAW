@@ -110,7 +110,7 @@ export function AutomationLaneView({ trackId, lane }: AutomationLaneViewProps) {
     >
       {/* Label */}
       <div
-        className="absolute left-1 top-0.5 text-[9px] font-mono opacity-50 select-none pointer-events-none z-10"
+        className="absolute left-1 top-0.5 text-[10px] font-mono opacity-50 select-none pointer-events-none z-10"
         style={{ color }}
       >
         {paramLabel}

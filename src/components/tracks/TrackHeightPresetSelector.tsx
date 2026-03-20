@@ -39,7 +39,7 @@ export function TrackHeightPresetSelector() {
         data-testid="track-height-preset-btn"
         onClick={() => setOpen((v) => !v)}
         title="Track height presets"
-        className="flex items-center justify-center w-5 h-5 text-zinc-500 hover:text-zinc-200 hover:bg-daw-surface-2 rounded transition-colors"
+        className="flex items-center justify-center w-5 h-5 text-zinc-400 hover:text-zinc-200 hover:bg-daw-surface-2 rounded transition-colors"
       >
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
           <line x1="1" y1="3" x2="11" y2="3" />

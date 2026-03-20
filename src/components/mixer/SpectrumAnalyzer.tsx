@@ -193,7 +193,7 @@ export function SpectrumAnalyzer({
   return (
     <div className="flex flex-col items-center gap-1" data-testid="spectrum-analyzer">
       <div className="flex items-center justify-between w-full px-0.5">
-        <span className="text-[9px] text-zinc-500 uppercase tracking-widest">Spectrum</span>
+        <span className="text-[10px] text-zinc-400 uppercase tracking-widest">Spectrum</span>
         <span
           ref={lufsDisplayRef}
           className="text-[11px] font-mono font-bold tabular-nums"

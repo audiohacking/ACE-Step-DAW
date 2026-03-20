@@ -237,7 +237,7 @@ export function SettingsDialog() {
           <h2 className="text-sm font-medium">Settings</h2>
           <button
             onClick={() => setShow(false)}
-            className="text-zinc-500 hover:text-zinc-300 text-lg leading-none"
+            className="text-zinc-400 hover:text-zinc-300 text-lg leading-none"
           >
             ×
           </button>
@@ -341,7 +341,7 @@ export function SettingsDialog() {
           <div className="rounded-md border border-daw-border bg-daw-bg/60 p-3 space-y-2">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-xs font-medium text-zinc-300">Playback Latency</h3>
-              <span className="text-[10px] uppercase tracking-[0.16em] text-zinc-500">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-zinc-400">
                 {playbackLatency.source === 'manual' ? 'Manual override' : playbackLatency.source === 'auto' ? 'Auto-detected' : 'Fallback'}
               </span>
             </div>
@@ -375,11 +375,11 @@ export function SettingsDialog() {
                 />
               </div>
             </div>
-             <p className="text-[10px] text-zinc-500">
+             <p className="text-[10px] text-zinc-400">
                Active compensation: {playbackLatency.compensationMs.toFixed(1)} ms
              </p>
              {hasPendingManualOverride ? (
-               <p className="text-[10px] text-zinc-500">
+               <p className="text-[10px] text-zinc-400">
                  Pending manual override after save: {pendingManualOverrideMs.toFixed(1)} ms
                </p>
              ) : null}
@@ -455,7 +455,7 @@ export function SettingsDialog() {
               ))}
             </select>
             <div className="mt-2 flex items-center justify-between gap-2">
-              <span className="text-[10px] text-zinc-500">
+              <span className="text-[10px] text-zinc-400">
                 {selectedModelEntry?.is_loaded ? 'Model is loaded' : 'Model is not loaded'}
               </span>
               <button
@@ -485,7 +485,7 @@ export function SettingsDialog() {
                 ))}
               </select>
               <div className="mt-2 flex items-center justify-between gap-2">
-                <span className="text-[10px] text-zinc-500">
+                <span className="text-[10px] text-zinc-400">
                   {llmInitialized ? 'LLM initialized' : 'LLM not initialized'}
                 </span>
                 <button
@@ -514,7 +514,7 @@ export function SettingsDialog() {
               <div className="bg-[#1a1a1a] rounded border border-daw-border max-h-[140px] overflow-y-auto">
                 <table className="w-full text-[10px]">
                   <thead>
-                    <tr className="border-b border-daw-border text-zinc-500">
+                    <tr className="border-b border-daw-border text-zinc-400">
                       <th className="text-left px-2 py-1.5 font-medium">DiT Model</th>
                       <th className="text-center px-2 py-1.5 font-medium w-16">Default</th>
                       <th className="text-center px-2 py-1.5 font-medium w-16">Loaded</th>
@@ -558,7 +558,7 @@ export function SettingsDialog() {
                 <div className="bg-[#1a1a1a] rounded border border-daw-border max-h-[100px] overflow-y-auto mt-2">
                   <table className="w-full text-[10px]">
                     <thead>
-                      <tr className="border-b border-daw-border text-zinc-500">
+                      <tr className="border-b border-daw-border text-zinc-400">
                         <th className="text-left px-2 py-1.5 font-medium">LM Model</th>
                         <th className="text-center px-2 py-1.5 font-medium w-16">Loaded</th>
                       </tr>
@@ -591,7 +591,7 @@ export function SettingsDialog() {
                   </table>
                 </div>
               )}
-              <p className="text-[9px] text-zinc-600 mt-1">
+              <p className="text-[10px] text-zinc-600 mt-1">
                 Click a row to select it. Selection is saved with project settings.
               </p>
             </>

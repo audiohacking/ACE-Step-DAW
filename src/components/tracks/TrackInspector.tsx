@@ -30,7 +30,7 @@ export function TrackInspector({ track }: TrackInspectorProps) {
       <div className="px-3 py-2 space-y-3">
       {/* Local caption */}
       <div>
-        <label className="block font-medium uppercase tracking-wide text-zinc-500 mb-1">
+        <label className="block font-medium uppercase tracking-wide text-zinc-400 mb-1">
           Local Caption
         </label>
         <input
@@ -40,12 +40,12 @@ export function TrackInspector({ track }: TrackInspectorProps) {
           placeholder={track.displayName}
           className="w-full bg-[#222] border border-[#444] rounded px-2 py-1 text-[10px] text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-daw-accent"
         />
-        <p className="text-[9px] text-zinc-600 mt-0.5">Defaults to track name if empty</p>
+        <p className="text-[10px] text-zinc-600 mt-0.5">Defaults to track name if empty</p>
       </div>
 
       {/* EQ */}
       <div>
-        <div className="font-medium uppercase tracking-wide text-zinc-500 mb-1">EQ</div>
+        <div className="font-medium uppercase tracking-wide text-zinc-400 mb-1">EQ</div>
         <div className="flex items-end gap-3 justify-center">
           <div className="flex flex-col items-center gap-0.5">
             <Knob
@@ -57,8 +57,8 @@ export function TrackInspector({ track }: TrackInspectorProps) {
               size={28}
               onChange={(v) => updateTrackMixer(track.id, { eqLowGain: v })}
             />
-            <span className="text-[9px]">{eqLow > 0 ? '+' : ''}{eqLow.toFixed(0)}</span>
-            <span className="text-[9px] text-zinc-600">Lo</span>
+            <span className="text-[10px]">{eqLow > 0 ? '+' : ''}{eqLow.toFixed(0)}</span>
+            <span className="text-[10px] text-zinc-600">Lo</span>
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <Knob
@@ -70,8 +70,8 @@ export function TrackInspector({ track }: TrackInspectorProps) {
               size={28}
               onChange={(v) => updateTrackMixer(track.id, { eqMidGain: v })}
             />
-            <span className="text-[9px]">{eqMid > 0 ? '+' : ''}{eqMid.toFixed(0)}</span>
-            <span className="text-[9px] text-zinc-600">Mid</span>
+            <span className="text-[10px]">{eqMid > 0 ? '+' : ''}{eqMid.toFixed(0)}</span>
+            <span className="text-[10px] text-zinc-600">Mid</span>
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <Knob
@@ -83,8 +83,8 @@ export function TrackInspector({ track }: TrackInspectorProps) {
               size={28}
               onChange={(v) => updateTrackMixer(track.id, { eqHighGain: v })}
             />
-            <span className="text-[9px]">{eqHigh > 0 ? '+' : ''}{eqHigh.toFixed(0)}</span>
-            <span className="text-[9px] text-zinc-600">Hi</span>
+            <span className="text-[10px]">{eqHigh > 0 ? '+' : ''}{eqHigh.toFixed(0)}</span>
+            <span className="text-[10px] text-zinc-600">Hi</span>
           </div>
         </div>
       </div>
@@ -92,13 +92,13 @@ export function TrackInspector({ track }: TrackInspectorProps) {
       {/* Compressor */}
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <div className="font-medium uppercase tracking-wide text-zinc-500">Comp</div>
+          <div className="font-medium uppercase tracking-wide text-zinc-400">Comp</div>
           <button
             onClick={() => updateTrackMixer(track.id, { compressorEnabled: !compEnabled })}
-            className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors ${
+            className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors ${
               compEnabled
                 ? 'bg-orange-600 text-white'
-                : 'bg-[#333] text-zinc-500 hover:text-zinc-300'
+                : 'bg-[#333] text-zinc-400 hover:text-zinc-300'
             }`}
           >
             {compEnabled ? 'ON' : 'OFF'}
@@ -116,8 +116,8 @@ export function TrackInspector({ track }: TrackInspectorProps) {
               onChange={(v) => updateTrackMixer(track.id, { compressorThreshold: v })}
               disabled={!compEnabled}
             />
-            <span className="text-[9px]">{compThreshold}dB</span>
-            <span className="text-[9px] text-zinc-600">Thr</span>
+            <span className="text-[10px]">{compThreshold}dB</span>
+            <span className="text-[10px] text-zinc-600">Thr</span>
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <Knob
@@ -130,15 +130,15 @@ export function TrackInspector({ track }: TrackInspectorProps) {
               onChange={(v) => updateTrackMixer(track.id, { compressorRatio: v })}
               disabled={!compEnabled}
             />
-            <span className="text-[9px]">{compRatio.toFixed(1)}:1</span>
-            <span className="text-[9px] text-zinc-600">Ratio</span>
+            <span className="text-[10px]">{compRatio.toFixed(1)}:1</span>
+            <span className="text-[10px] text-zinc-600">Ratio</span>
           </div>
         </div>
       </div>
 
       {/* Reverb */}
       <div>
-        <div className="font-medium uppercase tracking-wide text-zinc-500 mb-1">Reverb</div>
+        <div className="font-medium uppercase tracking-wide text-zinc-400 mb-1">Reverb</div>
         <div className="flex items-end gap-3 justify-center">
           <div className="flex flex-col items-center gap-0.5">
             <Knob
@@ -150,8 +150,8 @@ export function TrackInspector({ track }: TrackInspectorProps) {
               size={28}
               onChange={(v) => handleReverbChange(v, reverbRoom)}
             />
-            <span className="text-[9px]">{Math.round(reverbMix * 100)}%</span>
-            <span className="text-[9px] text-zinc-600">Mix</span>
+            <span className="text-[10px]">{Math.round(reverbMix * 100)}%</span>
+            <span className="text-[10px] text-zinc-600">Mix</span>
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <Knob
@@ -163,8 +163,8 @@ export function TrackInspector({ track }: TrackInspectorProps) {
               size={28}
               onChange={(v) => handleReverbChange(reverbMix, v)}
             />
-            <span className="text-[9px]">{Math.round(reverbRoom * 100)}%</span>
-            <span className="text-[9px] text-zinc-600">Room</span>
+            <span className="text-[10px]">{Math.round(reverbRoom * 100)}%</span>
+            <span className="text-[10px] text-zinc-600">Room</span>
           </div>
         </div>
       </div>

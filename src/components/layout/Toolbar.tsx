@@ -34,8 +34,8 @@ function LCDDisplay() {
       <span className="text-[11px] font-mono text-zinc-400">{formatTime(currentTime)}</span>
       {project && !countInActive && (
         <>
-          <span className="text-[11px] font-mono text-zinc-500">{project.bpm} bpm</span>
-          <span className="text-[9px] text-emerald-600/60" title="Project auto-saved to browser storage">●</span>
+          <span className="text-[11px] font-mono text-zinc-400">{project.bpm} bpm</span>
+          <span className="text-[10px] text-emerald-600/60" title="Project auto-saved to browser storage">●</span>
         </>
       )}
       {countInActive && (
@@ -478,7 +478,7 @@ export function Toolbar() {
             <path d="M8.8 8.8L12 12" strokeLinecap="round" />
           </svg>
           <span>Command</span>
-          <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-400">
+          <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-400">
             Cmd+K
           </span>
         </button>
@@ -496,7 +496,7 @@ export function Toolbar() {
         <button
           onClick={() => setShowKeyboardShortcutsDialog(true)}
           title="Keyboard Shortcuts (?)"
-          className="w-6 h-6 text-[11px] font-bold text-zinc-500 hover:text-white hover:bg-daw-surface-2 rounded transition-colors flex items-center justify-center"
+          className="w-6 h-6 text-[11px] font-bold text-zinc-400 hover:text-white hover:bg-daw-surface-2 rounded transition-colors flex items-center justify-center"
         >
           ?
         </button>

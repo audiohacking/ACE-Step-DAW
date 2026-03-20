@@ -51,7 +51,7 @@ export function QuickSamplerEditor({
       <div className={`rounded-xl border px-3 py-3 ${hasAudio ? 'border-amber-400/25 bg-amber-300/[0.08]' : 'border-cyan-400/25 bg-cyan-300/[0.06]'}`}>
         <div className="flex items-center justify-between gap-2">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">Quick Sampler</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Quick Sampler</div>
             <div className="text-sm text-zinc-100">{track.sampler?.sampleName ?? 'Drop audio here to build an instrument'}</div>
           </div>
           <button
@@ -90,7 +90,7 @@ export function QuickSamplerEditor({
                   }}
                   className="w-14 bg-[#111] border border-[#333] rounded px-1.5 py-1 text-[11px] text-zinc-200"
                 />
-                <span className="text-zinc-500">{midiNoteToName(rootNote)}</span>
+                <span className="text-zinc-400">{midiNoteToName(rootNote)}</span>
               </label>
               <label className="text-[10px] text-zinc-400 flex items-center gap-1">
                 Mode
@@ -168,7 +168,7 @@ export function QuickSamplerEditor({
                     key={offset}
                     aria-label={`Audition ${midiNoteToName(pitch)}`}
                     className={`flex-1 rounded-b text-[8px] leading-none flex items-end justify-center pb-0.5 transition-colors
-                      ${isBlack ? 'bg-zinc-800 text-zinc-500 hover:bg-zinc-600' : 'bg-zinc-200 text-zinc-700 hover:bg-white'}
+                      ${isBlack ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-600' : 'bg-zinc-200 text-zinc-700 hover:bg-white'}
                       ${isRoot ? 'ring-1 ring-amber-400' : ''}
                     `}
                     onMouseDown={() => handleAuditionNote(pitch)}
@@ -186,7 +186,7 @@ export function QuickSamplerEditor({
       <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
         {samplerConfig ? (
           <div className="space-y-2">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">Sample Editor</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Sample Editor</div>
             <label className="block text-[10px] text-zinc-400">
               Trim Start
               <input
@@ -199,7 +199,7 @@ export function QuickSamplerEditor({
                 onChange={(e) => onSamplerConfigChange({ trimStart: Number(e.target.value) })}
                 className="w-full"
               />
-              <span className="text-zinc-500">{samplerConfig.trimStart.toFixed(2)}s</span>
+              <span className="text-zinc-400">{samplerConfig.trimStart.toFixed(2)}s</span>
             </label>
             <label className="block text-[10px] text-zinc-400">
               Trim End
@@ -213,7 +213,7 @@ export function QuickSamplerEditor({
                 onChange={(e) => onSamplerConfigChange({ trimEnd: Number(e.target.value) })}
                 className="w-full"
               />
-              <span className="text-zinc-500">{samplerConfig.trimEnd.toFixed(2)}s</span>
+              <span className="text-zinc-400">{samplerConfig.trimEnd.toFixed(2)}s</span>
             </label>
             {samplerConfig.playbackMode === 'loop' && (
               <>
@@ -229,7 +229,7 @@ export function QuickSamplerEditor({
                     onChange={(e) => onSamplerConfigChange({ loopStart: Number(e.target.value) })}
                     className="w-full"
                   />
-                  <span className="text-zinc-500">{samplerConfig.loopStart.toFixed(2)}s</span>
+                  <span className="text-zinc-400">{samplerConfig.loopStart.toFixed(2)}s</span>
                 </label>
                 <label className="block text-[10px] text-zinc-400">
                   Loop End
@@ -243,13 +243,13 @@ export function QuickSamplerEditor({
                     onChange={(e) => onSamplerConfigChange({ loopEnd: Number(e.target.value) })}
                     className="w-full"
                   />
-                  <span className="text-zinc-500">{samplerConfig.loopEnd.toFixed(2)}s</span>
+                  <span className="text-zinc-400">{samplerConfig.loopEnd.toFixed(2)}s</span>
                 </label>
               </>
             )}
           </div>
         ) : (
-          <div className="text-[11px] text-zinc-500">Load a sample to reveal trim and loop controls.</div>
+          <div className="text-[11px] text-zinc-400">Load a sample to reveal trim and loop controls.</div>
         )}
       </div>
     </div>
@@ -273,7 +273,7 @@ function AdsrSlider({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="flex flex-col items-center gap-0.5 text-[9px] text-zinc-500">
+    <label className="flex flex-col items-center gap-0.5 text-[10px] text-zinc-400">
       <span>{label[0]}</span>
       <input
         aria-label={label}

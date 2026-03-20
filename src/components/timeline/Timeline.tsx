@@ -476,7 +476,7 @@ export function Timeline() {
                 }}
               >
                 <span
-                  className="absolute top-0.5 left-1 text-[9px] font-mono select-none"
+                  className="absolute top-0.5 left-1 text-[10px] font-mono select-none"
                   style={{ color: '#5AC8FA', background: 'rgba(20,30,40,0.75)', padding: '0 4px', borderRadius: 3 }}
                 >
                   context window
@@ -506,7 +506,7 @@ export function Timeline() {
                 }}
               >
                 <span
-                  className="absolute top-0.5 right-1 text-[9px] font-mono select-none pointer-events-none"
+                  className="absolute top-0.5 right-1 text-[10px] font-mono select-none pointer-events-none"
                   style={{ color: '#AF52DE', background: 'rgba(20,20,35,0.75)', padding: '0 4px', borderRadius: 3 }}
                 >
                   select window

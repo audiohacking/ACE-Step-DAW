@@ -60,7 +60,7 @@ export function InstrumentPicker() {
             {step === 'instrument' && (
               <button
                 onClick={() => setStep('type')}
-                className="text-zinc-500 hover:text-zinc-300 text-sm"
+                className="text-zinc-400 hover:text-zinc-300 text-sm"
               >
                 ←
               </button>
@@ -71,7 +71,7 @@ export function InstrumentPicker() {
           </div>
           <button
             onClick={close}
-            className="text-zinc-500 hover:text-zinc-300 text-lg leading-none"
+            className="text-zinc-400 hover:text-zinc-300 text-lg leading-none"
           >
             ×
           </button>
@@ -82,7 +82,7 @@ export function InstrumentPicker() {
             {(project.trackPresets ?? []).length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">Track Presets</h3>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Track Presets</h3>
                   <span className="text-[10px] text-zinc-600">Apply to new tracks</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -102,7 +102,7 @@ export function InstrumentPicker() {
                           <span className="text-lg">{trackInfo.emoji}</span>
                           <span className="text-sm font-medium text-zinc-100 truncate">{preset.name}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+                        <div className="flex items-center gap-1.5 text-[10px] text-zinc-400">
                           <span>{typeInfo.label}</span>
                           <span>•</span>
                           <span>{trackInfo.displayName}</span>
@@ -134,7 +134,7 @@ export function InstrumentPicker() {
                       <span className="text-xl">{info.emoji}</span>
                       <span className="text-sm font-medium">{info.label}</span>
                       <span
-                        className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded"
+                        className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded"
                         style={{ backgroundColor: info.color + '30', color: info.color }}
                       >
                         {info.abbr}
@@ -163,7 +163,7 @@ export function InstrumentPicker() {
                   <span className="text-lg">{info.emoji}</span>
                   <span className="text-xs font-medium">{info.displayName}</span>
                   {count > 0 && (
-                    <span className="absolute top-1 right-1.5 text-[9px] font-bold text-zinc-400">
+                    <span className="absolute top-1 right-1.5 text-[10px] font-bold text-zinc-400">
                       ×{count}
                     </span>
                   )}

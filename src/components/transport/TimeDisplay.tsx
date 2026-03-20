@@ -13,7 +13,7 @@ export function TimeDisplay() {
   return (
     <div className="flex items-center gap-2 font-mono text-sm">
       <span className="text-zinc-300 tabular-nums">{formatTime(currentTime)}</span>
-      <span className="text-zinc-500 tabular-nums">{barsBeats}</span>
+      <span className="text-zinc-400 tabular-nums">{barsBeats}</span>
     </div>
   );
 }

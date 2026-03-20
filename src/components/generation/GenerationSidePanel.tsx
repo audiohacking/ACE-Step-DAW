@@ -29,7 +29,7 @@ const VARIATION_STATUS_COLORS: Record<VariationStatus, string> = {
   processing: 'bg-amber-900/60 text-amber-300',
   done: 'bg-emerald-900/60 text-emerald-300',
   error: 'bg-red-900/60 text-red-300',
-  cancelled: 'bg-zinc-800 text-zinc-500',
+  cancelled: 'bg-zinc-800 text-zinc-400',
 };
 
 export function GenerationSidePanel() {
@@ -169,11 +169,11 @@ export function GenerationSidePanel() {
       <div className="flex items-center justify-between border-b border-[#333] px-3 py-2">
         <div>
           <h2 className="text-sm font-semibold text-zinc-100">AI Generation</h2>
-          <p className="text-[11px] text-zinc-500">Prompt a new idea without leaving the arrangement.</p>
+          <p className="text-[11px] text-zinc-400">Prompt a new idea without leaving the arrangement.</p>
         </div>
         <button
           onClick={() => setShow(false)}
-          className="text-lg leading-none text-zinc-500 transition-colors hover:text-zinc-300"
+          className="text-lg leading-none text-zinc-400 transition-colors hover:text-zinc-300"
           aria-label="Close generation panel"
         >
           &times;
@@ -197,7 +197,7 @@ export function GenerationSidePanel() {
         )}
 
         <section className="space-y-2">
-          <label className="block text-[11px] font-medium uppercase text-zinc-500" htmlFor="generation-track-select">
+          <label className="block text-[11px] font-medium uppercase text-zinc-400" htmlFor="generation-track-select">
             Target Track
           </label>
           <select
@@ -220,7 +220,7 @@ export function GenerationSidePanel() {
 
         <section className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-[11px] font-medium uppercase text-zinc-500" htmlFor="generation-prompt-input">
+            <label className="block text-[11px] font-medium uppercase text-zinc-400" htmlFor="generation-prompt-input">
               Prompt
             </label>
             {promptHistory.length > 0 && (
@@ -260,7 +260,7 @@ export function GenerationSidePanel() {
 
         <section className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium uppercase text-zinc-500">Style Tags</span>
+            <span className="text-[11px] font-medium uppercase text-zinc-400">Style Tags</span>
             <span className="text-[10px] text-zinc-600">
               {generationForm.styleTags.length}/6 selected
             </span>
@@ -306,7 +306,7 @@ export function GenerationSidePanel() {
 
         <section className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium uppercase text-zinc-500">Quick Presets</span>
+            <span className="text-[11px] font-medium uppercase text-zinc-400">Quick Presets</span>
             <span className="text-[10px] text-zinc-600">Apply prompt + defaults</span>
           </div>
           <div className="flex flex-wrap gap-1">
@@ -349,7 +349,7 @@ export function GenerationSidePanel() {
 
         <section className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-[11px] font-medium uppercase text-zinc-500" htmlFor="generation-bpm-input">
+            <label className="block text-[11px] font-medium uppercase text-zinc-400" htmlFor="generation-bpm-input">
               BPM
             </label>
             <input
@@ -366,7 +366,7 @@ export function GenerationSidePanel() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-medium uppercase text-zinc-500" htmlFor="generation-key-select">
+            <label className="block text-[11px] font-medium uppercase text-zinc-400" htmlFor="generation-key-select">
               Key
             </label>
             <select
@@ -386,7 +386,7 @@ export function GenerationSidePanel() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-medium uppercase text-zinc-500" htmlFor="generation-length-input">
+            <label className="block text-[11px] font-medium uppercase text-zinc-400" htmlFor="generation-length-input">
               Length (s)
             </label>
             <input
@@ -403,7 +403,7 @@ export function GenerationSidePanel() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-medium uppercase text-zinc-500" htmlFor="generation-variation-count">
+            <label className="block text-[11px] font-medium uppercase text-zinc-400" htmlFor="generation-variation-count">
               Variations
             </label>
             <select
@@ -424,7 +424,7 @@ export function GenerationSidePanel() {
 
         <section className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-[11px] font-medium uppercase text-zinc-500" htmlFor="generation-temperature-slider">
+            <label className="text-[11px] font-medium uppercase text-zinc-400" htmlFor="generation-temperature-slider">
               Temperature
             </label>
             <span className="text-xs text-zinc-300">{generationForm.temperature.toFixed(2)}</span>
@@ -451,7 +451,7 @@ export function GenerationSidePanel() {
         <section className="space-y-2">
           <button
             onClick={() => setShowLyrics((value) => !value)}
-            className="text-[11px] font-medium uppercase text-zinc-500 transition-colors hover:text-zinc-300"
+            className="text-[11px] font-medium uppercase text-zinc-400 transition-colors hover:text-zinc-300"
             type="button"
           >
             Lyrics {showLyrics ? '[-]' : '[+]'}
@@ -472,7 +472,7 @@ export function GenerationSidePanel() {
         <button
           onClick={handleGenerate}
           disabled={Boolean(validationError) || isSessionActive}
-          className="w-full rounded bg-indigo-600 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:bg-zinc-700 disabled:text-zinc-500"
+          className="w-full rounded bg-indigo-600 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:bg-zinc-700 disabled:text-zinc-400"
           data-testid="generation-generate-btn"
         >
           {isSessionActive ? 'Generating...' : `Generate ${generationForm.variationCount} Variation${generationForm.variationCount === 1 ? '' : 's'}`}
@@ -481,7 +481,7 @@ export function GenerationSidePanel() {
         {jobs.length > 0 && (
           <section className="space-y-2" data-testid="generation-live-jobs">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium uppercase text-zinc-500">Live Progress</span>
+              <span className="text-[11px] font-medium uppercase text-zinc-400">Live Progress</span>
               <span className="text-[10px] text-zinc-600">
                 Store-backed backend stages
               </span>
@@ -510,7 +510,7 @@ export function GenerationSidePanel() {
                         {job.stage ?? 'Generation update pending'}
                       </div>
                     </div>
-                    <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium ${VARIATION_STATUS_COLORS[job.status === 'queued' ? 'pending' : job.status]}`}>
+                    <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${VARIATION_STATUS_COLORS[job.status === 'queued' ? 'pending' : job.status]}`}>
                       {progressLabel ?? VARIATION_STATUS_LABELS[job.status === 'queued' ? 'pending' : job.status]}
                     </span>
                   </div>
@@ -525,7 +525,7 @@ export function GenerationSidePanel() {
                     </div>
                   )}
 
-                  <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-zinc-500">
+                  <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-zinc-400">
                     <span>{job.progress}</span>
                     {eta ? <span>ETA: {eta}</span> : <span>{job.stage ? 'ETA pending' : 'Waiting for backend'}</span>}
                   </div>
@@ -542,7 +542,7 @@ export function GenerationSidePanel() {
         {variationSession && (
           <section className="space-y-2" data-testid="variation-cards">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium uppercase text-zinc-500">Variations</span>
+              <span className="text-[11px] font-medium uppercase text-zinc-400">Variations</span>
               <span className="text-[10px] text-zinc-600">
                 Press 1-{variationSession.variations.length} to switch
               </span>
@@ -581,7 +581,7 @@ export function GenerationSidePanel() {
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className={`rounded px-1.5 py-0.5 text-[9px] font-medium ${VARIATION_STATUS_COLORS[variation.status]}`}>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${VARIATION_STATUS_COLORS[variation.status]}`}>
                         {VARIATION_STATUS_LABELS[variation.status]}
                       </span>
                       {variation.status === 'generating' && (
@@ -592,7 +592,7 @@ export function GenerationSidePanel() {
                       <span className="mt-0.5 block text-[10px] text-zinc-400">{variation.stage}</span>
                     )}
                     {variation.progress && !variation.stage && (
-                      <span className="mt-0.5 block text-[10px] text-zinc-500">{variation.progress}</span>
+                      <span className="mt-0.5 block text-[10px] text-zinc-400">{variation.progress}</span>
                     )}
                     {variation.progressPercent !== undefined && variation.status === 'generating' && (
                       <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-zinc-700">
@@ -626,7 +626,7 @@ export function GenerationSidePanel() {
               ) : (
                 <button
                   onClick={clearVariationSession}
-                  className="flex-1 rounded bg-[#333] py-1 text-[11px] text-zinc-500 transition-colors hover:bg-[#444] hover:text-zinc-300"
+                  className="flex-1 rounded bg-[#333] py-1 text-[11px] text-zinc-400 transition-colors hover:bg-[#444] hover:text-zinc-300"
                   type="button"
                 >
                   Clear

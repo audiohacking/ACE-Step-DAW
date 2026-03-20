@@ -80,7 +80,7 @@ export function AIAssistantPanel() {
         <div className="flex items-center gap-1">
           <button
             onClick={clearMessages}
-            className="flex h-6 w-6 items-center justify-center rounded text-zinc-500 transition-colors hover:bg-[#333] hover:text-zinc-300"
+            className="flex h-6 w-6 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-[#333] hover:text-zinc-300"
             title="Clear conversation"
             aria-label="Clear conversation"
           >
@@ -90,7 +90,7 @@ export function AIAssistantPanel() {
           </button>
           <button
             onClick={() => setShow(false)}
-            className="flex h-6 w-6 items-center justify-center rounded text-zinc-500 transition-colors hover:bg-[#333] hover:text-zinc-300"
+            className="flex h-6 w-6 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-[#333] hover:text-zinc-300"
             title="Close (Escape)"
             aria-label="Close AI Assistant"
           >
@@ -103,7 +103,7 @@ export function AIAssistantPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {messages.length === 0 && (
-          <div className="mt-8 space-y-3 text-center text-[11px] text-zinc-500">
+          <div className="mt-8 space-y-3 text-center text-[11px] text-zinc-400">
             <div className="text-2xl">✨</div>
             <div className="font-medium text-zinc-400">AI Music Assistant</div>
             <div>Ask about production techniques, mixing, effects, or ACE-Step workflows in the current session.</div>

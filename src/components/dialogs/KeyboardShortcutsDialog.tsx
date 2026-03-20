@@ -38,14 +38,14 @@ export function KeyboardShortcutsDialog() {
         <div className="flex items-center justify-between px-5 py-3 border-b border-daw-border">
           <div>
             <h2 className="text-sm font-semibold text-zinc-100">Keyboard Shortcuts</h2>
-            <p className="text-[11px] text-zinc-500 mt-1">
+            <p className="text-[11px] text-zinc-400 mt-1">
               Core single-key shortcuts ignore focused text fields and contenteditable editors. R arms the focused track first, then toggles recording.
             </p>
           </div>
           <button
             onClick={() => setShow(false)}
             aria-label="Close keyboard shortcuts"
-            className="text-zinc-500 hover:text-zinc-200 transition-colors text-lg leading-none"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors text-lg leading-none"
           >
             ×
           </button>
@@ -55,7 +55,7 @@ export function KeyboardShortcutsDialog() {
           <div className="grid grid-cols-2 gap-x-8 gap-y-5">
             {sections.map((section) => (
               <div key={section.id}>
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">
                   {section.label}
                 </h3>
                 <div className="space-y-1.5">
@@ -64,7 +64,7 @@ export function KeyboardShortcutsDialog() {
                       <div className="flex-1 min-w-0">
                         <div className="text-xs text-zinc-300">{action.label}</div>
                         {action.contexts && (
-                          <div className="text-[10px] text-zinc-500">
+                          <div className="text-[10px] text-zinc-400">
                             {action.contexts.join(', ')}
                           </div>
                         )}

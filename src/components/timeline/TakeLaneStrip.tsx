@@ -39,7 +39,7 @@ export function TakeLaneStrip({ clip, track }: TakeLaneStripProps) {
       data-take-lane-for={clip.id}
     >
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
           Take Lanes
         </span>
         <div className="flex items-center gap-2">
@@ -47,7 +47,7 @@ export function TakeLaneStrip({ clip, track }: TakeLaneStripProps) {
             type="button"
             onClick={handleFlatten}
             disabled={!hasSelectedTake}
-            className="text-[10px] text-zinc-500 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="text-[10px] text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label={`Flatten comp for ${track.displayName}`}
             title="Flatten comp — commit selected take"
           >

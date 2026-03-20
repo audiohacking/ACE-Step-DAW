@@ -45,11 +45,11 @@ export function UndoHistoryPanel() {
       <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-200">History</div>
-          <div className="text-[10px] text-zinc-500">Cmd/Ctrl+Z follows the active scope.</div>
+          <div className="text-[10px] text-zinc-400">Cmd/Ctrl+Z follows the active scope.</div>
         </div>
         <button
           aria-label="Close undo history panel"
-          className="ml-auto text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+          className="ml-auto text-sm text-zinc-400 transition-colors hover:text-zinc-200"
           onClick={() => setShowUndoHistoryPanel(false)}
         >
           ×
@@ -79,7 +79,7 @@ export function UndoHistoryPanel() {
 
       <div className="max-h-[420px] overflow-y-auto px-2 py-2">
         {entries.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-white/10 px-3 py-4 text-center text-[11px] text-zinc-500">
+          <div className="rounded-lg border border-dashed border-white/10 px-3 py-4 text-center text-[11px] text-zinc-400">
             No undo checkpoints in {HISTORY_SCOPE_LABELS[selectedScope].toLowerCase()} scope yet.
           </div>
         ) : (
@@ -94,12 +94,12 @@ export function UndoHistoryPanel() {
                   setHistoryFocusScope(selectedScope);
                 }}
               >
-                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/5 text-[10px] text-zinc-500">
+                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/5 text-[10px] text-zinc-400">
                   {entries.length - index}
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-[11px] font-medium text-zinc-200">{entry.label}</div>
-                  <div className="mt-0.5 text-[10px] text-zinc-500">
+                  <div className="mt-0.5 text-[10px] text-zinc-400">
                     {formatTimestamp(entry.timestamp)}
                     {entry.trackId ? ' • Track' : ''}
                     {entry.clipId ? ' • Clip' : ''}

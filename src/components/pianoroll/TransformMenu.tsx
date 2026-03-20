@@ -255,7 +255,7 @@ export function TransformMenu({ clipId, selectedNoteIds }: TransformMenuProps) {
           {activeTransform ? (
             <div>
               <button
-                className="w-full text-left px-2 py-1 text-[10px] text-zinc-500 hover:text-zinc-300 border-b border-[#333]"
+                className="w-full text-left px-2 py-1 text-[10px] text-zinc-400 hover:text-zinc-300 border-b border-[#333]"
                 onClick={() => setActiveTransform(null)}
               >
                 ← Back

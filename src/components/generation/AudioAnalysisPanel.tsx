@@ -151,13 +151,13 @@ export function AudioAnalysisPanel() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-daw-border">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-white">Audio Analysis</span>
-            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-cyan-700/60 text-cyan-200">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-cyan-700/60 text-cyan-200">
               Analyze
             </span>
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors text-base leading-none"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors text-base leading-none"
           >
             ✕
           </button>
@@ -167,40 +167,40 @@ export function AudioAnalysisPanel() {
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
           {/* Source clip info */}
           <div className="bg-[#222]/60 rounded px-3 py-2.5 border border-[#3a3a3a] space-y-0.5">
-            <p className="text-[9px] text-zinc-500 uppercase tracking-wide">Clip</p>
+            <p className="text-[10px] text-zinc-400 uppercase tracking-wide">Clip</p>
             <p className="text-[11px] font-medium text-zinc-200">
               {track.displayName ?? track.trackName}
             </p>
             <p className="text-[10px] text-zinc-400 truncate">{clip.prompt || '(no prompt)'}</p>
-            <p className="text-[10px] text-zinc-500">{clip.duration.toFixed(1)}s</p>
+            <p className="text-[10px] text-zinc-400">{clip.duration.toFixed(1)}s</p>
           </div>
 
           {/* Existing inferred metas */}
           {existingMetas && (
             <div className="bg-[#1a2a1a]/60 rounded px-3 py-2.5 border border-emerald-900/40 space-y-1">
-              <p className="text-[9px] text-emerald-400 uppercase tracking-wide font-medium">Previously Inferred</p>
+              <p className="text-[10px] text-emerald-400 uppercase tracking-wide font-medium">Previously Inferred</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                 {existingMetas.bpm && (
                   <div>
-                    <span className="text-[9px] text-zinc-500">BPM</span>
+                    <span className="text-[10px] text-zinc-400">BPM</span>
                     <p className="text-[11px] font-mono text-emerald-300">{existingMetas.bpm}</p>
                   </div>
                 )}
                 {existingMetas.keyScale && (
                   <div>
-                    <span className="text-[9px] text-zinc-500">Key</span>
+                    <span className="text-[10px] text-zinc-400">Key</span>
                     <p className="text-[11px] font-mono text-emerald-300">{existingMetas.keyScale}</p>
                   </div>
                 )}
                 {existingMetas.timeSignature && (
                   <div>
-                    <span className="text-[9px] text-zinc-500">Time Sig</span>
+                    <span className="text-[10px] text-zinc-400">Time Sig</span>
                     <p className="text-[11px] font-mono text-emerald-300">{existingMetas.timeSignature}</p>
                   </div>
                 )}
                 {existingMetas.genres && (
                   <div className="col-span-2">
-                    <span className="text-[9px] text-zinc-500">Genre</span>
+                    <span className="text-[10px] text-zinc-400">Genre</span>
                     <p className="text-[11px] text-emerald-300">{existingMetas.genres}</p>
                   </div>
                 )}
@@ -211,35 +211,35 @@ export function AudioAnalysisPanel() {
           {/* Analysis results */}
           {result && (
             <div className="bg-[#1a1a2a]/60 rounded px-3 py-2.5 border border-cyan-900/40 space-y-1">
-              <p className="text-[9px] text-cyan-400 uppercase tracking-wide font-medium">Analysis Results</p>
+              <p className="text-[10px] text-cyan-400 uppercase tracking-wide font-medium">Analysis Results</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                 {result.bpm && (
                   <div>
-                    <span className="text-[9px] text-zinc-500">BPM</span>
+                    <span className="text-[10px] text-zinc-400">BPM</span>
                     <p className="text-[11px] font-mono text-cyan-300">{Math.round(result.bpm)}</p>
                   </div>
                 )}
                 {result.keyScale && (
                   <div>
-                    <span className="text-[9px] text-zinc-500">Key</span>
+                    <span className="text-[10px] text-zinc-400">Key</span>
                     <p className="text-[11px] font-mono text-cyan-300">{result.keyScale}</p>
                   </div>
                 )}
                 {result.timeSignature && (
                   <div>
-                    <span className="text-[9px] text-zinc-500">Time Sig</span>
+                    <span className="text-[10px] text-zinc-400">Time Sig</span>
                     <p className="text-[11px] font-mono text-cyan-300">{result.timeSignature}</p>
                   </div>
                 )}
                 {result.genres && (
                   <div className="col-span-2">
-                    <span className="text-[9px] text-zinc-500">Genre</span>
+                    <span className="text-[10px] text-zinc-400">Genre</span>
                     <p className="text-[11px] text-cyan-300">{result.genres}</p>
                   </div>
                 )}
                 {result.caption && (
                   <div className="col-span-2">
-                    <span className="text-[9px] text-zinc-500">Description</span>
+                    <span className="text-[10px] text-zinc-400">Description</span>
                     <p className="text-[10px] text-cyan-200 leading-relaxed">{result.caption}</p>
                   </div>
                 )}
@@ -287,7 +287,7 @@ export function AudioAnalysisPanel() {
               disabled={analyzing || !hasAudio || isGenerating}
               className={`px-4 py-1.5 rounded text-xs font-medium transition-colors ${
                 analyzing || !hasAudio || isGenerating
-                  ? 'bg-[#444] text-zinc-500 cursor-not-allowed'
+                  ? 'bg-[#444] text-zinc-400 cursor-not-allowed'
                   : 'bg-cyan-600 hover:bg-cyan-500 text-white'
               }`}
             >

@@ -57,7 +57,7 @@ export function BounceInPlaceDialog() {
           <button
             type="button"
             onClick={() => !isBouncing && close()}
-            className="text-lg leading-none text-zinc-500 transition-colors hover:text-zinc-200"
+            className="text-lg leading-none text-zinc-400 transition-colors hover:text-zinc-200"
             aria-label="Close bounce dialog"
           >
             ×
@@ -123,7 +123,7 @@ export function BounceInPlaceDialog() {
         </div>
 
         <div className="flex items-center justify-between border-t border-daw-border px-4 py-3">
-          <p className="text-[11px] text-zinc-500">Shortcut: {navigator.platform.includes('Mac') ? '⌘B' : 'Ctrl+B'}</p>
+          <p className="text-[11px] text-zinc-400">Shortcut: {navigator.platform.includes('Mac') ? '⌘B' : 'Ctrl+B'}</p>
           <div className="flex items-center gap-2">
             <button
               type="button"

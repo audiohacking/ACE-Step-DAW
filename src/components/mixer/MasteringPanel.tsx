@@ -36,8 +36,8 @@ export function MasteringPanel() {
     <div className="w-full rounded-lg border border-[#3a3a3a] bg-[#1d1d1d] px-3 py-2 text-[10px] text-zinc-300">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <div className="text-[9px] uppercase tracking-[0.2em] text-cyan-400">AI Master</div>
-          <div className="text-[10px] text-zinc-500">One-click master bus chain</div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-cyan-400">AI Master</div>
+          <div className="text-[10px] text-zinc-400">One-click master bus chain</div>
         </div>
         <button
           onClick={() => void analyzeMastering()}
@@ -54,7 +54,7 @@ export function MasteringPanel() {
           <div className="h-1.5 overflow-hidden rounded-full bg-[#2b2b2b]">
             <div className="h-full w-2/3 animate-pulse rounded-full bg-cyan-500" />
           </div>
-          <p className="text-[10px] text-zinc-500">
+          <p className="text-[10px] text-zinc-400">
             Analyzing loudness, dynamics, and stereo image...
           </p>
         </div>
@@ -64,7 +64,7 @@ export function MasteringPanel() {
         <div className="mt-3 space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded border border-[#313131] bg-[#151515] px-2 py-2">
-              <div className="text-[9px] uppercase tracking-wide text-zinc-500">Before</div>
+              <div className="text-[10px] uppercase tracking-wide text-zinc-400">Before</div>
               <div className="mt-1 flex items-end gap-2">
                 <div className="h-14">
                   <LevelMeter masterStage="input" />
@@ -73,12 +73,12 @@ export function MasteringPanel() {
                   <div className="font-mono text-[11px] text-zinc-100">
                     {formatLufs(mastering.analysis.inputLufs)}
                   </div>
-                  <div className="text-zinc-500">Peak {mastering.analysis.peakDb.toFixed(1)} dB</div>
+                  <div className="text-zinc-400">Peak {mastering.analysis.peakDb.toFixed(1)} dB</div>
                 </div>
               </div>
             </div>
             <div className="rounded border border-cyan-900/50 bg-cyan-950/20 px-2 py-2">
-              <div className="text-[9px] uppercase tracking-wide text-cyan-400">After</div>
+              <div className="text-[10px] uppercase tracking-wide text-cyan-400">After</div>
               <div className="mt-1 flex items-end gap-2">
                 <div className="h-14">
                   <LevelMeter masterStage="output" />
@@ -95,21 +95,21 @@ export function MasteringPanel() {
 
           <div className="grid grid-cols-3 gap-2 text-[10px]">
             <div className="rounded border border-[#313131] bg-[#151515] px-2 py-1.5">
-              <div className="text-zinc-500">Dynamics</div>
+              <div className="text-zinc-400">Dynamics</div>
               <div className="font-mono text-zinc-100">{mastering.analysis.dynamicRangeDb.toFixed(1)} dB</div>
             </div>
             <div className="rounded border border-[#313131] bg-[#151515] px-2 py-1.5">
-              <div className="text-zinc-500">Stereo</div>
+              <div className="text-zinc-400">Stereo</div>
               <div className="font-mono text-zinc-100">{mastering.analysis.stereoWidth.toFixed(2)}x</div>
             </div>
             <div className="rounded border border-[#313131] bg-[#151515] px-2 py-1.5">
-              <div className="text-zinc-500">Tone</div>
+              <div className="text-zinc-400">Tone</div>
               <div className="font-mono text-zinc-100 capitalize">{mastering.analysis.tonalBalance}</div>
             </div>
           </div>
 
           <div>
-            <div className="mb-1 text-[9px] uppercase tracking-wide text-zinc-500">Style</div>
+            <div className="mb-1 text-[10px] uppercase tracking-wide text-zinc-400">Style</div>
             <div className="grid grid-cols-2 gap-1">
               {PRESETS.map((preset) => (
                 <button
@@ -124,7 +124,7 @@ export function MasteringPanel() {
                 >
                   {preset.label}
                   {mastering.analysis?.recommendedPreset === preset.id && (
-                    <span className="ml-1 text-[9px] text-cyan-400">Rec</span>
+                    <span className="ml-1 text-[10px] text-cyan-400">Rec</span>
                   )}
                 </button>
               ))}
@@ -132,7 +132,7 @@ export function MasteringPanel() {
           </div>
 
           <div>
-            <div className="mb-1 text-[9px] uppercase tracking-wide text-zinc-500">Loudness Target</div>
+            <div className="mb-1 text-[10px] uppercase tracking-wide text-zinc-400">Loudness Target</div>
             <div className="flex gap-1">
               {TARGETS.map((target) => (
                 <button

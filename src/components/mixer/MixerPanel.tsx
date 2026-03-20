@@ -86,7 +86,7 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
       <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 overflow-y-auto">
         <div className="w-full h-1.5 rounded-full mb-0.5" style={{ backgroundColor: track.color }} />
         {track.isGroup && (
-          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 bg-[#333] rounded px-1.5 py-0.5">GRP</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 bg-[#333] rounded px-1.5 py-0.5">GRP</span>
         )}
         <span className="text-xs text-zinc-300 font-medium leading-none truncate w-full text-center uppercase tracking-wide" title={track.displayName}>
           {isFrozen && <span className="text-cyan-400 mr-0.5" title="Frozen">*</span>}
@@ -118,7 +118,7 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
 
         {/* Inserts section — 4 effect slots */}
         <div data-testid="inserts-section" className="w-full mt-1">
-          <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-0.5">Inserts</div>
+          <div className="text-[10px] text-zinc-400 uppercase tracking-widest mb-0.5">Inserts</div>
           <div className="flex flex-col gap-0.5">
             {Array.from({ length: MAX_INSERT_SLOTS }).map((_, i) => {
               const effect = effects[i];
@@ -150,7 +150,7 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
 
         {/* Sends section — 2 send slots */}
         <div data-testid="sends-section" className="w-full mt-1">
-          <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-0.5">Sends</div>
+          <div className="text-[10px] text-zinc-400 uppercase tracking-widest mb-0.5">Sends</div>
           <div className="flex flex-col gap-0.5">
             {Array.from({ length: MAX_SEND_SLOTS }).map((_, i) => {
               const rt = returnTracks[i];
@@ -186,14 +186,14 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
           </div>
         </div>
 
-        <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5">EQ</div>
+        <div className="text-[10px] text-zinc-400 uppercase tracking-widest mt-0.5">EQ</div>
         <div className="flex gap-1.5">
           <Knob value={eqLow} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqLowGain: v })} label="Lo" unit="dB" size={34} step={0.5} disabled={isFrozen} />
           <Knob value={eqMid} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqMidGain: v })} label="Mid" unit="dB" size={34} step={0.5} disabled={isFrozen} />
           <Knob value={eqHigh} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqHighGain: v })} label="Hi" unit="dB" size={34} step={0.5} disabled={isFrozen} />
         </div>
 
-        <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5">Comp</div>
+        <div className="text-[10px] text-zinc-400 uppercase tracking-widest mt-0.5">Comp</div>
         <button
           onClick={() => updateTrackMixer(track.id, { compressorEnabled: !compEnabled })}
           className={`text-xs font-semibold px-2 py-1 rounded w-full transition-colors ${
@@ -244,7 +244,7 @@ function MasterStrip({ faderHeight }: MasterStripProps) {
         <span className="text-xs font-bold uppercase tracking-widest text-zinc-300">Master</span>
         <button
           onClick={toggleSpectrum}
-          className={`ml-auto rounded px-1.5 py-0.5 text-[9px] font-semibold transition-colors ${
+          className={`ml-auto rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${
             showSpectrum ? 'bg-blue-600 text-white' : 'bg-[#444] text-zinc-400 hover:bg-[#555]'
           }`}
           title="Toggle spectrum analyzer & LUFS meter"

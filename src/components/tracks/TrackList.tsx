@@ -93,7 +93,7 @@ export function TrackList() {
         className="shrink-0 border-b border-[#3a3a3a] bg-[#333] flex items-center px-2 justify-between"
         style={{ height: TIMELINE_RULER_HEIGHT }}
       >
-        <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Tracks</span>
+        <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-medium">Tracks</span>
         <TrackHeightPresetSelector />
       </div>
 

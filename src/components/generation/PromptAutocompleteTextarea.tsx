@@ -175,7 +175,7 @@ export function PromptAutocompleteTextarea({
                 onClick={() => commitSuggestion(suggestion.value)}
               >
                 <span>{suggestion.value}</span>
-                <span className="rounded-full border border-[#444] px-1.5 py-0.5 text-[10px] tracking-wide text-zinc-500">
+                <span className="rounded-full border border-[#444] px-1.5 py-0.5 text-[10px] tracking-wide text-zinc-400">
                   {suggestion.category.charAt(0).toUpperCase() + suggestion.category.slice(1)}
                 </span>
               </button>

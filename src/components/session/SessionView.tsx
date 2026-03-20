@@ -45,7 +45,7 @@ export function SessionView() {
       <div className="sticky top-0 z-20 border-b border-[#303030] bg-[#1c1c1c]/95 backdrop-blur-sm">
         <div className="flex items-center justify-between px-4 py-3">
           <div>
-            <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">Performance Grid</div>
+            <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-400">Performance Grid</div>
             <div className="text-sm font-semibold text-zinc-100">Session View clip launcher</div>
             <div className="text-[11px] text-zinc-400">Launch clips by track or scene, then record the performance into Arrangement.</div>
           </div>
@@ -80,7 +80,7 @@ export function SessionView() {
       </div>
 
       <div className="grid min-w-[980px]" style={{ gridTemplateColumns: `220px repeat(${sceneCount}, minmax(150px, 1fr))` }}>
-        <div className="sticky top-[72px] z-10 border-b border-r border-[#333] bg-[#242424] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+        <div className="sticky top-[72px] z-10 border-b border-r border-[#333] bg-[#242424] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
           Tracks
         </div>
         {Array.from({ length: sceneCount }, (_, sceneIndex) => {
@@ -93,7 +93,7 @@ export function SessionView() {
             <div key={`scene-${sceneIndex}`} className="sticky top-[72px] z-10 border-b border-r border-[#333] bg-[#242424] px-3 py-2">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Scene</div>
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-400">Scene</div>
                   <div className="text-sm font-semibold text-zinc-100">{sceneIndex + 1}</div>
                 </div>
                 <button
@@ -151,7 +151,7 @@ function FragmentRow({
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate text-sm font-medium text-zinc-100">{track.displayName}</div>
-            <div className="text-[11px] text-zinc-500">{track.trackType ?? 'stems'}</div>
+            <div className="text-[11px] text-zinc-400">{track.trackType ?? 'stems'}</div>
           </div>
           <button
             onClick={() => void onStop()}
@@ -180,7 +180,7 @@ function FragmentRow({
                 aria-label={`Launch ${getClipLabel(clip, sceneIndex)} on ${track.displayName} in scene ${sceneIndex + 1}`}
               >
                 <div>
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-zinc-500">
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-zinc-400">
                     {clip.midiData ? 'MIDI' : clip.source === 'uploaded' ? 'Audio' : 'Generated'}
                   </div>
                   <div className="mt-1 line-clamp-2 text-sm font-medium text-zinc-100">

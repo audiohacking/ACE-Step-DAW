@@ -95,7 +95,7 @@ export function GeneratePatternDialog() {
           <h2 className="text-sm font-semibold text-zinc-100">Generate Pattern</h2>
           <button
             onClick={handleCancel}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors text-lg leading-none"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors text-lg leading-none"
             aria-label="Close generate pattern dialog"
           >
             x

@@ -119,11 +119,11 @@ export function AssetsPanel() {
 
       {/* Header */}
       <div className="flex items-center h-6 px-3 border-b border-[#3a3a3a] bg-[#333] shrink-0">
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" className="text-zinc-500 mr-1.5">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" className="text-zinc-400 mr-1.5">
           <circle cx="5" cy="5" r="3.5" />
           <path d="M8 8l2.5 2.5" strokeLinecap="round" />
         </svg>
-        <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Library</span>
+        <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-medium">Library</span>
       </div>
 
       {/* Search */}
@@ -152,7 +152,7 @@ export function AssetsPanel() {
             {f.label}
           </button>
         ))}
-        <span className="text-[9px] text-zinc-600 self-center ml-auto">{filteredAssets.length} items</span>
+        <span className="text-[10px] text-zinc-600 self-center ml-auto">{filteredAssets.length} items</span>
       </div>
 
       {/* Results list */}
@@ -191,9 +191,9 @@ export function AssetsPanel() {
                       </span>
                     </div>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <span className="text-[9px] text-zinc-500 truncate">{asset.trackDisplayName}</span>
-                      <span className="text-[9px] text-zinc-600">·</span>
-                      <span className="text-[9px] text-zinc-500">{fmtDuration(asset.duration)}</span>
+                      <span className="text-[10px] text-zinc-400 truncate">{asset.trackDisplayName}</span>
+                      <span className="text-[10px] text-zinc-600">·</span>
+                      <span className="text-[10px] text-zinc-400">{fmtDuration(asset.duration)}</span>
                     </div>
                   </div>
 

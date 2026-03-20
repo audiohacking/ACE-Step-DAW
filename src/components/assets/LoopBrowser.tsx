@@ -270,7 +270,7 @@ export function LoopBrowser() {
         >
           My Loops
           {allAssets.length > 0 && (
-            <span className="ml-1 text-[9px] text-white/20">{allAssets.length}</span>
+            <span className="ml-1 text-[10px] text-white/20">{allAssets.length}</span>
           )}
         </button>
       </div>
@@ -337,7 +337,7 @@ export function LoopBrowser() {
                 {f.label}
               </button>
             ))}
-            <span className="text-[9px] text-white/20 self-center ml-auto">{filteredAssets.length} items</span>
+            <span className="text-[10px] text-white/20 self-center ml-auto">{filteredAssets.length} items</span>
           </div>
 
           {/* Asset list */}
@@ -345,7 +345,7 @@ export function LoopBrowser() {
             {filteredAssets.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-24 text-white/20 text-xs gap-1">
                 <span>No loops yet</span>
-                <span className="text-[9px] text-white/10">Generate or import audio to see it here</span>
+                <span className="text-[10px] text-white/10">Generate or import audio to see it here</span>
               </div>
             ) : (
               filteredAssets.map((asset) => (

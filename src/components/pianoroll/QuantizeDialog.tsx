@@ -111,7 +111,7 @@ export function QuantizeDialog() {
           </h2>
           <button
             onClick={handleCancel}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors text-lg leading-none"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors text-lg leading-none"
           >
             x
           </button>

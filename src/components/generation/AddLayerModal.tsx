@@ -231,18 +231,18 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
             <span className="text-sm font-semibold text-white">
               {isEditMode ? 'Edit Clip' : 'Add Layer'}
             </span>
-            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${modeBadgeClass}`}>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${modeBadgeClass}`}>
               {modeLabel}
             </span>
             {hasContext && (
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-blue-900/60 text-blue-200 border border-blue-700/40">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-900/60 text-blue-200 border border-blue-700/40">
                 ctx {fmt(contextWindow!.startTime)} — {fmt(contextWindow!.endTime)}
               </span>
             )}
           </div>
           <button
             onClick={() => { stopPreview(); onClose(); }}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors text-base leading-none"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors text-base leading-none"
           >
             ✕
           </button>
@@ -327,7 +327,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                 disabled={previewState !== 'playing'}
                 className="flex-1 h-1 accent-blue-400 cursor-pointer disabled:opacity-40"
               />
-              <span className="text-[9px] font-mono text-blue-300 shrink-0 w-[60px] text-right">
+              <span className="text-[10px] font-mono text-blue-300 shrink-0 w-[60px] text-right">
                 {fmtTime(previewCurrentTime)} / {fmtTime(previewDuration)}
               </span>
             </div>
@@ -435,7 +435,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
             <button
               type="button"
               onClick={() => setShowAdvanced((v) => !v)}
-              className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+              className="text-[10px] text-zinc-400 hover:text-zinc-300 transition-colors"
             >
               {showAdvanced ? '▾' : '▸'} Advanced options
             </button>
@@ -462,7 +462,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                   </label>
                 </div>
                 <div>
-                  <label className="block text-[10px] text-zinc-500 mb-1">Seed (optional)</label>
+                  <label className="block text-[10px] text-zinc-400 mb-1">Seed (optional)</label>
                   <input
                     type="number"
                     value={seedValue}
@@ -470,7 +470,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                     placeholder="Leave empty for random"
                     className="w-full bg-[#222] border border-[#444] rounded px-2.5 py-1.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-daw-accent"
                   />
-                  <p className="mt-1 text-[9px] text-zinc-600">
+                  <p className="mt-1 text-[10px] text-zinc-600">
                     Project: {project.bpm} BPM · {project.keyScale} · {project.timeSignature}/4
                   </p>
                 </div>
@@ -481,35 +481,35 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
           {/* Inferred metadata (edit mode only, when clip has been generated) */}
           {isEditMode && existingClip?.generationStatus === 'ready' && existingClip.inferredMetas && (
             <div className="border-t border-[#3a3a3a] pt-2">
-              <p className="text-[9px] text-zinc-500 mb-1.5">Inferred by ACE-Step</p>
+              <p className="text-[10px] text-zinc-400 mb-1.5">Inferred by ACE-Step</p>
               <div className="grid grid-cols-3 gap-x-3 gap-y-1">
                 {existingClip.inferredMetas.bpm != null && (
                   <div>
-                    <span className="text-[9px] text-zinc-500">BPM</span>
+                    <span className="text-[10px] text-zinc-400">BPM</span>
                     <p className="text-[10px] text-zinc-300">{existingClip.inferredMetas.bpm}</p>
                   </div>
                 )}
                 {existingClip.inferredMetas.keyScale && (
                   <div>
-                    <span className="text-[9px] text-zinc-500">Key</span>
+                    <span className="text-[10px] text-zinc-400">Key</span>
                     <p className="text-[10px] text-zinc-300">{existingClip.inferredMetas.keyScale}</p>
                   </div>
                 )}
                 {existingClip.inferredMetas.timeSignature && (
                   <div>
-                    <span className="text-[9px] text-zinc-500">Time Sig</span>
+                    <span className="text-[10px] text-zinc-400">Time Sig</span>
                     <p className="text-[10px] text-zinc-300">{existingClip.inferredMetas.timeSignature}</p>
                   </div>
                 )}
                 {existingClip.inferredMetas.genres && (
                   <div>
-                    <span className="text-[9px] text-zinc-500">Genres</span>
+                    <span className="text-[10px] text-zinc-400">Genres</span>
                     <p className="text-[10px] text-zinc-300 truncate">{existingClip.inferredMetas.genres}</p>
                   </div>
                 )}
                 {existingClip.inferredMetas.seed && (
                   <div>
-                    <span className="text-[9px] text-zinc-500">Seed</span>
+                    <span className="text-[10px] text-zinc-400">Seed</span>
                     <p className="text-[10px] text-zinc-300 truncate">{existingClip.inferredMetas.seed}</p>
                   </div>
                 )}
@@ -540,7 +540,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                   disabled={isGenerating}
                   className={`px-4 py-1.5 rounded text-xs font-medium transition-colors ${
                     isGenerating
-                      ? 'bg-[#444] text-zinc-500 cursor-not-allowed'
+                      ? 'bg-[#444] text-zinc-400 cursor-not-allowed'
                       : hasContext
                         ? 'bg-teal-600 hover:bg-teal-500 text-white'
                         : 'bg-violet-600 hover:bg-violet-500 text-white'
@@ -563,7 +563,7 @@ export function AddLayerModal({ trackId, startTime, duration, contextWindow, onC
                 disabled={isGenerating}
                 className={`px-4 py-1.5 rounded text-xs font-medium transition-colors ${
                   isGenerating
-                    ? 'bg-[#444] text-zinc-500 cursor-not-allowed'
+                    ? 'bg-[#444] text-zinc-400 cursor-not-allowed'
                     : hasContext
                       ? 'bg-teal-600 hover:bg-teal-500 text-white'
                       : 'bg-violet-600 hover:bg-violet-500 text-white'

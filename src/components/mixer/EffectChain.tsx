@@ -413,7 +413,7 @@ export function EffectChain() {
       <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0e0e24] border-b border-white/5 shrink-0">
         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: track.color }} />
         <span className="text-[11px] text-white/70 font-medium">{track.displayName}</span>
-        <span className="text-[9px] text-white/30 ml-1">
+        <span className="text-[10px] text-white/30 ml-1">
           — {effects.length} effect{effects.length !== 1 ? 's' : ''}
         </span>
         <button

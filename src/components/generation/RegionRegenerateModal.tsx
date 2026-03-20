@@ -70,13 +70,13 @@ export function RegionRegenerateModal() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-daw-border">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-white">Regenerate Region</span>
-            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-violet-700/60 text-violet-200">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-violet-700/60 text-violet-200">
               AI Regen
             </span>
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors text-base leading-none"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors text-base leading-none"
           >
             ✕
           </button>
@@ -86,7 +86,7 @@ export function RegionRegenerateModal() {
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
           {/* Region info */}
           <div className="bg-[#222]/60 rounded px-3 py-2.5 border border-[#3a3a3a] space-y-0.5">
-            <p className="text-[9px] text-zinc-500 uppercase tracking-wide">Selected region</p>
+            <p className="text-[10px] text-zinc-400 uppercase tracking-wide">Selected region</p>
             <p className="text-[10px] text-zinc-400 font-mono">
               {fmt(target.startTime)} — {fmt(target.endTime)} ({fmt(target.endTime - target.startTime)} duration)
             </p>
@@ -154,7 +154,7 @@ export function RegionRegenerateModal() {
             />
           </div>
 
-          <p className="text-[9px] text-zinc-600">
+          <p className="text-[10px] text-zinc-600">
             Only clips within the selected region will be regenerated. Original versions are preserved and can be restored.
           </p>
         </div>
@@ -172,7 +172,7 @@ export function RegionRegenerateModal() {
             disabled={isGenerating || readyClipCount === 0}
             className={`px-4 py-1.5 rounded text-xs font-medium transition-colors ${
               isGenerating || readyClipCount === 0
-                ? 'bg-[#444] text-zinc-500 cursor-not-allowed'
+                ? 'bg-[#444] text-zinc-400 cursor-not-allowed'
                 : 'bg-violet-600 hover:bg-violet-500 text-white'
             }`}
           >

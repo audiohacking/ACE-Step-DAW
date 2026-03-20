@@ -142,7 +142,7 @@ export function ClipContextMenu({
 
         <div className="my-1 border-t border-[#555]" />
         <button onClick={onSplitAtPlayhead} className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors">
-          Split at Playhead <span className="float-right text-zinc-500 text-[10px]">S</span>
+          Split at Playhead <span className="float-right text-zinc-400 text-[10px]">S</span>
         </button>
         <button onClick={onDuplicate} className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-200 hover:bg-daw-accent hover:text-white transition-colors">
           Duplicate

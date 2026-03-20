@@ -670,7 +670,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
           />
         )}
 
-        <div className="absolute top-0 left-1.5 text-[9px] font-medium text-white truncate leading-4 z-10 drop-shadow-sm pointer-events-none"
+        <div className="absolute top-0 left-1.5 text-[10px] font-medium text-white truncate leading-4 z-10 drop-shadow-sm pointer-events-none"
           style={{ right: totalVersions >= 1 ? '52px' : '6px' }}
         >
           {isMidiClip ? `${clip.midiData?.notes.length ?? 0} notes` : (clip.prompt || '(no prompt)')}
@@ -868,11 +868,11 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
               color={track.color}
               opacityClassName="opacity-50"
             />
-            <div className="absolute top-0 left-1.5 right-1.5 text-[9px] font-medium text-white truncate leading-4 z-10 drop-shadow-sm">
+            <div className="absolute top-0 left-1.5 right-1.5 text-[10px] font-medium text-white truncate leading-4 z-10 drop-shadow-sm">
               {clip.prompt || track.displayName}
             </div>
             {dragGhost.isShiftCopy && (
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow z-20">
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow z-20">
                 +
               </div>
             )}

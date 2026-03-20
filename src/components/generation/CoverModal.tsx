@@ -61,13 +61,13 @@ export function CoverModal() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-daw-border">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-white">Create Cover</span>
-            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-amber-700/60 text-amber-200">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-700/60 text-amber-200">
               Cover
             </span>
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors text-base leading-none"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors text-base leading-none"
           >
             ✕
           </button>
@@ -77,7 +77,7 @@ export function CoverModal() {
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
           {/* Source clip info */}
           <div className="bg-[#222]/60 rounded px-3 py-2.5 border border-[#3a3a3a] space-y-0.5">
-            <p className="text-[9px] text-zinc-500 uppercase tracking-wide">Source clip</p>
+            <p className="text-[10px] text-zinc-400 uppercase tracking-wide">Source clip</p>
             <p className="text-[11px] font-medium text-zinc-200">
               {track.displayName ?? track.trackName}
             </p>
@@ -141,7 +141,7 @@ export function CoverModal() {
               onChange={(e) => setCoverStrength(Number(e.target.value))}
               className="w-full h-1.5 accent-amber-400 cursor-pointer"
             />
-            <div className="flex justify-between text-[9px] text-zinc-600 mt-0.5">
+            <div className="flex justify-between text-[10px] text-zinc-600 mt-0.5">
               <span>0.0 — close to original</span>
               <span>1.0 — fully reimagined</span>
             </div>
@@ -174,7 +174,7 @@ export function CoverModal() {
             disabled={isGenerating || !hasAudio || !coverSupported}
             className={`px-4 py-1.5 rounded text-xs font-medium transition-colors ${
               isGenerating || !hasAudio || !coverSupported
-                ? 'bg-[#444] text-zinc-500 cursor-not-allowed'
+                ? 'bg-[#444] text-zinc-400 cursor-not-allowed'
                 : 'bg-amber-600 hover:bg-amber-500 text-white'
             }`}
           >

@@ -252,7 +252,7 @@ export function DrumMachineEditor() {
 
               {/* Volume */}
               <label className="flex flex-col gap-1">
-                <span className="text-[9px] text-white/40 uppercase">Volume</span>
+                <span className="text-[10px] text-white/40 uppercase">Volume</span>
                 <input
                   type="range"
                   min={0}
@@ -262,14 +262,14 @@ export function DrumMachineEditor() {
                   onChange={(e) => setDrumPadVolume(trackId, selectedPad!, parseFloat(e.target.value))}
                   className="w-full accent-blue-500 h-1"
                 />
-                <span className="text-[9px] text-white/30 text-right">
+                <span className="text-[10px] text-white/30 text-right">
                   {Math.round(selectedPadData.volume * 100)}%
                 </span>
               </label>
 
               {/* Sample key display */}
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] text-white/40 uppercase">Sample</span>
+                <span className="text-[10px] text-white/40 uppercase">Sample</span>
                 <span className="text-[10px] text-white/60 bg-white/5 rounded px-2 py-1 truncate">
                   {selectedPadData.sampleKey}
                 </span>

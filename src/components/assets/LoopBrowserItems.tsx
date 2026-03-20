@@ -142,18 +142,18 @@ export function PresetLoopItem({
       <div className="flex-1 min-w-0">
         <div className="text-xs text-white/80 truncate">{def.name}</div>
         <div className="flex items-center gap-1 mt-0.5">
-          <span className={`text-[9px] px-1 py-0 rounded ${categoryColor}`}>
+          <span className={`text-[10px] px-1 py-0 rounded ${categoryColor}`}>
             {def.category}
           </span>
-          <span className="text-[9px] text-white/30 px-1 py-0 rounded bg-white/5">
+          <span className="text-[10px] text-white/30 px-1 py-0 rounded bg-white/5">
             {def.bpm}
           </span>
           {def.key && (
-            <span className="text-[9px] text-white/30 px-1 py-0 rounded bg-white/5">
+            <span className="text-[10px] text-white/30 px-1 py-0 rounded bg-white/5">
               {def.key}
             </span>
           )}
-          <span className="text-[9px] text-white/20">
+          <span className="text-[10px] text-white/20">
             {formatDuration(duration)}
           </span>
         </div>
@@ -225,8 +225,8 @@ export function AssetLoopItem({
           </span>
         </div>
         <div className="flex items-center gap-1 mt-0.5">
-          <span className="text-[9px] text-white/40 truncate">{asset.trackDisplayName}</span>
-          <span className="text-[9px] text-white/20">{fmtDuration(asset.duration)}</span>
+          <span className="text-[10px] text-white/40 truncate">{asset.trackDisplayName}</span>
+          <span className="text-[10px] text-white/20">{fmtDuration(asset.duration)}</span>
         </div>
       </div>
 

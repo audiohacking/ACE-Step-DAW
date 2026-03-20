@@ -195,11 +195,11 @@ export function Knob({
         />
       )}
       {label && (
-        <span className="text-[9px] text-zinc-500 leading-none uppercase tracking-wide">
+        <span className="text-[10px] text-zinc-400 leading-none uppercase tracking-wide">
           {label}
         </span>
       )}
-      <span className="text-[9px] text-zinc-400 leading-none font-mono">
+      <span className="text-[10px] text-zinc-400 leading-none font-mono">
         {displayValue}{unit}
       </span>
     </div>
