@@ -554,6 +554,9 @@ export function Timeline() {
               <TrackLane key={track.id} track={track} />
             ))}
 
+            {/* Empty placeholder rows — infinite grid like ACE Studio */}
+            <EmptyTrackRows />
+
             <TimelineEmptyState />
 
             {/* Inline AI suggestion badges */}
@@ -591,6 +594,26 @@ export function Timeline() {
           onClose={() => setCanvasCtxMenu(null)}
         />
       )}
+    </>
+  );
+}
+
+/** Empty placeholder rows below tracks — creates infinite grid like ACE Studio */
+const PLACEHOLDER_ROW_HEIGHT = 64; // matches default track height
+const PLACEHOLDER_ROW_COUNT = 20;  // enough to fill any viewport
+
+function EmptyTrackRows() {
+  return (
+    <>
+      {Array.from({ length: PLACEHOLDER_ROW_COUNT }, (_, i) => (
+        <div
+          key={`empty-row-${i}`}
+          style={{
+            height: PLACEHOLDER_ROW_HEIGHT,
+            borderBottom: '1px solid var(--color-daw-arrangement-separator)',
+          }}
+        />
+      ))}
     </>
   );
 }

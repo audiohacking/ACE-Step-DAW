@@ -140,7 +140,7 @@ export function TimeRuler() {
 
   return (
     <div
-      className="relative bg-[#1a1a28] border-b border-[#3a3a55] overflow-hidden select-none cursor-pointer"
+      className="relative bg-[#1a1a28] border-b border-[#3a3a55] select-none cursor-pointer z-30"
       style={{ width: totalWidth, height: TIMELINE_RULER_HEIGHT }}
       role="slider"
       aria-label="Timeline scrub ruler"
