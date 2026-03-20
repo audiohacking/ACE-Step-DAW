@@ -7,6 +7,11 @@ import { TrackEditModal } from './TrackEditModal';
 import { TrackHeaderMeter } from './TrackHeaderMeter';
 import { useRecording } from '../../hooks/useRecording';
 import { freezeTrackToAudio, flattenTrackToAudio } from '../../services/freezeTrack';
+import {
+  ARRANGEMENT_GROUP_ROW_BG,
+  ARRANGEMENT_HEADER_ROW_BG,
+  ARRANGEMENT_ROW_SEPARATOR_COLOR,
+} from '../arrangement/rowSurface';
 
 const MIN_LANE_HEIGHT = 40;
 const MAX_LANE_HEIGHT = 400;
@@ -118,6 +123,7 @@ export function TrackHeader({
   const monitorMode: InputMonitoringMode = track.inputMonitoring ?? 'off';
   const hasAutomationLane = (project?.automationLanes ?? []).some((lane) => lane.trackId === track.id);
   const showSecondaryActions = monitorMode !== 'off' || track.frozen || isFreezing || hasAutomationLane;
+  const headerBackgroundColor = track.isGroup ? ARRANGEMENT_GROUP_ROW_BG : ARRANGEMENT_HEADER_ROW_BG;
   const primaryButtonClass = 'w-6 h-6 flex items-center justify-center rounded-md transition-colors';
   const secondaryButtonClass = 'w-5 h-5 flex items-center justify-center rounded-md transition-colors';
 
@@ -175,10 +181,12 @@ export function TrackHeader({
       data-group={track.isGroup ? 'true' : undefined}
       data-child={isChild ? 'true' : undefined}
       aria-label={track.isGroup ? `Group track: ${track.displayName}${track.collapsed ? ' (collapsed)' : ''}` : `Track: ${track.displayName}`}
-      className={`relative flex items-center gap-2 border-b border-[#3a3a3a] group select-none ${
-        isDragOver ? 'bg-[#383838]' : isTrackSelected ? 'bg-blue-500/10 ring-1 ring-inset ring-blue-500/50' : track.isGroup ? 'bg-[#333]' : 'bg-[#2d2d2d]'
+      className={`relative flex items-center gap-2 border-b group select-none ${
+        isDragOver ? 'bg-[#383838]' : isTrackSelected ? 'ring-1 ring-inset ring-blue-500/50' : ''
       }`}
       style={{
+        backgroundColor: isDragOver ? undefined : isTrackSelected ? 'rgba(59, 130, 246, 0.1)' : headerBackgroundColor,
+        borderColor: ARRANGEMENT_ROW_SEPARATOR_COLOR,
         height: track.isGroup ? Math.max(40, laneHeight * 0.7) : laneHeight,
         paddingLeft: isChild ? 24 : 8,
         paddingRight: 8,
