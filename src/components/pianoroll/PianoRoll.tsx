@@ -44,13 +44,13 @@ export function PianoRoll() {
   const openClipId = useUIStore((s) => s.openPianoRollClipId);
   const selectedPianoRollNoteIds = useUIStore((s) => s.selectedPianoRollNoteIds);
   const activeTool = useUIStore((s) => s.activePianoRollTool);
-  const activeChordShapeAbbr = useUIStore((s) => s.activeChordShape);
+  const activeChordShapeAbbr = useUIStore((s) => s.activePianoRollChordShape);
   const pianoRollHeight = useUIStore((s) => s.pianoRollHeight);
   const setPianoRollHeight = useUIStore((s) => s.setPianoRollHeight);
   const setOpenPianoRoll = useUIStore((s) => s.setOpenPianoRoll);
   const setSelectedPianoRollNoteIds = useUIStore((s) => s.setSelectedPianoRollNoteIds);
   const setActivePianoRollTool = useUIStore((s) => s.setActivePianoRollTool);
-  const setActiveChordShape = useUIStore((s) => s.setActiveChordShape);
+  const setActivePianoRollChordShape = useUIStore((s) => s.setActivePianoRollChordShape);
   const togglePianoRollPencilTool = useUIStore((s) => s.togglePianoRollPencilTool);
   const setKeyboardContext = useUIStore((s) => s.setKeyboardContext);
   const openGeneratePatternDialog = useUIStore((s) => s.openGeneratePatternDialog);
@@ -258,7 +258,7 @@ export function PianoRoll() {
         <select
           aria-label="Piano roll chord shape"
           value={activeChordShapeAbbr}
-          onChange={(e) => setActiveChordShape(e.target.value)}
+          onChange={(e) => setActivePianoRollChordShape(e.target.value)}
           className="bg-[#111] border border-[#333] rounded px-2 py-1 text-[11px] text-zinc-300"
           title="Chord stamp shape for Shift+click placement"
         >

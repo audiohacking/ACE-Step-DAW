@@ -94,8 +94,8 @@ export type AgentProjectState = ProjectState & Pick<
   | 'variationSession'
   | 'submitGenerationRequest'
 > & {
-  activePianoRollChordShape: UIState['activeChordShape'];
-  setActivePianoRollChordShape: UIState['setActiveChordShape'];
+  activePianoRollChordShape: UIState['activePianoRollChordShape'];
+  setActivePianoRollChordShape: UIState['setActivePianoRollChordShape'];
 };
 
 // ---------------------------------------------------------------------------
