@@ -1,10 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { NewProjectDialog } from '../../src/components/dialogs/NewProjectDialog';
 import { SettingsDialog } from '../../src/components/dialogs/SettingsDialog';
 import { useUIStore } from '../../src/store/uiStore';
 import { useProjectStore } from '../../src/store/projectStore';
+import { getAudioEngine } from '../../src/hooks/useAudioEngine';
 
 vi.mock('../../src/services/aceStepApi', () => ({
   listModels: vi.fn().mockResolvedValue([]),
@@ -20,6 +21,12 @@ vi.mock('../../src/services/projectStorage', () => ({
   listTemplates: vi.fn().mockResolvedValue([]),
   loadTemplate: vi.fn().mockResolvedValue(null),
   deleteTemplate: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../src/hooks/useAudioEngine', () => ({
+  getAudioEngine: vi.fn(() => ({
+    previewMetronomeClick: vi.fn().mockResolvedValue(undefined),
+  })),
 }));
 
 describe('BPM input — clamp on blur, not keystroke', () => {
@@ -83,6 +90,12 @@ describe('BPM input — clamp on blur, not keystroke', () => {
   });
 
   describe('SettingsDialog', () => {
+    beforeEach(() => {
+      vi.mocked(getAudioEngine).mockReturnValue({
+        previewMetronomeClick: vi.fn().mockResolvedValue(undefined),
+      } as unknown as ReturnType<typeof getAudioEngine>);
+    });
+
     function getSettingsBpmInput(container: HTMLElement): HTMLInputElement {
       // Settings dialog has multiple number inputs; BPM is the one with min=40
       const inputs = container.querySelectorAll('input[type="number"]');
@@ -123,6 +136,49 @@ describe('BPM input — clamp on blur, not keystroke', () => {
       fireEvent.blur(input);
       // Should clamp to min (30)
       expect(Number(input.value)).toBeGreaterThanOrEqual(30);
+    });
+
+    it('plays a metronome-style preview click on tap', () => {
+      const previewMetronomeClick = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(getAudioEngine).mockReturnValue({
+        previewMetronomeClick,
+      } as unknown as ReturnType<typeof getAudioEngine>);
+
+      render(<SettingsDialog />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Tap tempo' }));
+
+      expect(previewMetronomeClick).toHaveBeenCalledTimes(1);
+    });
+
+    it('updates BPM from sequential tap tempo input', () => {
+      const { container } = render(<SettingsDialog />);
+      const input = getSettingsBpmInput(container);
+      const tapButton = screen.getByRole('button', { name: 'Tap tempo' });
+      let currentNow = 1000;
+      const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => currentNow);
+
+      act(() => {
+        fireEvent.click(tapButton);
+        currentNow = 1500;
+        fireEvent.click(tapButton);
+      });
+      expect(input.value).toBe('120');
+
+      act(() => {
+        currentNow = 2000;
+        fireEvent.click(tapButton);
+      });
+      expect(input.value).toBe('120');
+
+      nowSpy.mockRestore();
+    });
+
+    it('shows the Key label and removes Key / Scale copy', () => {
+      render(<SettingsDialog />);
+
+      expect(screen.getByText('Key')).toBeInTheDocument();
+      expect(screen.queryByText('Key / Scale')).not.toBeInTheDocument();
     });
 
     it('shows detected playback latency and saves a manual override', () => {

@@ -243,6 +243,32 @@ export class AudioEngine {
     }
   }
 
+  async previewMetronomeClick(accent = false) {
+    await this.resume();
+    const now = this.ctx.currentTime;
+    const freq = accent ? 1200 : 800;
+    const clickDuration = 0.03;
+
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(1, now);
+    env.gain.exponentialRampToValueAtTime(0.001, now + clickDuration);
+
+    osc.connect(env);
+    env.connect(this._metronomeGain);
+
+    osc.start(now);
+    osc.stop(now + clickDuration + 0.01);
+
+    osc.addEventListener('ended', () => {
+      osc.disconnect();
+      env.disconnect();
+    }, { once: true });
+  }
+
   setTimeUpdateCallback(cb: (time: number) => void) {
     this._onTimeUpdate = cb;
   }

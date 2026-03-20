@@ -4,6 +4,7 @@ import { useProjectStore } from '../../store/projectStore';
 import { listModels, initModel, getBackendUrl, setBackendUrl } from '../../services/aceStepApi';
 import { DEFAULT_GENERATION, DEFAULT_MEASURES } from '../../constants/defaults';
 import { normalizePlaybackLatencySettings } from '../../utils/playbackLatency';
+import { getAudioEngine } from '../../hooks/useAudioEngine';
 import type { ModelEntry, LmModelEntry } from '../../types/api';
 
 function modelSupportsThinking(modelName: string): boolean {
@@ -21,6 +22,7 @@ export function SettingsDialog() {
   const tapResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleTapTempo = useCallback(() => {
+    void getAudioEngine().previewMetronomeClick();
     const now = Date.now();
     const taps = tapTimesRef.current;
 
@@ -259,8 +261,8 @@ export function SettingsDialog() {
 
           <h3 className="text-xs font-medium text-zinc-300 pt-2">Project</h3>
 
-          <div className="grid grid-cols-4 gap-3">
-            <div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
               <label className="block text-xs text-zinc-400 mb-1">BPM</label>
               <div className="flex gap-1.5">
                 <input
@@ -289,7 +291,7 @@ export function SettingsDialog() {
               </div>
             </div>
             <div>
-              <label className="block text-xs text-zinc-400 mb-1">Key / Scale</label>
+              <label className="block text-xs text-zinc-400 mb-1">Key</label>
               <input
                 type="text"
                 value={keyScale}
