@@ -31,11 +31,11 @@ function LCDDisplay() {
 
   return (
     <div className="gb-lcd flex items-center gap-3 px-3 py-1 min-w-[200px] justify-center">
-      <span className={`text-[13px] font-mono tracking-wider ${barsBeatsColor}`}>{displayBarsBeats}</span>
-      <span className="text-[11px] font-mono text-zinc-400">{formatTime(currentTime)}</span>
+      <span className={`text-[13px] font-mono tabular-nums tracking-wider ${barsBeatsColor}`}>{displayBarsBeats}</span>
+      <span className="text-[11px] font-mono tabular-nums text-zinc-400">{formatTime(currentTime)}</span>
       {project && !countInActive && (
         <>
-          <span className="text-[11px] font-mono text-zinc-400">{project.bpm} bpm</span>
+          <span className="text-[11px] font-mono tabular-nums text-zinc-400">{project.bpm} bpm</span>
           <span className="text-[10px] text-emerald-600/60" title="Project auto-saved to browser storage">●</span>
         </>
       )}
