@@ -10,7 +10,7 @@ import type { Track, ReturnTrack, TrackEffectType } from '../../types/project';
 
 const MIXER_MIN_VISIBLE_HEIGHT = 360;
 const MIXER_RESIZE_HANDLE_HEIGHT = 6;
-const CHANNEL_STRIP_RESERVED_HEIGHT = 346;
+const CHANNEL_STRIP_RESERVED_HEIGHT = 380;
 const CHANNEL_STRIP_BOTTOM_PADDING = 12;
 const FADER_MIN_HEIGHT = 96;
 const MAX_INSERT_SLOTS = 4;
@@ -73,7 +73,7 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
       aria-label={`Mixer channel ${track.displayName}`}
       aria-selected={isSelected ? 'true' : 'false'}
       tabIndex={0}
-      className={`flex h-full min-h-0 min-w-[120px] flex-col overflow-hidden border-r border-[#3a3a3a] bg-[#2a2a2a] px-3 py-2 ${isSelected ? 'ring-1 ring-inset ring-daw-accent' : ''} ${isFrozen ? 'opacity-70' : ''}`}
+      className={`flex h-full min-h-0 min-w-[132px] flex-col overflow-hidden border-r border-[#3a3a3a] bg-[#2a2a2a] px-3 py-2 ${isSelected ? 'ring-1 ring-inset ring-daw-accent' : ''} ${isFrozen ? 'opacity-70' : ''}`}
       onFocus={() => {
         setExpandedTrackId(track.id);
         setKeyboardContext('mixer', track.id);
@@ -83,50 +83,59 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
         setKeyboardContext('mixer', track.id);
       }}
     >
-      <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 overflow-y-auto">
-        <div className="w-full h-1.5 rounded-full mb-0.5" style={{ backgroundColor: track.color }} />
-        {track.isGroup && (
-          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 bg-[#333] rounded px-1.5 py-0.5">GRP</span>
-        )}
-        <span className="text-xs text-zinc-300 font-medium leading-none truncate w-full text-center uppercase tracking-wide" title={track.displayName}>
-          {isFrozen && <span className="text-cyan-400 mr-0.5" title="Frozen">*</span>}
-          {track.displayName}
-        </span>
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-2 overflow-y-auto">
+        {/* Track header group */}
+        <div data-testid="channel-header" className="flex w-full flex-col items-center gap-1.5 pb-2">
+          <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: track.color }} />
+          {track.isGroup && (
+            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 bg-[#333] rounded px-1.5 py-0.5">GRP</span>
+          )}
+          <span className="text-xs text-zinc-300 font-medium leading-none truncate w-full text-center uppercase tracking-wide" title={track.displayName}>
+            {isFrozen && <span className="text-cyan-400 mr-0.5" title="Frozen">*</span>}
+            {track.displayName}
+          </span>
 
-        <div className="flex gap-2 mt-0.5">
-          <button
-            onClick={() => track.isGroup ? setGroupMuted(track.id, !track.muted) : updateTrack(track.id, { muted: !track.muted })}
-            aria-label={`Mute ${track.displayName}`}
-            className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
-              track.muted ? 'bg-amber-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
-            }`}
-          >
-            M
-          </button>
-          <button
-            onClick={() => track.isGroup ? setGroupSoloed(track.id, !track.soloed) : updateTrack(track.id, { soloed: !track.soloed })}
-            aria-label={`Solo ${track.displayName}`}
-            className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
-              track.soloed ? 'bg-emerald-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
-            }`}
-          >
-            S
-          </button>
+          <div className="flex gap-2 mt-0.5">
+            <button
+              onClick={() => track.isGroup ? setGroupMuted(track.id, !track.muted) : updateTrack(track.id, { muted: !track.muted })}
+              aria-label={`Mute ${track.displayName}`}
+              className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
+                track.muted ? 'bg-amber-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
+              }`}
+            >
+              M
+            </button>
+            <button
+              onClick={() => track.isGroup ? setGroupSoloed(track.id, !track.soloed) : updateTrack(track.id, { soloed: !track.soloed })}
+              aria-label={`Solo ${track.displayName}`}
+              className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
+                track.soloed ? 'bg-emerald-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
+              }`}
+            >
+              S
+            </button>
+          </div>
         </div>
 
-        <Knob value={pan} min={-1} max={1} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { pan: v })} label="Pan" size={36} step={0.01} disabled={isFrozen} />
+        {/* Pan control */}
+        <div data-testid="pan-section" className="flex w-full flex-col items-center py-1">
+          <Knob value={pan} min={-1} max={1} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { pan: v })} label="Pan" size={36} step={0.01} disabled={isFrozen} />
+        </div>
+
+        {/* Section separator */}
+        <div className="w-4/5 border-t border-[#3a3a3a]" />
 
         {/* Inserts section — 4 effect slots */}
-        <div data-testid="inserts-section" className="w-full mt-1">
-          <div className="text-[10px] text-zinc-400 uppercase tracking-widest mb-0.5">Inserts</div>
-          <div className="flex flex-col gap-0.5">
+        <div data-testid="inserts-section" className="w-full py-1">
+          <div className="text-[10px] text-zinc-400 uppercase tracking-widest mb-1">Inserts</div>
+          <div className="flex flex-col gap-1">
             {Array.from({ length: MAX_INSERT_SLOTS }).map((_, i) => {
               const effect = effects[i];
               return (
                 <button
                   key={i}
                   data-testid={`insert-slot-${i}`}
-                  className={`text-[10px] w-full rounded px-1.5 py-0.5 text-left truncate transition-colors ${
+                  className={`text-[10px] w-full rounded px-1.5 py-1 text-left truncate transition-colors ${
                     effect
                       ? effect.enabled
                         ? 'bg-[#3a3a3a] text-zinc-300 hover:bg-[#444]'
@@ -148,10 +157,13 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
           </div>
         </div>
 
+        {/* Section separator */}
+        <div className="w-4/5 border-t border-[#3a3a3a]" />
+
         {/* Sends section — 2 send slots */}
-        <div data-testid="sends-section" className="w-full mt-1">
-          <div className="text-[10px] text-zinc-400 uppercase tracking-widest mb-0.5">Sends</div>
-          <div className="flex flex-col gap-0.5">
+        <div data-testid="sends-section" className="w-full py-1">
+          <div className="text-[10px] text-zinc-400 uppercase tracking-widest mb-1">Sends</div>
+          <div className="flex flex-col gap-1">
             {Array.from({ length: MAX_SEND_SLOTS }).map((_, i) => {
               const rt = returnTracks[i];
               const send = rt ? sends.find((s) => s.returnTrackId === rt.id) : undefined;
@@ -160,7 +172,7 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
                 <div
                   key={i}
                   data-testid={`send-slot-${i}`}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1.5"
                 >
                   {rt ? (
                     <>
@@ -173,7 +185,7 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
                         value={amount}
                         onChange={(e) => updateTrackSend(track.id, rt.id, parseFloat(e.target.value))}
                         aria-label={`Send ${track.displayName} to ${rt.name}`}
-                        className="w-12 h-3 accent-blue-500"
+                        className="w-14 h-3 accent-blue-500"
                         disabled={isFrozen}
                       />
                     </>
@@ -186,29 +198,41 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
           </div>
         </div>
 
-        <div className="text-[10px] text-zinc-400 uppercase tracking-widest mt-0.5">EQ</div>
-        <div className="flex gap-1.5">
-          <Knob value={eqLow} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqLowGain: v })} label="Lo" unit="dB" size={34} step={0.5} disabled={isFrozen} />
-          <Knob value={eqMid} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqMidGain: v })} label="Mid" unit="dB" size={34} step={0.5} disabled={isFrozen} />
-          <Knob value={eqHigh} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqHighGain: v })} label="Hi" unit="dB" size={34} step={0.5} disabled={isFrozen} />
+        {/* Section separator */}
+        <div className="w-4/5 border-t border-[#3a3a3a]" />
+
+        {/* EQ section */}
+        <div data-testid="eq-section" className="flex w-full flex-col items-center gap-1.5 py-1">
+          <div className="text-[10px] text-zinc-400 uppercase tracking-widest">EQ</div>
+          <div className="flex gap-2">
+            <Knob value={eqLow} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqLowGain: v })} label="Lo" unit="dB" size={34} step={0.5} disabled={isFrozen} />
+            <Knob value={eqMid} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqMidGain: v })} label="Mid" unit="dB" size={34} step={0.5} disabled={isFrozen} />
+            <Knob value={eqHigh} min={-15} max={15} defaultValue={0} onChange={(v) => updateTrackMixer(track.id, { eqHighGain: v })} label="Hi" unit="dB" size={34} step={0.5} disabled={isFrozen} />
+          </div>
         </div>
 
-        <div className="text-[10px] text-zinc-400 uppercase tracking-widest mt-0.5">Comp</div>
-        <button
-          onClick={() => updateTrackMixer(track.id, { compressorEnabled: !compEnabled })}
-          className={`text-xs font-semibold px-2 py-1 rounded w-full transition-colors ${
-            compEnabled ? 'bg-daw-accent text-white' : 'bg-[#444] text-zinc-400 hover:bg-[#555]'
-          }`}
-        >
-          {compEnabled ? 'ON' : 'OFF'}
-        </button>
-        <div className="flex gap-1.5">
-          <Knob value={compThresh} min={-60} max={0} defaultValue={-24} onChange={(v) => updateTrackMixer(track.id, { compressorThreshold: v })} label="Thr" unit="dB" size={34} step={1} disabled={!compEnabled || isFrozen} />
-          <Knob value={compRatio} min={1} max={20} defaultValue={4} onChange={(v) => updateTrackMixer(track.id, { compressorRatio: v })} label="Rat" size={34} step={0.5} disabled={!compEnabled || isFrozen} />
+        {/* Section separator */}
+        <div className="w-4/5 border-t border-[#3a3a3a]" />
+
+        {/* Compressor section */}
+        <div data-testid="comp-section" className="flex w-full flex-col items-center gap-1.5 py-1">
+          <div className="text-[10px] text-zinc-400 uppercase tracking-widest">Comp</div>
+          <button
+            onClick={() => updateTrackMixer(track.id, { compressorEnabled: !compEnabled })}
+            className={`text-xs font-semibold px-2 py-1 rounded w-full transition-colors ${
+              compEnabled ? 'bg-daw-accent text-white' : 'bg-[#444] text-zinc-400 hover:bg-[#555]'
+            }`}
+          >
+            {compEnabled ? 'ON' : 'OFF'}
+          </button>
+          <div className="flex gap-2">
+            <Knob value={compThresh} min={-60} max={0} defaultValue={-24} onChange={(v) => updateTrackMixer(track.id, { compressorThreshold: v })} label="Thr" unit="dB" size={34} step={1} disabled={!compEnabled || isFrozen} />
+            <Knob value={compRatio} min={1} max={20} defaultValue={4} onChange={(v) => updateTrackMixer(track.id, { compressorRatio: v })} label="Rat" size={34} step={0.5} disabled={!compEnabled || isFrozen} />
+          </div>
         </div>
       </div>
 
-      <div data-testid="fader-region" className="mt-1 flex shrink-0 min-h-[96px] flex-col items-center justify-end gap-1 self-stretch pb-1" style={{ height: faderHeight + 24 }}>
+      <div data-testid="fader-region" className="mt-2 flex shrink-0 min-h-[96px] flex-col items-center justify-end gap-1.5 self-stretch border-t border-[#3a3a3a] pt-2 pb-1" style={{ height: faderHeight + 24 }}>
         <div className="relative flex items-stretch justify-center gap-2" style={{ height: faderHeight }}>
           <LevelMeter trackId={track.id} />
           <input

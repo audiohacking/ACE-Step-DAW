@@ -61,6 +61,45 @@ describe('MixerPanel', () => {
     expect(masterFaderRegion).toHaveClass('shrink-0');
   });
 
+  describe('channel strip visual density (#553)', () => {
+    it('has a wider minimum channel width for readability', () => {
+      render(<MixerPanel />);
+      const strip = screen.getAllByTestId('channel-strip')[0];
+      expect(strip).toHaveClass('min-w-[132px]');
+    });
+
+    it('groups controls into distinct visual sections with separators', () => {
+      render(<MixerPanel />);
+      const strip = screen.getAllByTestId('channel-strip')[0];
+
+      // Verify section containers exist
+      expect(strip.querySelector('[data-testid="channel-header"]')).toBeInTheDocument();
+      expect(strip.querySelector('[data-testid="pan-section"]')).toBeInTheDocument();
+      expect(strip.querySelector('[data-testid="inserts-section"]')).toBeInTheDocument();
+      expect(strip.querySelector('[data-testid="sends-section"]')).toBeInTheDocument();
+      expect(strip.querySelector('[data-testid="eq-section"]')).toBeInTheDocument();
+      expect(strip.querySelector('[data-testid="comp-section"]')).toBeInTheDocument();
+    });
+
+    it('has visual separators between control sections', () => {
+      render(<MixerPanel />);
+      const strip = screen.getAllByTestId('channel-strip')[0];
+      // The scrollable area should contain separator divs with border-t
+      const scrollArea = strip.querySelector('.overflow-y-auto');
+      expect(scrollArea).toBeInTheDocument();
+      const separators = scrollArea!.querySelectorAll('.border-t.border-\\[\\#3a3a3a\\]');
+      // There should be 4 separators: after pan, after inserts, after sends, after EQ
+      expect(separators.length).toBe(4);
+    });
+
+    it('fader region has a top border separator', () => {
+      render(<MixerPanel />);
+      const faderRegion = screen.getAllByTestId('fader-region')[0];
+      expect(faderRegion).toHaveClass('border-t');
+      expect(faderRegion).toHaveClass('border-[#3a3a3a]');
+    });
+  });
+
   it('surfaces the active mixer scope and selected channel strip', () => {
     const bass = useProjectStore.getState().addTrack('bass');
     useUIStore.getState().setKeyboardContext('mixer', bass.id);
