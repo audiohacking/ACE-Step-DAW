@@ -336,7 +336,7 @@ export function Toolbar() {
         {/* Play/Pause — larger for prominence */}
         <button
           onClick={() => void (isPlaying ? pause() : play())}
-          className={`w-10 h-9 flex items-center justify-center rounded-lg transition-colors ${
+          className={`w-10 h-9 flex items-center justify-center rounded-lg transition-[color,background-color,transform] duration-150 active:scale-95 ${
             isPlaying
               ? 'bg-daw-accent text-white shadow-md'
               : 'text-zinc-300 hover:text-white hover:bg-daw-surface-2'

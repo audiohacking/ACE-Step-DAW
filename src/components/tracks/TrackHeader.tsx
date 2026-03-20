@@ -183,7 +183,7 @@ export function TrackHeader({
       data-group={track.isGroup ? 'true' : undefined}
       data-child={isChild ? 'true' : undefined}
       aria-label={track.isGroup ? `Group track: ${track.displayName}${track.collapsed ? ' (collapsed)' : ''}` : `Track: ${track.displayName}`}
-      className={`relative flex items-center gap-2 border-b group select-none ${
+      className={`relative flex items-center gap-2 border-b group select-none animate-[fadeIn_150ms_ease-out] ${
         isDragOver ? 'bg-[#383838]' : isTrackSelected ? 'ring-1 ring-inset ring-blue-500/50' : ''
       }`}
       style={{

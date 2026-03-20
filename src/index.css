@@ -91,3 +91,9 @@ select:focus-visible,
   border-radius: 4px;
   font-variant-numeric: tabular-nums;
 }
+
+/* Micro-animations for DAW interactions */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

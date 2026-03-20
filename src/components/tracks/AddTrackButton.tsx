@@ -11,7 +11,7 @@ export function AddTrackButton() {
     <div className="flex gap-1 mx-2 my-2">
       <button
         onClick={() => setShowInstrumentPicker(true)}
-        className="flex-1 flex items-center justify-center gap-1 h-7 text-[11px] font-medium text-zinc-400 hover:text-white bg-[#3a3a3a] hover:bg-[#484848] rounded transition-colors"
+        className="flex-1 flex items-center justify-center gap-1 h-7 text-[11px] font-medium text-zinc-400 hover:text-white bg-[#3a3a3a] hover:bg-[#484848] rounded transition-[color,background-color,transform] duration-150 active:scale-[0.97]"
       >
         <span className="text-sm">+</span> Track
       </button>

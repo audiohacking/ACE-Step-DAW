@@ -41,7 +41,7 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 const ACTIVE_CLASSES = 'bg-daw-accent text-white shadow-sm';
 
 const BASE_CLASSES =
-  'inline-flex items-center justify-center rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed select-none';
+  'inline-flex items-center justify-center rounded-md transition-[color,background-color,transform] duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed select-none';
 
 /**
  * Build the full className string for button styling.

@@ -91,11 +91,11 @@ describe('Button component', () => {
   });
 
   describe('consistent transitions', () => {
-    it('includes transition-colors on all variants', () => {
+    it('includes transition on all variants', () => {
       const variants = ['default', 'primary', 'ghost', 'danger'] as const;
       variants.forEach((variant) => {
         const { unmount } = render(<Button variant={variant}>Test</Button>);
-        expect(screen.getByRole('button').className).toContain('transition-colors');
+        expect(screen.getByRole('button').className).toContain('transition-');
         unmount();
       });
     });

@@ -205,8 +205,6 @@ export function LoopBrowser() {
     };
   }, []);
 
-  if (!isOpen) return null;
-
   const previewingPresetDef = activeTab === 'presets' && previewingId
     ? LOOP_DEFINITIONS.find(d => d.id === previewingId)
     : null;
@@ -220,8 +218,9 @@ export function LoopBrowser() {
 
   return (
     <div
-      className="relative flex flex-col bg-[#111126] border-l border-white/10 shrink-0 select-none"
-      style={{ width }}
+      data-testid="loop-browser-panel"
+      className="relative flex flex-col bg-[#111126] border-l border-white/10 shrink-0 select-none transition-[width,opacity] duration-150 ease-out overflow-hidden"
+      style={{ width: isOpen ? width : 0, opacity: isOpen ? 1 : 0 }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 h-8 border-b border-white/5 bg-[#0e0e22] shrink-0">

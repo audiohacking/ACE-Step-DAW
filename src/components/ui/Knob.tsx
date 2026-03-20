@@ -139,7 +139,7 @@ export function Knob({
         onWheel={onWheel}
         onContextMenu={onContextMenu}
         aria-label={`${label ?? 'Control'} knob`}
-        className={`relative ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`}
+        className={`relative transition-transform duration-150 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize hover:scale-110'}`}
         style={{ width: size, height: size }}
       >
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
