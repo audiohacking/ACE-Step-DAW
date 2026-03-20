@@ -238,6 +238,18 @@ describe('useKeyboardShortcuts', () => {
     expect(useUIStore.getState().snapEnabled).toBe(true);
   });
 
+  it('toggles follow-playhead auto-scroll with KeyP', () => {
+    render(<Harness />);
+
+    expect(useUIStore.getState().autoScrollEnabled).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP' }));
+    expect(useUIStore.getState().autoScrollEnabled).toBe(false);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP' }));
+    expect(useUIStore.getState().autoScrollEnabled).toBe(true);
+  });
+
   it('suppresses single-key shortcuts while typing in editable fields', () => {
     const drums = useProjectStore.getState().addTrack('drums');
     useUIStore.getState().setKeyboardContext('timeline', drums.id);

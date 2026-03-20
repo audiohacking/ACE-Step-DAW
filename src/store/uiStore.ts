@@ -46,6 +46,8 @@ export interface UIState {
   arrangementView: 'arrangement' | 'session';
   pixelsPerSecond: number;
   snapEnabled: boolean;
+  autoScrollEnabled: boolean;
+  autoScrollInterrupted: boolean;
   scrollX: number;
   scrollY: number;
   selectedClipIds: Set<string>;
@@ -180,6 +182,10 @@ export interface UIState {
   toggleArrangementView: () => void;
   setArrangementView: (view: 'arrangement' | 'session') => void;
   toggleSnap: () => void;
+  setAutoScrollEnabled: (enabled: boolean) => void;
+  toggleAutoScroll: () => void;
+  suspendAutoScroll: () => void;
+  resumeAutoScroll: () => void;
   zoomIn: () => void;
   zoomOut: () => void;
   setScrollX: (x: number) => void;
@@ -366,6 +372,8 @@ export const useUIStore = create<UIState>()(
   arrangementView: 'arrangement',
   pixelsPerSecond: 50,
   snapEnabled: true,
+  autoScrollEnabled: true,
+  autoScrollInterrupted: false,
   scrollX: 0,
   scrollY: 0,
   selectedClipIds: new Set(),
@@ -484,6 +492,24 @@ export const useUIStore = create<UIState>()(
   }),
   setArrangementView: (view) => set({ arrangementView: view, mainView: view }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
+  setAutoScrollEnabled: (enabled) => set({
+    autoScrollEnabled: enabled,
+    autoScrollInterrupted: false,
+  }),
+  toggleAutoScroll: () => set((state) => ({
+    autoScrollEnabled: !state.autoScrollEnabled,
+    autoScrollInterrupted: false,
+  })),
+  suspendAutoScroll: () => set((state) => (
+    state.autoScrollEnabled
+      ? { autoScrollEnabled: false, autoScrollInterrupted: true }
+      : state
+  )),
+  resumeAutoScroll: () => set((state) => (
+    state.autoScrollInterrupted
+      ? { autoScrollEnabled: true, autoScrollInterrupted: false }
+      : state
+  )),
 
   zoomIn: () =>
     set((s) => {
@@ -868,6 +894,7 @@ export const useUIStore = create<UIState>()(
         pixelsPerSecond: state.pixelsPerSecond,
         // Snap
         snapEnabled: state.snapEnabled,
+        autoScrollEnabled: state.autoScrollEnabled,
         // Spectrum analyzer
         showSpectrumAnalyzer: state.showSpectrumAnalyzer,
         // Loop Browser preference

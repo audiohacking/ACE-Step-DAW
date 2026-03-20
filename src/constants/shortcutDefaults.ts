@@ -43,6 +43,7 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: 'generation.context',    category: 'generation', label: 'Generate from Context',     defaultCombo: { code: 'KeyG', mod: true, shift: true }, contexts: ['global'] },
 
   { id: 'panels.mixer',          category: 'panels',    label: 'Toggle Mixer',                defaultCombo: { code: 'KeyX' }, contexts: ['global'] },
+  { id: 'panels.autoScroll',     category: 'panels',    label: 'Toggle Follow Playhead',      defaultCombo: { code: 'KeyP' }, contexts: ['global'] },
   { id: 'panels.smartControls',  category: 'panels',    label: 'Toggle Smart Controls',       defaultCombo: { code: 'KeyB' }, contexts: ['global'] },
   { id: 'panels.library',        category: 'panels',    label: 'Toggle Library',              defaultCombo: { code: 'KeyY' }, contexts: ['global'] },
   { id: 'panels.loopBrowser',    category: 'panels',    label: 'Toggle Loop Browser',         defaultCombo: { code: 'KeyO' }, contexts: ['global'] },

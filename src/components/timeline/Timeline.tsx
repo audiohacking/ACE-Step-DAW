@@ -69,11 +69,17 @@ export function Timeline() {
   const addTrack = useProjectStore((s) => s.addTrack);
   const updateTrack = useProjectStore((s) => s.updateTrack);
   const seek = useTransportStore((s) => s.seek);
+  const currentTime = useTransportStore((s) => s.currentTime);
+  const isPlaying = useTransportStore((s) => s.isPlaying);
   const setTimelineFocused = useUIStore((s) => s.setTimelineFocused);
   const pixelsPerSecond = useUIStore((s) => s.pixelsPerSecond);
   const setPixelsPerSecond = useUIStore((s) => s.setPixelsPerSecond);
   const setKeyboardContext = useUIStore((s) => s.setKeyboardContext);
   const showTempoLane = useUIStore((s) => s.showTempoLane);
+  const autoScrollEnabled = useUIStore((s) => s.autoScrollEnabled);
+  const autoScrollInterrupted = useUIStore((s) => s.autoScrollInterrupted);
+  const suspendAutoScroll = useUIStore((s) => s.suspendAutoScroll);
+  const resumeAutoScroll = useUIStore((s) => s.resumeAutoScroll);
   const contextWindow = useUIStore((s) => s.contextWindow);
   const setContextWindow = useUIStore((s) => s.setContextWindow);
   const selectWindow = useUIStore((s) => s.selectWindow);
@@ -84,6 +90,9 @@ export function Timeline() {
   const setScrollX = useUIStore((s) => s.setScrollX);
   const scrollRef = useRef<HTMLDivElement>(null);
   const trackAreaRef = useRef<HTMLDivElement>(null);
+  const autoScrollFrameRef = useRef<number | null>(null);
+  const programmaticScrollRef = useRef(false);
+  const previousIsPlayingRef = useRef(false);
 
   const deselectAllTracks = useUIStore((s) => s.deselectAllTracks);
   const setRegionRegenerateTarget = useUIStore((s) => s.setRegionRegenerateTarget);
@@ -228,6 +237,74 @@ export function Timeline() {
       toastInfo('Nothing is selected, so the timeline zoomed to the full project.');
     }
   }, [project, selectWindow, selectedClipIds, setPixelsPerSecond, setScrollX, timelineZoomRequest]);
+
+  useEffect(() => {
+    if (isPlaying && !previousIsPlayingRef.current && autoScrollInterrupted) {
+      resumeAutoScroll();
+    }
+    previousIsPlayingRef.current = isPlaying;
+  }, [autoScrollInterrupted, isPlaying, resumeAutoScroll]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || !isPlaying || !autoScrollEnabled) return;
+
+    const viewportWidth = container.clientWidth || window.innerWidth || 1;
+    const playheadX = currentTime * pixelsPerSecond;
+    const leftBoundary = container.scrollLeft + viewportWidth * 0.2;
+    const rightBoundary = container.scrollLeft + viewportWidth * 0.8;
+
+    if (playheadX >= leftBoundary && playheadX <= rightBoundary) {
+      return;
+    }
+
+    const maxScrollLeft = Math.max(0, totalWidth - viewportWidth);
+    const targetScrollLeft = Math.max(0, Math.min(playheadX - viewportWidth * 0.35, maxScrollLeft));
+
+    if (Math.abs(targetScrollLeft - container.scrollLeft) < 1) {
+      return;
+    }
+
+    if (autoScrollFrameRef.current !== null) {
+      cancelAnimationFrame(autoScrollFrameRef.current);
+    }
+
+    autoScrollFrameRef.current = requestAnimationFrame(() => {
+      const currentScrollLeft = container.scrollLeft;
+      const delta = targetScrollLeft - currentScrollLeft;
+      const nextScrollLeft = Math.abs(delta) < 12
+        ? targetScrollLeft
+        : currentScrollLeft + delta * 0.2;
+
+      programmaticScrollRef.current = true;
+      container.scrollLeft = nextScrollLeft;
+      setScrollX(nextScrollLeft);
+      requestAnimationFrame(() => {
+        programmaticScrollRef.current = false;
+      });
+      autoScrollFrameRef.current = null;
+    });
+
+    return () => {
+      if (autoScrollFrameRef.current !== null) {
+        cancelAnimationFrame(autoScrollFrameRef.current);
+        autoScrollFrameRef.current = null;
+      }
+    };
+  }, [autoScrollEnabled, currentTime, isPlaying, pixelsPerSecond, setScrollX, totalWidth]);
+
+  const handleScroll = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    setScrollX(container.scrollLeft);
+
+    if (programmaticScrollRef.current || !isPlaying || !autoScrollEnabled) {
+      return;
+    }
+
+    suspendAutoScroll();
+  }, [autoScrollEnabled, isPlaying, setScrollX, suspendAutoScroll]);
 
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
@@ -417,6 +494,7 @@ export function Timeline() {
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onScroll={handleScroll}
         onContextMenu={(e) => {
           // Only show canvas context menu on empty area
           const target = e.target as HTMLElement;

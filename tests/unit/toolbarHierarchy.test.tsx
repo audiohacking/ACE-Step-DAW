@@ -113,13 +113,26 @@ describe('Toolbar visual hierarchy and grouping (#544)', () => {
 
   it('provides tooltip titles on all right-side icon buttons', () => {
     render(<Toolbar />);
-    // Mixer, Loop Browser, AI Assistant, Settings, Shortcuts should all have titles
+    // Mixer, Follow Playhead, Loop Browser, AI Assistant, Settings, Shortcuts should all have titles
     expect(screen.getByTitle('Mixer (X)')).toBeInTheDocument();
+    expect(screen.getByTitle('Follow Playhead (P)')).toBeInTheDocument();
     expect(screen.getByTitle('Loop Browser (O)')).toBeInTheDocument();
     expect(screen.getByTitle('AI Assistant (Cmd+/)')).toBeInTheDocument();
     expect(screen.getByTitle('Settings')).toBeInTheDocument();
     expect(screen.getByTitle('Keyboard Shortcuts (?)')).toBeInTheDocument();
     expect(screen.getByTitle('Zoom Out')).toBeInTheDocument();
     expect(screen.getByTitle('Zoom In')).toBeInTheDocument();
+  });
+
+  it('toggles follow-playhead auto-scroll from the toolbar', () => {
+    render(<Toolbar />);
+
+    expect(useUIStore.getState().autoScrollEnabled).toBe(true);
+
+    fireEvent.click(screen.getByTitle('Follow Playhead (P)'));
+    expect(useUIStore.getState().autoScrollEnabled).toBe(false);
+
+    fireEvent.click(screen.getByTitle('Follow Playhead (P)'));
+    expect(useUIStore.getState().autoScrollEnabled).toBe(true);
   });
 });

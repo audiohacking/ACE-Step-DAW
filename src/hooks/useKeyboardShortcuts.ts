@@ -246,6 +246,7 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      if (matches('panels.autoScroll')) { event.preventDefault(); ui.toggleAutoScroll(); return; }
       if (matches('panels.aiAssistant')) { event.preventDefault(); ui.toggleAIAssistant(); return; }
 
       if (matches('clips.selectAll')) {

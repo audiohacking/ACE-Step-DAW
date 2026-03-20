@@ -182,6 +182,8 @@ export function Toolbar() {
   const setBatchGenerateMode = useUIStore((s) => s.setBatchGenerateMode);
   const showMixer = useUIStore((s) => s.showMixer);
   const setShowMixer = useUIStore((s) => s.setShowMixer);
+  const autoScrollEnabled = useUIStore((s) => s.autoScrollEnabled);
+  const toggleAutoScroll = useUIStore((s) => s.toggleAutoScroll);
   const loopBrowserOpen = useUIStore((s) => s.loopBrowserOpen);
   const toggleLoopBrowser = useUIStore((s) => s.toggleLoopBrowser);
   const showLibrary = useUIStore((s) => s.showLibrary);
@@ -430,6 +432,19 @@ export function Toolbar() {
             <circle cx="3" cy="8" r="1.5" fill="currentColor" />
             <circle cx="7" cy="5" r="1.5" fill="currentColor" />
             <circle cx="11" cy="9" r="1.5" fill="currentColor" />
+          </svg>
+        </ControlBarButton>
+        <ControlBarButton
+          active={autoScrollEnabled}
+          onClick={toggleAutoScroll}
+          title="Follow Playhead (P)"
+          disabled={!project}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 3.5h10" />
+            <path d="M2 10.5h10" />
+            <path d="M7 2v10" />
+            <path d="M9.5 5.5L12 3l-2.5-2.5" />
           </svg>
         </ControlBarButton>
         <ControlBarButton
