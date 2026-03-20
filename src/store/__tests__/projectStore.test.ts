@@ -84,12 +84,12 @@ describe('projectStore', () => {
 
       const latency = useProjectStore.getState().project!.playbackLatency;
       expect(latency).toMatchObject({
-        source: 'detected',
-        baseLatencyMs: 5,
-        outputLatencyMs: 20,
-        detectedMs: 25,
-        overrideMs: null,
-        effectiveMs: 25,
+        source: 'auto',
+        detectedBaseLatencyMs: 5,
+        detectedOutputLatencyMs: 20,
+        detectedLatencyMs: 25,
+        manualOverrideMs: null,
+        compensationMs: 25,
       });
     });
 
@@ -104,9 +104,9 @@ describe('projectStore', () => {
       const latency = useProjectStore.getState().project!.playbackLatency;
       expect(latency).toMatchObject({
         source: 'manual',
-        detectedMs: 25,
-        overrideMs: 42,
-        effectiveMs: 42,
+        detectedLatencyMs: 25,
+        manualOverrideMs: 42,
+        compensationMs: 42,
       });
     });
 
@@ -116,11 +116,11 @@ describe('projectStore', () => {
       const latency = useProjectStore.getState().project!.playbackLatency;
       expect(latency).toMatchObject({
         source: 'fallback',
-        baseLatencyMs: null,
-        outputLatencyMs: null,
-        detectedMs: null,
-        overrideMs: null,
-        effectiveMs: 0,
+        detectedBaseLatencyMs: null,
+        detectedOutputLatencyMs: null,
+        detectedLatencyMs: null,
+        manualOverrideMs: null,
+        compensationMs: 0,
       });
     });
   });

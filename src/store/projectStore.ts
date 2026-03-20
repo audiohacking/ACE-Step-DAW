@@ -448,6 +448,8 @@ export interface ProjectState {
 
   updateProject: (updates: Partial<Pick<Project, 'globalCaption' | 'bpm' | 'keyScale' | 'timeSignature' | 'name' | 'masterVolume' | 'measures'>>) => void;
   detectPlaybackLatency: (latency: { baseLatency?: number | null; outputLatency?: number | null }) => void;
+  /** Alias for detectPlaybackLatency – used by tests and external callers. */
+  capturePlaybackLatency: (latency: { baseLatency?: number | null; outputLatency?: number | null }) => void;
   setPlaybackLatencyOverride: (latencyMs: number | null) => void;
   analyzeMastering: () => Promise<void>;
   setMasteringPreset: (preset: MasteringPreset) => void;
@@ -1678,6 +1680,10 @@ export const useProjectStore = create<ProjectState>()(
         playbackLatency: nextPlaybackLatency,
       },
     });
+  },
+
+  capturePlaybackLatency: (latency) => {
+    get().detectPlaybackLatency(latency);
   },
 
   setPlaybackLatencyOverride: (latencyMs) => {

@@ -131,17 +131,17 @@ describe('BPM input — clamp on blur, not keystroke', () => {
 
       render(<SettingsDialog />);
 
-      expect(screen.getByText(/Detected 25 ms from Web Audio/i)).toBeInTheDocument();
+      expect(screen.getByText(/Detected 25\.0 ms from Web Audio/i)).toBeInTheDocument();
 
-      const overrideInput = screen.getByLabelText(/Playback latency override in milliseconds/i);
+      const overrideInput = screen.getByLabelText(/Manual playback latency/i);
       fireEvent.change(overrideInput, { target: { value: '42' } });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
       expect(useProjectStore.getState().project?.playbackLatency).toMatchObject({
         source: 'manual',
-        detectedMs: 25,
-        overrideMs: 42,
-        effectiveMs: 42,
+        detectedLatencyMs: 25,
+        manualOverrideMs: 42,
+        compensationMs: 42,
       });
     });
   });

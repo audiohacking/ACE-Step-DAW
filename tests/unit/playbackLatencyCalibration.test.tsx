@@ -45,8 +45,26 @@ vi.mock('../../src/services/projectStorage', () => ({
 vi.mock('../../src/engine/AudioEngine', () => ({
   AudioEngine: class {
     ctx = mockLatencyContext;
+    _playbackLatencyCompensation = 0;
     resume = (...args: unknown[]) => mockEngineResume(...args);
     setTimeUpdateCallback = (...args: unknown[]) => mockSetTimeUpdateCallback(...args);
+    measurePlaybackLatency() {
+      return {
+        baseLatency: typeof this.ctx.baseLatency === 'number' ? this.ctx.baseLatency : null,
+        outputLatency: typeof this.ctx.outputLatency === 'number' ? this.ctx.outputLatency : null,
+      };
+    }
+    refreshPlaybackLatencyCompensation() {
+      const measured = this.measurePlaybackLatency();
+      this._playbackLatencyCompensation = Math.max(
+        0,
+        (measured.baseLatency ?? 0) + (measured.outputLatency ?? 0),
+      );
+      return measured;
+    }
+    setPlaybackLatencyCompensation(value: number) {
+      this._playbackLatencyCompensation = value;
+    }
   },
 }));
 
