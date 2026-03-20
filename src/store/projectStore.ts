@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { type TrackHeightPreset, getTrackHeightForPreset } from '../constants/trackHeight';
 import type {
   BounceInPlaceOptions,
+  AddClipInput,
   Project,
   ProjectTemplate,
   ProjectTemplateTrack,
@@ -495,7 +496,7 @@ export interface ProjectState {
   setAllTracksHeightPreset: (preset: TrackHeightPreset) => void;
   reorderTrack: (draggedId: string, targetId: string, position: 'before' | 'after') => void;
 
-  addClip: (trackId: string, clip: Omit<Clip, 'id' | 'trackId' | 'generationStatus' | 'generationJobId' | 'cumulativeMixKey' | 'isolatedAudioKey' | 'waveformPeaks'>) => Clip;
+  addClip: (trackId: string, clip: AddClipInput) => Clip;
   ensureMidiClip: (trackId: string, startTime?: number, duration?: number) => Clip;
   updateClip: (clipId: string, updates: Partial<Clip>) => void;
   removeClip: (clipId: string) => void;
@@ -537,6 +538,7 @@ export interface ProjectState {
   snapClipEdgeToZeroCrossing: (clipId: string, edge: 'left' | 'right') => Promise<void>;
   consolidateClips: (trackId: string, clipIds: string[]) => Promise<Clip | undefined>;
   toggleClipStar: (clipId: string) => void;
+  toggleClipActive: (clipIds: string[]) => void;
   moveClipToTrack: (clipId: string, targetTrackId: string, startTime?: number) => void;
   duplicateClipToTrack: (clipId: string, targetTrackId: string, startTime?: number) => Clip | undefined;
   batchDuplicateClips: (clipIds: string[], timeOffset: number) => void;
@@ -753,6 +755,7 @@ function buildBouncedClip(trackId: string, input: {
     trackId,
     startTime: input.startTime,
     duration: input.duration,
+    active: true,
     prompt: input.prompt ?? '',
     globalCaption: '',
     lyrics: '',
@@ -1450,6 +1453,7 @@ function ensureTrackDefaults(track: Track): Track {
     drumKit: track.drumKit ?? '808',
     clips: track.clips.map((clip) => ({
       ...clip,
+      active: clip.active ?? true,
       midiData: clip.midiData
         ? {
             notes: clip.midiData.notes ?? [],
@@ -1951,6 +1955,7 @@ export const useProjectStore = create<ProjectState>()(
       trackId,
       startTime: 0,
       duration: duration ?? state.project.totalDuration,
+      active: true,
       prompt: '',
       lyrics: '',
       generationStatus: 'ready',
@@ -2601,6 +2606,7 @@ export const useProjectStore = create<ProjectState>()(
       trackId,
       startTime: clipData.startTime,
       duration: clipData.duration,
+      active: clipData.active ?? true,
       prompt: clipData.prompt,
       globalCaption: clipData.globalCaption || '',
       lyrics: clipData.lyrics,
@@ -3151,6 +3157,7 @@ export const useProjectStore = create<ProjectState>()(
         trackId,
         startTime: merged.startTime,
         duration: merged.duration,
+        active: true,
         prompt,
         globalCaption: clips.map((clip) => clip.globalCaption?.trim()).filter(Boolean).join('\n'),
         lyrics,
@@ -3170,6 +3177,7 @@ export const useProjectStore = create<ProjectState>()(
           trackId,
           startTime,
           duration: rendered.duration,
+          active: true,
           prompt,
           globalCaption: clips.map((clip) => clip.globalCaption?.trim()).filter(Boolean).join('\n'),
           lyrics,
@@ -3348,6 +3356,32 @@ export const useProjectStore = create<ProjectState>()(
         assets: (state.project.assets ?? []).map((a) =>
           a.clipId === clipId ? { ...a, starred: newStarred } : a,
         ),
+      },
+    });
+  },
+
+  toggleClipActive: (clipIds) => {
+    const state = get();
+    if (_isViewerMode()) return;
+    if (!state.project || clipIds.length === 0) return;
+
+    const idSet = new Set(clipIds);
+    const clips = state.project.tracks.flatMap((track) => track.clips).filter((clip) => idSet.has(clip.id));
+    if (clips.length === 0) return;
+
+    const nextActive = clips.some((clip) => clip.active !== false) ? false : true;
+    _pushHistory(state.project, { scope: 'arrangement', label: nextActive ? 'Activate clip' : 'Deactivate clip' });
+
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((track) => ({
+          ...track,
+          clips: track.clips.map((clip) => (
+            idSet.has(clip.id) ? { ...clip, active: nextActive } : clip
+          )),
+        })),
       },
     });
   },
@@ -5816,6 +5850,7 @@ export const useProjectStore = create<ProjectState>()(
           trackId: newTrackId,
           startTime: sourceClip.startTime,
           duration: sourceClip.duration,
+          active: true,
           prompt: `${displayName} stem`,
           lyrics: '',
           generationStatus: 'ready',
@@ -6287,6 +6322,7 @@ export const useProjectStore = create<ProjectState>()(
       trackId,
       startTime: result.clipStartTime,
       duration: result.clipDuration,
+      active: true,
       prompt: 'Captured MIDI',
       lyrics: '',
       generationStatus: 'ready',

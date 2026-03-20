@@ -13,6 +13,7 @@ const makeClip = (overrides: Partial<Clip> = {}): Clip => ({
   trackId: 'track-1',
   startTime: 2.0,
   duration: 4.0,
+  active: true,
   prompt: 'test clip',
   generationStatus: 'ready',
   audioOffset: 0,

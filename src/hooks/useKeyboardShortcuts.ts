@@ -300,6 +300,14 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      if (matches('clips.toggleActive')) {
+        event.preventDefault();
+        if (!anyModalOpen && ui.selectedClipIds.size > 0) {
+          project.toggleClipActive([...ui.selectedClipIds]);
+        }
+        return;
+      }
+
       if (mod) return;
       if (anyModalOpen) return;
       if (shouldDeferToPianoRollTools(event)) return;

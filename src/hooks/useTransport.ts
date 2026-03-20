@@ -65,7 +65,7 @@ function trimBuffer(
 }
 
 function isSessionPlayableClip(clip: Clip): boolean {
-  return clip.generationStatus === 'ready' || (clip.midiData?.notes.length ?? 0) > 0;
+  return clip.active !== false && (clip.generationStatus === 'ready' || (clip.midiData?.notes.length ?? 0) > 0);
 }
 
 function getSessionTracks(project: Project): Array<{ track: Track; clip: Clip; launch: { sceneIndex: number; launchedAt: number } }> {
@@ -100,7 +100,7 @@ function collectTimelineScrubClips(project: Project): TimelineScrubClip[] {
     }
 
     return track.clips.flatMap((clip) => {
-      if (clip.generationStatus !== 'ready' || clip.muted) return [];
+      if (clip.generationStatus !== 'ready' || clip.muted || clip.active === false) return [];
       const bufferKey = clip.isolatedAudioKey ?? clip.cumulativeMixKey;
       if (!bufferKey) return [];
 
@@ -154,6 +154,7 @@ export function useTransport() {
       clipId: string;
       trackId: string;
       startTime: number;
+      active?: boolean;
       buffer: AudioBuffer;
       audioOffset: number;
       clipDuration: number;
@@ -210,7 +211,7 @@ export function useTransport() {
 
       const clipsToSchedule = mainView === 'session'
         ? (sessionTrackMap.get(track.id)?.clip ? [sessionTrackMap.get(track.id)!.clip] : [])
-        : track.clips.filter((clip) => clip.generationStatus === 'ready' && !clip.muted);
+        : track.clips.filter((clip) => clip.generationStatus === 'ready' && !clip.muted && clip.active !== false);
 
       for (const clip of clipsToSchedule) {
         if (clip.generationStatus !== 'ready') continue;
@@ -247,6 +248,7 @@ export function useTransport() {
               clipId: `${clip.id}-session-${loopIndex}`,
               trackId: track.id,
               startTime: loopStart,
+              active: clip.active,
               buffer,
               audioOffset: clip.audioOffset ?? 0,
               clipDuration,
@@ -262,6 +264,7 @@ export function useTransport() {
           clipId: clip.id,
           trackId: track.id,
           startTime: clip.startTime,
+          active: clip.active,
           buffer,
           audioOffset: clip.audioOffset ?? 0,
           clipDuration: clip.duration,
@@ -341,7 +344,7 @@ export function useTransport() {
 
         const midiClips = mainView === 'session'
           ? (sessionTrackMap.get(track.id)?.clip ? [sessionTrackMap.get(track.id)!.clip] : [])
-          : track.clips;
+          : track.clips.filter((clip) => clip.active !== false);
 
         for (const clip of midiClips) {
           const notes = [...(clip.midiData?.notes ?? [])].sort((a, b) => a.startBeat - b.startBeat);

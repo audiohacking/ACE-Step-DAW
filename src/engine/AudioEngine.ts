@@ -34,6 +34,7 @@ export interface ClipScheduleInfo {
   clipId: string;
   trackId: string;
   startTime: number;
+  active?: boolean;
   buffer: AudioBuffer;
   audioOffset: number;   // offset into the buffer (crop start)
   clipDuration: number;  // how long to play (crop length)
@@ -678,6 +679,7 @@ export class AudioEngine {
     this._lastTotalDuration = totalDuration;
 
     for (const clip of clips) {
+      if (clip.active === false) continue;
       const trackNode = this.getOrCreateTrackNode(clip.trackId);
       const hasWarpMarkers = clip.warpMarkers && clip.warpMarkers.length > 0;
 

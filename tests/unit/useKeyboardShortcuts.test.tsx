@@ -238,6 +238,29 @@ describe('useKeyboardShortcuts', () => {
     expect(useUIStore.getState().snapEnabled).toBe(true);
   });
 
+  it('toggles selected clips active state with Digit0', () => {
+    const drums = useProjectStore.getState().addTrack('drums');
+    const clip = useProjectStore.getState().addClip(drums.id, {
+      startTime: 0,
+      duration: 4,
+      prompt: 'A/B clip',
+      lyrics: '',
+      source: 'generated',
+    });
+
+    useUIStore.getState().setKeyboardContext('timeline', drums.id);
+    useUIStore.getState().selectClip(clip.id, false);
+    render(<Harness />);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit0' }));
+    let storedClip = useProjectStore.getState().project?.tracks[0]?.clips[0];
+    expect(storedClip?.active).toBe(false);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit0' }));
+    storedClip = useProjectStore.getState().project?.tracks[0]?.clips[0];
+    expect(storedClip?.active).toBe(true);
+  });
+
   it('suppresses single-key shortcuts while typing in editable fields', () => {
     const drums = useProjectStore.getState().addTrack('drums');
     useUIStore.getState().setKeyboardContext('timeline', drums.id);

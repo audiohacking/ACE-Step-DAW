@@ -69,6 +69,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const removeClip = useProjectStore((s) => s.removeClip);
   const duplicateClip = useProjectStore((s) => s.duplicateClip);
   const consolidateClips = useProjectStore((s) => s.consolidateClips);
+  const toggleClipActive = useProjectStore((s) => s.toggleClipActive);
   const snapClipEdgeToZeroCrossing = useProjectStore((s) => s.snapClipEdgeToZeroCrossing);
   const convertAudioToMidi = useProjectStore((s) => s.convertAudioToMidi);
   const createQuickSamplerFromClip = useProjectStore((s) => s.createQuickSamplerFromClip);
@@ -520,6 +521,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const selectedActionClips = selectedActionClipIds
     .map((clipId) => project?.tracks.flatMap((candidate) => candidate.clips).find((candidate) => candidate.id === clipId))
     .filter((candidate): candidate is Clip => Boolean(candidate));
+  const areSelectedActionClipsActive = selectedActionClips.every((candidate) => candidate.active !== false);
   const canConsolidate = selectedActionClips.length === selectedActionClipIds.length
     && selectedActionClips.every((candidate) => candidate.trackId === track.id)
     && new Set(selectedActionClips.map((candidate) => Boolean(candidate.midiData))).size <= 1;
@@ -540,7 +542,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
           transition-[filter,box-shadow] duration-100
           hover:brightness-110 hover:ring-1 hover:ring-white/10
           active:brightness-95
-          ${clip.muted ? 'opacity-30 pointer-events-none' : (statusStyles[clip.generationStatus] ?? '')}
+          ${clip.muted ? 'opacity-30 pointer-events-none' : clip.active === false ? 'opacity-55' : (statusStyles[clip.generationStatus] ?? '')}
           ${isSelected ? 'ring-2 ring-offset-1 ring-offset-transparent' : ''}
           ${dragGhost && dragGhost.targetTrackId && !dragGhost.isShiftCopy ? 'opacity-0' : ''}
         `}
@@ -576,6 +578,14 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
           width={width}
           color={track.color}
         />
+
+        {clip.active === false && (
+          <div
+            className="absolute inset-0 pointer-events-none z-[1] bg-black/45"
+            data-testid={`clip-inactive-overlay-${clip.id}`}
+            aria-hidden="true"
+          />
+        )}
 
         {!isMidiClip && hasAudioBody && (
           <>
@@ -747,6 +757,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
             }
           }}
           onDuplicate={() => { closeCtxMenu(); duplicateClip(clip.id); }}
+          onToggleActive={() => { closeCtxMenu(); toggleClipActive(selectedActionClipIds); }}
           onConsolidate={() => { void handleConsolidate(); }}
           onDelete={() => { closeCtxMenu(); removeClip(clip.id); }}
           onAddLayer={() => { closeCtxMenu(); useUIStore.getState().setAddLayerOpen(true); }}
@@ -804,6 +815,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
           hasAudio={!!(clip.isolatedAudioKey || clip.cumulativeMixKey)}
           hasWarpMarkers={!!(clip.warpMarkers && clip.warpMarkers.length > 0)}
           canConsolidate={canConsolidate}
+          isActive={areSelectedActionClipsActive}
         />
       )}
 

@@ -34,6 +34,7 @@ function makeClip(overrides: Partial<Clip>): Clip {
     trackId: overrides.trackId ?? 'track-1',
     startTime: overrides.startTime ?? 0,
     duration: overrides.duration ?? 1,
+    active: overrides.active ?? true,
     prompt: overrides.prompt ?? '',
     lyrics: overrides.lyrics ?? '',
     generationStatus: overrides.generationStatus ?? 'ready',

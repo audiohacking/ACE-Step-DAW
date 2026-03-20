@@ -10,6 +10,7 @@ interface ClipContextMenuProps {
   onExportMidi: () => void;
   onDuplicate: () => void;
   onConsolidate: () => void;
+  onToggleActive: () => void;
   onDelete: () => void;
   onAddLayer: () => void;
   onCreateCover: () => void;
@@ -30,6 +31,7 @@ interface ClipContextMenuProps {
   hasAudio: boolean;
   hasWarpMarkers: boolean;
   canConsolidate: boolean;
+  isActive: boolean;
 }
 
 export function ClipContextMenu({
@@ -42,6 +44,7 @@ export function ClipContextMenu({
   onExportMidi,
   onDuplicate,
   onConsolidate,
+  onToggleActive,
   onDelete,
   onAddLayer,
   onCreateCover,
@@ -62,6 +65,7 @@ export function ClipContextMenu({
   hasAudio,
   hasWarpMarkers,
   canConsolidate,
+  isActive,
 }: ClipContextMenuProps) {
   return (
     <ContextMenuWrapper x={x} y={y} onClose={onClose} minWidth={190}>
@@ -105,6 +109,7 @@ export function ClipContextMenu({
       <ContextMenuSeparator />
       <ContextMenuItem label="Split at Playhead" onClick={onSplitAtPlayhead} shortcut="S" />
       <ContextMenuItem label="Duplicate" onClick={onDuplicate} />
+      <ContextMenuItem label={isActive ? 'Deactivate' : 'Activate'} onClick={onToggleActive} shortcut="0" />
       <ContextMenuItem label="Consolidate" onClick={onConsolidate} disabled={!canConsolidate} />
       {!isMidiClip && (
         <ContextMenuItem label="Add Layer here..." onClick={onAddLayer} />

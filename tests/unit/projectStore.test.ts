@@ -178,7 +178,32 @@ describe('projectStore', () => {
         cumulativeMixKey: null,
         isolatedAudioKey: null,
         waveformPeaks: null,
+        active: true,
       });
+    });
+
+    it('toggles clip active state with undo and redo support', () => {
+      const track = useProjectStore.getState().addTrack('drums');
+      const clip = useProjectStore.getState().addClip(track.id, {
+        startTime: 0,
+        duration: 4,
+        prompt: 'mute me',
+        lyrics: '',
+        source: 'generated',
+      });
+
+      useProjectStore.getState().toggleClipActive([clip.id]);
+
+      let storedClip = useProjectStore.getState().project?.tracks[0]?.clips[0];
+      expect(storedClip?.active).toBe(false);
+
+      useProjectStore.getState().undo();
+      storedClip = useProjectStore.getState().project?.tracks[0]?.clips[0];
+      expect(storedClip?.active).toBe(true);
+
+      useProjectStore.getState().redo();
+      storedClip = useProjectStore.getState().project?.tracks[0]?.clips[0];
+      expect(storedClip?.active).toBe(false);
     });
   });
 

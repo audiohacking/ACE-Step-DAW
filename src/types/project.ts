@@ -316,6 +316,8 @@ export interface Clip {
   trackId: string;
   startTime: number;
   duration: number;
+  /** False when the clip is temporarily deactivated for A/B comparison. */
+  active: boolean;
   prompt: string;
   globalCaption?: string;  // Global/full-song description for SFT-stems lego tasks
   lyrics: string;
@@ -372,6 +374,13 @@ export interface Clip {
   /** Per-clip mute for A/B variation comparison. */
   muted?: boolean;
 }
+
+export type AddClipInput = Omit<
+  Clip,
+  'id' | 'trackId' | 'generationStatus' | 'generationJobId' | 'cumulativeMixKey' | 'isolatedAudioKey' | 'waveformPeaks' | 'active'
+> & {
+  active?: boolean;
+};
 
 export interface BounceInPlaceOptions {
   includeEffects: boolean;

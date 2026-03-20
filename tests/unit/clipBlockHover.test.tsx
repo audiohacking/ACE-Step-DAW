@@ -41,6 +41,7 @@ const makeClip = (overrides?: Partial<Clip>): Clip => ({
   trackId: 'track-1',
   startTime: 0,
   duration: 4,
+  active: true,
   prompt: 'Test clip',
   lyrics: '',
   generationStatus: 'ready',
@@ -131,5 +132,16 @@ describe('ClipBlock hover and active feedback', () => {
     // And hover/active classes should still be present
     expect(clipEl.className).toMatch(/hover:/);
     expect(clipEl.className).toMatch(/active:/);
+  });
+
+  it('renders inactive clips with dimmed styling and an overlay indicator', () => {
+    const clip = makeClip({ active: false });
+    const track = makeTrack();
+
+    render(<ClipBlock clip={clip} track={track} />);
+
+    const clipEl = screen.getByTestId(`clip-${clip.id}`);
+    expect(clipEl.className).toContain('opacity-55');
+    expect(screen.getByTestId(`clip-inactive-overlay-${clip.id}`)).toBeInTheDocument();
   });
 });

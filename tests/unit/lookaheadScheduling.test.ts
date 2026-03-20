@@ -46,6 +46,18 @@ class MockDynamicsCompressorNode {
   disconnect() {}
 }
 
+class MockStereoPannerNode {
+  pan = new MockAudioParam();
+  connect() { return this; }
+  disconnect() {}
+}
+
+class MockConvolverNode {
+  buffer: AudioBuffer | null = null;
+  connect() { return this; }
+  disconnect() {}
+}
+
 class MockChannelSplitterNode {
   connect() { return this; }
   disconnect() {}
@@ -70,6 +82,18 @@ class MockAudioContext {
   createAnalyser() { return new MockAnalyserNode(); }
   createBiquadFilter() { return new MockBiquadFilterNode(); }
   createDynamicsCompressor() { return new MockDynamicsCompressorNode(); }
+  createStereoPanner() { return new MockStereoPannerNode(); }
+  createConvolver() { return new MockConvolverNode(); }
+  createBuffer(numberOfChannels: number, length: number, sampleRate: number) {
+    const channels = Array.from({ length: numberOfChannels }, () => new Float32Array(length));
+    return {
+      numberOfChannels,
+      length,
+      sampleRate,
+      duration: length / sampleRate,
+      getChannelData: (channel: number) => channels[channel],
+    } as AudioBuffer;
+  }
   createChannelSplitter() { return new MockChannelSplitterNode(); }
   createChannelMerger() { return new MockChannelMergerNode(); }
   createOscillator() {
@@ -235,6 +259,37 @@ describe('Lookahead Transport Scheduling', () => {
 
       expect(engine.getCurrentTime()).toBeCloseTo(1.0, 1);
       expect(engine.getCompensatedTime()).toBeCloseTo(0.75, 5);
+    });
+  });
+
+  describe('clip scheduling', () => {
+    it('skips inactive clips during playback scheduling', () => {
+      const activeBuffer = { duration: 4 } as AudioBuffer;
+      const inactiveBuffer = { duration: 4 } as AudioBuffer;
+
+      engine.schedulePlayback([
+        {
+          clipId: 'clip-active',
+          trackId: 'track-1',
+          startTime: 0,
+          buffer: activeBuffer,
+          audioOffset: 0,
+          clipDuration: 4,
+          active: true,
+        },
+        {
+          clipId: 'clip-inactive',
+          trackId: 'track-1',
+          startTime: 4,
+          buffer: inactiveBuffer,
+          audioOffset: 0,
+          clipDuration: 4,
+          active: false,
+        },
+      ], 0, 10);
+
+      expect(engine.scheduledSources).toHaveLength(1);
+      expect(engine.scheduledSources[0]?.clipId).toBe('clip-active');
     });
   });
 });

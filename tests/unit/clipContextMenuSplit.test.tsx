@@ -13,6 +13,8 @@ function renderMenu(overrides: Partial<Parameters<typeof ClipContextMenu>[0]> = 
     onExportMidi: vi.fn(),
     onDuplicate: vi.fn(),
     onConsolidate: vi.fn(),
+    onToggleActive: vi.fn(),
+    isActive: true,
     onDelete: vi.fn(),
     onAddLayer: vi.fn(),
     onCreateCover: vi.fn(),
@@ -57,5 +59,20 @@ describe('ClipContextMenu split option', () => {
     const button = label.closest('button')!;
     const shortcutSpan = button.querySelectorAll('span')[1];
     expect(shortcutSpan?.textContent).toBe('S');
+  });
+
+  it('renders Deactivate for active clips and triggers the toggle action', () => {
+    const onToggleActive = vi.fn();
+    renderMenu({ isActive: true, onToggleActive });
+
+    fireEvent.click(screen.getByText('Deactivate'));
+
+    expect(onToggleActive).toHaveBeenCalledOnce();
+  });
+
+  it('renders Activate for inactive clips', () => {
+    renderMenu({ isActive: false });
+
+    expect(screen.getByText('Activate')).toBeTruthy();
   });
 });

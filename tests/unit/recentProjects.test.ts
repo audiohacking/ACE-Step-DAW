@@ -48,6 +48,7 @@ function makeClip(overrides: Partial<Clip>): Clip {
     trackId: 'track-1',
     startTime: 0,
     duration: 4,
+    active: true,
     generationStatus: 'ready',
     ...overrides,
   } as Clip;
