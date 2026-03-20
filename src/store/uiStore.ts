@@ -116,6 +116,9 @@ export interface UIState {
   loopBrowserSearch: string;
   previewingLoopId: string | null;
 
+  // Music Enhancer floating panel
+  musicEnhancerOpen: boolean;
+
   // Cover / Repaint modals
   coverClipId: string | null;
   repaintClipId: string | null;
@@ -238,6 +241,9 @@ export interface UIState {
   setLoopBrowserCategory: (v: 'All' | 'Drums' | 'Bass' | 'Keys' | 'Synth') => void;
   setLoopBrowserSearch: (v: string) => void;
   setPreviewingLoopId: (id: string | null) => void;
+
+  // Music Enhancer floating panel
+  setMusicEnhancerOpen: (open: boolean) => void;
 
   // Cover / Repaint modals
   setCoverModal: (clipId: string | null) => void;
@@ -404,6 +410,8 @@ export const useUIStore = create<UIState>()(
   loopBrowserCategory: 'All',
   loopBrowserSearch: '',
   previewingLoopId: null,
+
+  musicEnhancerOpen: false,
 
   coverClipId: null,
   repaintClipId: null,
@@ -659,6 +667,8 @@ export const useUIStore = create<UIState>()(
   setLoopBrowserCategory: (v) => set({ loopBrowserCategory: v }),
   setLoopBrowserSearch: (v) => set({ loopBrowserSearch: v }),
   setPreviewingLoopId: (id) => set({ previewingLoopId: id }),
+
+  setMusicEnhancerOpen: (open) => set({ musicEnhancerOpen: open }),
 
   setCoverModal: (clipId) => set({ coverClipId: clipId }),
   setRepaintModal: (clipId, range = null) => set({ repaintClipId: clipId, repaintRange: range }),

@@ -7,6 +7,7 @@ import { Z } from '../../utils/zIndex';
 import { GenerationPanel } from '../generation/GenerationPanel';
 import { GenerationSidePanel } from '../generation/GenerationSidePanel';
 import { CoverModal } from '../generation/CoverModal';
+import { MusicEnhancerPanel } from '../generation/MusicEnhancerPanel';
 import { RepaintModal } from '../generation/RepaintModal';
 import { Vocal2BGMModal } from '../generation/Vocal2BGMModal';
 import { AudioAnalysisPanel } from '../generation/AudioAnalysisPanel';
@@ -192,6 +193,7 @@ export function AppShell() {
       {!hasPriorityBlocker && !hasBlockingDialog && <CommandPalette />}
       <ShortcutEditorDialog />
       <CoverModal />
+      <MusicEnhancerPanel />
       <RepaintModal />
       <Vocal2BGMModal />
       <AudioAnalysisPanel />
