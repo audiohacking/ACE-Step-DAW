@@ -76,25 +76,60 @@ fi
 
 TITLE=$(timeout 10 gh issue view $ISSUE_NUM --repo $REPO --json title --jq .title 2>/dev/null || echo "issue $ISSUE_NUM")
 
-# Clean worktree
-[ -n "$WT" ] && [[ "$WT" == /tmp/daw-worktrees/* ]] && rm -rf "$WT"
+# ── Takeover vs fresh start ──
+TAKEOVER=false
+EXISTING_PR=""
+if [ -d "$WT" ]; then
+  # Worktree exists — check if agent is dead and PR is open
+  if ! pgrep -f "run-agent.sh.*agent-$ISSUE_NUM" > /dev/null 2>&1; then
+    BRANCH_NAME="fix/issue-$ISSUE_NUM"
+    EXISTING_PR=$(gh pr list --repo "$REPO" --head "$BRANCH_NAME" --state open --json number -q '.[0].number' 2>/dev/null)
+    if [ -n "$EXISTING_PR" ]; then
+      TAKEOVER=true
+      log "Takeover: #$ISSUE_NUM has dead agent + open PR #$EXISTING_PR — resuming"
+      cd "$WT"
+      git fetch origin main 2>/dev/null
+    else
+      log "Dead agent for #$ISSUE_NUM but no open PR — starting fresh"
+      [ -n "$WT" ] && [[ "$WT" == /tmp/daw-worktrees/* ]] && rm -rf "$WT"
+    fi
+  else
+    echo "SKIP: agent for #$ISSUE_NUM still alive"
+    exit 0
+  fi
+fi
 
-# Create fresh worktree
-cd "$DAW"
-git fetch origin main 2>/dev/null
-git worktree prune 2>/dev/null
-git branch -D "fix/issue-$ISSUE_NUM" 2>/dev/null
-git worktree add "$WT" origin/main --detach 2>/dev/null || { echo "ERROR: worktree fail #$ISSUE_NUM"; exit 1; }
-cd "$WT"
-git checkout -B "fix/issue-$ISSUE_NUM" origin/main 2>/dev/null
+if [ "$TAKEOVER" = false ]; then
+  # Create fresh worktree
+  [ -n "$WT" ] && [[ "$WT" == /tmp/daw-worktrees/* ]] && rm -rf "$WT"
+  cd "$DAW"
+  git fetch origin main 2>/dev/null
+  git worktree prune 2>/dev/null
+  git branch -D "fix/issue-$ISSUE_NUM" 2>/dev/null
+  git worktree add "$WT" origin/main --detach 2>/dev/null || { echo "ERROR: worktree fail #$ISSUE_NUM"; exit 1; }
+  cd "$WT"
+  git checkout -B "fix/issue-$ISSUE_NUM" origin/main 2>/dev/null
+fi
 
 # Write prompt to file
 cat "$DAW/scripts/agents/AGENT_CONTEXT.md" > "$WT/agent-prompt.txt" 2>/dev/null
 echo "---" >> "$WT/agent-prompt.txt"
-echo "IMPLEMENT ISSUE #$ISSUE_NUM: $TITLE" >> "$WT/agent-prompt.txt"
-timeout 10 gh issue view $ISSUE_NUM --repo $REPO --json body --jq .body 2>/dev/null >> "$WT/agent-prompt.txt"
-echo "" >> "$WT/agent-prompt.txt"
-echo "You are on branch fix/issue-$ISSUE_NUM. Implement, then: npx tsc --noEmit && npm run build && npx vitest run tests/unit/ && git add -A && git commit -m 'feat: resolve #$ISSUE_NUM'. Do NOT push." >> "$WT/agent-prompt.txt"
+if [ "$TAKEOVER" = true ]; then
+  echo "TAKEOVER: Issue #$ISSUE_NUM has an existing PR #$EXISTING_PR that needs fixing." >> "$WT/agent-prompt.txt"
+  echo "The previous agent died. You are taking over." >> "$WT/agent-prompt.txt"
+  echo "1. Check the current state: git status, git log --oneline -5" >> "$WT/agent-prompt.txt"
+  echo "2. Rebase onto latest main: git fetch origin main && git rebase origin/main" >> "$WT/agent-prompt.txt"
+  echo "3. If rebase conflicts, resolve them" >> "$WT/agent-prompt.txt"
+  echo "4. Run quality gates: npx tsc --noEmit && npm run build && npx vitest run tests/unit/" >> "$WT/agent-prompt.txt"
+  echo "5. If gates fail, fix the code" >> "$WT/agent-prompt.txt"
+  echo "6. git add -A && git commit -m 'fix: takeover and resolve #$ISSUE_NUM'" >> "$WT/agent-prompt.txt"
+  echo "Do NOT push." >> "$WT/agent-prompt.txt"
+else
+  echo "IMPLEMENT ISSUE #$ISSUE_NUM: $TITLE" >> "$WT/agent-prompt.txt"
+  timeout 10 gh issue view $ISSUE_NUM --repo $REPO --json body --jq .body 2>/dev/null >> "$WT/agent-prompt.txt"
+  echo "" >> "$WT/agent-prompt.txt"
+  echo "You are on branch fix/issue-$ISSUE_NUM. Implement, then: npx tsc --noEmit && npm run build && npx vitest run tests/unit/ && git add -A && git commit -m 'feat: resolve #$ISSUE_NUM'. Do NOT push." >> "$WT/agent-prompt.txt"
+fi
 
 # Write wrapper
 cat > "$WT/run-agent.sh" << 'WEOF'
@@ -104,7 +139,7 @@ BRANCH="fix/issue-$ISSUE"
 MAX_ROUNDS=5          # Max fix iterations before giving up
 CI_POLL_INTERVAL=60   # Seconds between CI status checks
 CI_POLL_TIMEOUT=900   # Max seconds to wait for CI (15 min)
-LOG="$(cd "$(dirname "$0")/../.." /tmp/pm-activity.log/tmp/pm-activity.log pwd)/.pm/activity.log"
+LOG="/Users/junmingong/.openclaw/workspace/acestep-daw/.pm/activity.log"
 SESSION_FILE="$WT/.agent-session-id"  # Persist session ID across rounds
 
 log() { echo "[$(date)] [agent-$ISSUE] $*" >> "$LOG"; echo "$*"; }

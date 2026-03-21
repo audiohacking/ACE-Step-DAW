@@ -115,17 +115,21 @@ $PREV_DECISIONS
 
 2. REBASE: For CONFLICTING PRs, checkout branch, rebase, push.
 
-3. STAFF: Dispatch dev agents for unworked issues via launch-dev.sh:
+3. RECOVER STALE: Check for dead agents with open PRs:
+   bash scripts/agents/registry.sh stale
+   For each stale agent, RE-LAUNCH with the same issue number:
+   bash scripts/agents/launch-dev.sh ISSUE_NUM codex
+   (launch-dev.sh auto-detects takeover: existing worktree + open PR = resume, not restart)
+
+4. STAFF: Dispatch dev agents for NEW unworked issues via launch-dev.sh:
    bash scripts/agents/launch-dev.sh ISSUE_NUM codex|claude
    CRITICAL RULES:
-   - Do NOT assign issues that have a worktree (check ACTIVE_WORKTREES)
    - Do NOT assign issues that have a running agent (check RUNNING AGENTS)
-   - Do NOT re-assign CI-failed or review-blocked PRs — the owning dev agent handles those
    - P0 issues → use Claude Code (deeper reasoning): launch-dev.sh ISSUE_NUM claude
    - P1/P2 issues → use Codex (faster/cheaper): launch-dev.sh ISSUE_NUM codex
    - Always use launch-dev.sh, never raw codex exec for dev work
 
-4. BALANCE: Claude Code max 3, Codex max 10. Fill BOTH pools in parallel — not sequentially.
+5. BALANCE: Claude Code max 3, Codex max 10. Fill BOTH pools in parallel — not sequentially.
 
 5. After all decisions, write a concise summary of EACH action you took.
    This will be saved as memory for your next tick."
