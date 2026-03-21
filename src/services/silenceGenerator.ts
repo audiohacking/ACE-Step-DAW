@@ -5,12 +5,14 @@ const SILENCE_UPLOAD_CHANNELS = 1;
 const SILENCE_UPLOAD_DURATION = 0.1;
 
 /**
- * Generate a minimal silence WAV for upload.
- * The actual generation length must be sent as `audio_duration` on the lego task
- * (see `computeLegoTimingParams` in legoApiTiming.ts — from-silence uses clip/select-window
- * seconds). This file only uploads a tiny placeholder (0.1s at 16kHz mono ≈ 3.2KB).
+ * Generate a minimal silence WAV placeholder for upload.
+ *
+ * The actual generation length is controlled by the `audio_duration` field on
+ * the lego/repaint task params (see {@link computeLegoTimingParams} in
+ * `legoApiTiming.ts`). This function only produces a tiny 0.1s 16kHz mono WAV
+ * (~3.2KB) so the backend has a valid `src_audio` file to parse.
  */
-export function generateSilenceWav(_durationSeconds: number): Blob {
+export function generateSilenceWav(): Blob {
   const numSamples = Math.ceil(SILENCE_UPLOAD_RATE * SILENCE_UPLOAD_DURATION);
   const bytesPerSample = BITS_PER_SAMPLE / 8;
   const blockAlign = SILENCE_UPLOAD_CHANNELS * bytesPerSample;

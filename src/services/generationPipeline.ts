@@ -517,7 +517,7 @@ async function generateClipInternal(
     const srcBlob = options.srcAudioPath
       ? null
       : (options.forceSilence ? null : previousCumulativeBlob);
-    const srcAudioBlob = srcBlob ?? generateSilenceWav(timing.audio_duration);
+    const srcAudioBlob = srcBlob ?? generateSilenceWav();
 
     logger.debug(
       `clip=${clipId} track=${track.trackName}`,
@@ -1854,8 +1854,7 @@ export async function generateRepaintClip(opts: GenerateRepaintOptions): Promise
         srcBlob = (await loadAudioBlobByKey(clip.cumulativeMixKey)) ?? null;
       }
       if (!srcBlob) {
-        const audioDuration = store.getAudioDuration();
-        srcBlob = generateSilenceWav(audioDuration);
+        srcBlob = generateSilenceWav();
       }
 
       const globalCaption = opts.globalCaption || store.project?.globalCaption || '';
@@ -1953,8 +1952,7 @@ export async function regenerateTimelineRegion(opts: RegionRegenerateOptions): P
           srcBlob = (await loadAudioBlobByKey(clip.cumulativeMixKey)) ?? null;
         }
         if (!srcBlob) {
-          const audioDuration = store.getAudioDuration();
-          srcBlob = generateSilenceWav(audioDuration);
+          srcBlob = generateSilenceWav();
         }
 
         const outcome = await generateRepaintInternal(
