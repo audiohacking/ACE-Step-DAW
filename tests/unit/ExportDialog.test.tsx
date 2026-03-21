@@ -25,9 +25,13 @@ vi.mock('../../src/engine/offlineRender', () => ({
   renderSequencerTrackOffline: (...args: unknown[]) => mockRenderSequencerTrackOffline(...args),
 }));
 
-vi.mock('../../src/engine/exportMix', () => ({
-  exportMix: (...args: unknown[]) => mockExportMix(...args),
-}));
+vi.mock('../../src/engine/exportMix', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/engine/exportMix')>();
+  return {
+    ...actual,
+    exportMix: (...args: unknown[]) => mockExportMix(...args),
+  };
+});
 
 vi.mock('../../src/services/browserDownload', () => ({
   downloadBlob: (...args: unknown[]) => mockDownloadBlob(...args),
