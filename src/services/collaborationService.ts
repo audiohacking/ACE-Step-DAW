@@ -127,6 +127,7 @@ export function parseShareParams(search: string): {
   projectId: string;
   readOnly: boolean;
   expiresAt: number | null;
+  mode: string | null;
 } | null {
   const params = new URLSearchParams(search);
   const token = params.get('share');
@@ -137,8 +138,9 @@ export function parseShareParams(search: string): {
   const readOnly = params.get('mode') === 'viewer';
   const expiresStr = params.get('expires');
   const expiresAt = expiresStr ? Number(expiresStr) : null;
+  const mode = params.get('mode');
 
-  return { token, projectId, readOnly, expiresAt };
+  return { token, projectId, readOnly, expiresAt, mode };
 }
 
 /**

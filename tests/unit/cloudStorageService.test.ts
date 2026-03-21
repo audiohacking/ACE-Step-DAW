@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { cloudStorage, resetCloudStorage } from '../../src/services/cloudStorageService';
 import type { Project } from '../../src/types/project';
 
@@ -166,6 +166,59 @@ describe('cloudStorageService', () => {
       const list = await cloudStorage.list();
       expect(list).toEqual([]);
       expect(await cloudStorage.load('p1')).toBeNull();
+    });
+  });
+
+  describe('shared projects', () => {
+    it('persists a shared project payload and loads it by token', async () => {
+      const shared = await cloudStorage.saveSharedProject({
+        project: makeProject({ id: 'shared-proj', name: 'Shared Demo' }),
+        owner: 'alice',
+        stems: [
+          {
+            trackId: 'track-1',
+            trackName: 'Drums',
+            color: '#ff5500',
+            volume: 0.82,
+            lyrics: 'kick snare hat',
+            audioDataUrl: 'data:audio/mpeg;base64,AAA=',
+          },
+        ],
+      });
+
+      expect(shared.token).toMatch(/^share_/);
+      expect(shared.projectId).toBe('shared-proj');
+      expect(shared.owner).toBe('alice');
+      expect(shared.stems).toHaveLength(1);
+      expect(shared.stems[0].trackName).toBe('Drums');
+
+      const loaded = await cloudStorage.loadSharedProject(shared.token);
+      expect(loaded).toEqual(shared);
+    });
+
+    it('lists shared projects in reverse sharedAt order', async () => {
+      vi.spyOn(Date, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(2000);
+
+      const older = await cloudStorage.saveSharedProject({
+        project: makeProject({ id: 'old-proj', updatedAt: 1000 }),
+        owner: 'alice',
+        stems: [],
+      });
+      const newer = await cloudStorage.saveSharedProject({
+        project: makeProject({ id: 'new-proj', updatedAt: 2000 }),
+        owner: 'bob',
+        stems: [],
+      });
+
+      const list = await cloudStorage.listSharedProjects();
+
+      expect(list.map((entry) => entry.token)).toEqual([newer.token, older.token]);
+      expect(list[0].name).toBe('Test Project');
+      expect(list[0].stemCount).toBe(0);
+
+      vi.restoreAllMocks();
     });
   });
 });

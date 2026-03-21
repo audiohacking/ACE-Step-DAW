@@ -35,6 +35,7 @@ import { PianoRoll } from '../pianoroll/PianoRoll';
 import { EffectChain } from '../mixer/EffectChain';
 import { SessionView } from '../session/SessionView';
 import { ModelLibraryPanel } from '../models/ModelLibraryPanel';
+import { SharedProjectPage } from '../sharing/SharedProjectPage';
 import { ToastContainer } from '../ui/Toast';
 import { UndoHistoryPanel } from './UndoHistoryPanel';
 import { FirstRunOnboarding } from '../onboarding/FirstRunOnboarding';
@@ -47,7 +48,7 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useEffectsSync } from '../../hooks/useEffectsSync';
 import { useShareLink } from '../../hooks/useShareLink';
 
-export function AppShell() {
+function EditorShell() {
   const { resumeOnGesture } = useAudioEngine();
   const project = useProjectStore((s) => s.project);
   const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
@@ -119,7 +120,6 @@ export function AppShell() {
 
   useKeyboardShortcuts();
   useEffectsSync(); // Keep effects chain synced with store — always, not just when Mixer is open
-  useShareLink(); // Check URL for share parameters on mount
 
   return (
     <div
@@ -207,4 +207,25 @@ export function AppShell() {
       {!hasPriorityBlocker && !hasBlockingDialog && <AIAssistantPanel />}
     </div>
   );
+}
+
+export function AppShell() {
+  const shareLinkState = useShareLink() ?? { sharedProject: null, loadingSharedProject: false };
+  const { sharedProject, loadingSharedProject } = shareLinkState;
+
+  if (loadingSharedProject) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-daw-bg text-zinc-200">
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-5 text-sm">
+          Loading shared stem player...
+        </div>
+      </div>
+    );
+  }
+
+  if (sharedProject) {
+    return <SharedProjectPage sharedProject={sharedProject} />;
+  }
+
+  return <EditorShell />;
 }
