@@ -7,7 +7,7 @@ import { TIME_SIGNATURE_LANE_HEIGHT } from './timelineLayout';
 const HOVER_THRESHOLD_PX = 10;
 const MARKER_COLOR = '#22c55e';
 
-function parseTimeSignatureInput(value: string | null): { numerator: number; denominator: number } | null {
+export function parseTimeSignatureInput(value: string | null): { numerator: number; denominator: number } | null {
   if (!value) return null;
   const match = value.trim().match(/^(\d+)(?:\s*\/\s*(\d+))?$/);
   if (!match) return null;
@@ -15,6 +15,9 @@ function parseTimeSignatureInput(value: string | null): { numerator: number; den
   const numerator = Number.parseInt(match[1], 10);
   const denominator = Number.parseInt(match[2] ?? '4', 10);
   if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || numerator < 1 || denominator < 1) {
+    return null;
+  }
+  if ((denominator & (denominator - 1)) !== 0) {
     return null;
   }
 
@@ -44,10 +47,12 @@ export function TimeSignatureLane() {
     if (!project) return [];
 
     const starts: { bar: number; x: number }[] = [];
-    for (let bar = 1; bar <= 999; bar++) {
+    let prevX = -Infinity;
+    for (let bar = 1; ; bar++) {
       const beat = getBeatAtBar(bar, timeSignatureMap, timeSignature);
       const x = beatToTime(beat, tempoMap, bpm) * pixelsPerSecond;
-      if (x > width + HOVER_THRESHOLD_PX) break;
+      if (!Number.isFinite(x) || x <= prevX || x > width + HOVER_THRESHOLD_PX) break;
+      prevX = x;
       starts.push({ bar, x });
     }
     return starts;
@@ -137,6 +142,7 @@ export function TimeSignatureLane() {
       if (!closest) return;
       const nextBar = Math.max(2, closest.bar);
       if (nextBar === currentBar) return;
+      if (markers.some((marker) => marker.bar === nextBar)) return;
 
       addTimeSignatureEvent({ bar: nextBar, numerator, denominator });
       removeTimeSignatureEvent(currentBar);
@@ -162,7 +168,7 @@ export function TimeSignatureLane() {
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     window.addEventListener('keydown', onKeyDown);
-  }, [addTimeSignatureEvent, beginDrag, endDrag, findClosestBar, removeTimeSignatureEvent, undo]);
+  }, [addTimeSignatureEvent, beginDrag, endDrag, findClosestBar, markers, removeTimeSignatureEvent, undo]);
 
   const hoveredStart = hoveredBar ? barStarts.find((start) => start.bar === hoveredBar) ?? null : null;
   const showAddButton = hoveredStart && !markers.some((marker) => marker.bar === hoveredStart.bar);

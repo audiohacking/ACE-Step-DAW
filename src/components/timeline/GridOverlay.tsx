@@ -50,20 +50,37 @@ export function GridOverlay() {
 
     // Tempo-map/time-sig-aware path: iterate by bars so mixed meters align cleanly.
     const result: { x: number; strength: 'bar' | 'beat' | 'sub' }[] = [];
+    const { division } = getGridDivision(pixelsPerSecond, bpm);
+    let prevBarTime = -Infinity;
 
-    for (let bar = 1; bar <= 999; bar++) {
+    for (let bar = 1; ; bar++) {
       const barBeat = getBeatAtBar(bar, timeSignatureMap, timeSignature);
       const barTime = beatToTime(barBeat, tempoMap, bpm);
-      if (barTime > totalDuration) break;
+      if (!Number.isFinite(barTime) || barTime <= prevBarTime || barTime > totalDuration) {
+        break;
+      }
+      prevBarTime = barTime;
 
       result.push({ x: barTime * pixelsPerSecond, strength: 'bar' });
 
       const ts = getTimeSignatureAtBar(timeSignatureMap, bar, timeSignature, 4);
       const beatLength = getTimeSignatureBeatLength(ts.denominator);
-      for (let beat = 1; beat < ts.numerator; beat++) {
-        const beatTime = beatToTime(barBeat + beat * beatLength, tempoMap, bpm);
-        if (beatTime > totalDuration) break;
-        result.push({ x: beatTime * pixelsPerSecond, strength: 'beat' });
+      const barLength = ts.numerator * beatLength;
+      if (division >= barLength) {
+        continue;
+      }
+
+      for (let offset = division; offset < barLength; offset += division) {
+        const lineBeat = barBeat + offset * beatLength;
+        const lineTime = beatToTime(lineBeat, tempoMap, bpm);
+        if (!Number.isFinite(lineTime) || lineTime > totalDuration) break;
+
+        const wholeBeats = Math.round(offset);
+        const isWholeBeat = Math.abs(offset - wholeBeats) < 0.001;
+        result.push({
+          x: lineTime * pixelsPerSecond,
+          strength: isWholeBeat ? 'beat' : 'sub',
+        });
       }
     }
     return result;

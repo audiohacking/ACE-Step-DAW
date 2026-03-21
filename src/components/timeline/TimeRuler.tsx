@@ -110,10 +110,12 @@ export function TimeRuler() {
 
     const result: { label: string; x: number; isBar: boolean; tsLabel?: string }[] = [];
     let prevTs = '';
-    for (let bar = 1; bar <= 999; bar++) {
+    let prevTime = -Infinity;
+    for (let bar = 1; ; bar++) {
       const barBeat = getBeatAtBar(bar, timeSignatureMap, timeSignature);
       const time = beatToTime(barBeat, tempoMap, bpm);
-      if (time > totalDuration) break;
+      if (!Number.isFinite(time) || time <= prevTime || time > totalDuration) break;
+      prevTime = time;
 
       let tsLabel: string | undefined;
       if (hasTsMap) {
