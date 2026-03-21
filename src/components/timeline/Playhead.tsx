@@ -39,6 +39,7 @@ export function Playhead() {
             left: transportX,
             minHeight: '100vh',
             backgroundColor: '#ffffff',
+            boxShadow: '0 0 3px rgba(0, 0, 0, 0.35), 0 0 8px rgba(0, 0, 0, 0.15)',
           }}
         />
       )}
@@ -69,6 +70,7 @@ function SelectedTrackCursor({ trackId, x, blink }: { trackId: string; x: number
         height: laneEl.offsetHeight,
         animation: blink ? 'playhead-blink-line 1.2s ease-in-out infinite' : undefined,
         backgroundColor: blink ? undefined : '#ffffff',
+        boxShadow: '0 0 3px rgba(0, 0, 0, 0.35), 0 0 8px rgba(0, 0, 0, 0.15)',
       }}
     />
   );
