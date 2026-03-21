@@ -6,6 +6,7 @@ import { useProjectStore } from '../../src/store/projectStore';
 import { useUIStore } from '../../src/store/uiStore';
 import { useToastStore } from '../../src/hooks/useToast';
 import { getTimelineFitViewport } from '../../src/utils/timelineZoom';
+import { TRACK_LIST_DEFAULT_WIDTH } from '../../src/constants/trackList';
 
 vi.mock('../../src/services/projectStorage', () => ({
   saveProject: vi.fn(),
@@ -45,9 +46,23 @@ vi.mock('../../src/components/timeline/TempoLane', () => ({
   TempoLane: () => <div data-testid="tempo-lane" />,
 }));
 
+vi.mock('../../src/components/timeline/TimeSignatureLane', () => ({
+  TimeSignatureLane: () => <div data-testid="time-signature-lane" />,
+}));
+
+vi.mock('../../src/components/tracks/TrackHeader', () => ({
+  TrackHeader: ({ track }: { track: { id: string } }) => (
+    <div data-track-column-region="true" data-track-id={track.id} data-testid={`track-header-${track.id}`} />
+  ),
+}));
+
+vi.mock('../../src/components/tracks/TrackListDisplayToggle', () => ({
+  TrackListDisplayToggle: () => <button type="button" aria-label="Toggle track list display">toggle</button>,
+}));
+
 vi.mock('../../src/components/timeline/TrackLane', () => ({
   TrackLane: ({ track }: { track: { id: string } }) => (
-    <div data-track-id={track.id} data-testid={`track-lane-${track.id}`} />
+    <div data-timeline-lane data-track-id={track.id} data-testid={`track-lane-${track.id}`} />
   ),
 }));
 
@@ -112,6 +127,22 @@ describe('Timeline zoom requests', () => {
     return timeline;
   }
 
+  function getTimelineViewportWidth(width = 1000) {
+    const trackListWidth = useUIStore.getState().trackListWidth;
+    const resolvedTrackListWidth = Number.isFinite(trackListWidth) ? trackListWidth : TRACK_LIST_DEFAULT_WIDTH;
+    return width - resolvedTrackListWidth;
+  }
+
+  function getExpectedScrollLeft(startTime: number, pixelsPerSecond: number, totalDuration: number, viewportWidth: number, paddingPx = 40) {
+    return Math.max(
+      0,
+      Math.min(
+        totalDuration * pixelsPerSecond - viewportWidth,
+        startTime * pixelsPerSecond - paddingPx,
+      ),
+    );
+  }
+
   it('fits selected clips when the selection zoom request fires', async () => {
     const track = useProjectStore.getState().addTrack('drums');
     const clipA = useProjectStore.getState().addClip(track.id, {
@@ -131,7 +162,9 @@ describe('Timeline zoom requests', () => {
 
     useUIStore.getState().selectClips([clipA.id, clipB.id]);
     const timeline = setupTimelineViewport();
-    const expectedViewport = getTimelineFitViewport({ startTime: 24, endTime: 36 }, 1000);
+    const viewportWidth = getTimelineViewportWidth(1000);
+    const totalDuration = useProjectStore.getState().project!.totalDuration;
+    const expectedViewport = getTimelineFitViewport({ startTime: 24, endTime: 36 }, viewportWidth, totalDuration);
 
     act(() => {
       useUIStore.getState().zoomTimelineToSelection();
@@ -140,7 +173,7 @@ describe('Timeline zoom requests', () => {
     await vi.waitFor(() => {
       expect(useUIStore.getState().pixelsPerSecond).toBeCloseTo(expectedViewport.pixelsPerSecond, 4);
     });
-    expect(timeline.scrollLeft).toBeCloseTo(expectedViewport.scrollLeft, 4);
+    expect(timeline.scrollLeft).toBeCloseTo(getExpectedScrollLeft(24, expectedViewport.pixelsPerSecond, totalDuration, viewportWidth), 4);
   });
 
   it('fits the selected time region when there are no selected clips', async () => {
@@ -151,7 +184,9 @@ describe('Timeline zoom requests', () => {
       trackIds: [useProjectStore.getState().project!.tracks[0].id],
     });
     const timeline = setupTimelineViewport();
-    const expectedViewport = getTimelineFitViewport({ startTime: 48, endTime: 60 }, 1000);
+    const viewportWidth = getTimelineViewportWidth(1000);
+    const totalDuration = useProjectStore.getState().project!.totalDuration;
+    const expectedViewport = getTimelineFitViewport({ startTime: 48, endTime: 60 }, viewportWidth, totalDuration);
 
     act(() => {
       useUIStore.getState().zoomTimelineToSelection();
@@ -160,7 +195,7 @@ describe('Timeline zoom requests', () => {
     await vi.waitFor(() => {
       expect(useUIStore.getState().pixelsPerSecond).toBeCloseTo(expectedViewport.pixelsPerSecond, 4);
     });
-    expect(timeline.scrollLeft).toBeCloseTo(expectedViewport.scrollLeft, 4);
+    expect(timeline.scrollLeft).toBeCloseTo(getExpectedScrollLeft(48, expectedViewport.pixelsPerSecond, totalDuration, viewportWidth), 4);
   });
 
   it('falls back to the full project and shows feedback when nothing is selected', async () => {

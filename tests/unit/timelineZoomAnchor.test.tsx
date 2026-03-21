@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { Timeline } from '../../src/components/timeline/Timeline';
 import { useProjectStore } from '../../src/store/projectStore';
@@ -43,9 +43,23 @@ vi.mock('../../src/components/timeline/TempoLane', () => ({
   TempoLane: () => <div data-testid="tempo-lane" />,
 }));
 
+vi.mock('../../src/components/timeline/TimeSignatureLane', () => ({
+  TimeSignatureLane: () => <div data-testid="time-signature-lane" />,
+}));
+
+vi.mock('../../src/components/tracks/TrackHeader', () => ({
+  TrackHeader: ({ track }: { track: { id: string } }) => (
+    <div data-track-column-region="true" data-track-id={track.id} data-testid={`track-header-${track.id}`} />
+  ),
+}));
+
+vi.mock('../../src/components/tracks/TrackListDisplayToggle', () => ({
+  TrackListDisplayToggle: () => <button type="button" aria-label="Toggle track list display">toggle</button>,
+}));
+
 vi.mock('../../src/components/timeline/TrackLane', () => ({
   TrackLane: ({ track }: { track: { id: string } }) => (
-    <div data-track-id={track.id} data-testid={`track-lane-${track.id}`} />
+    <div data-timeline-lane data-track-id={track.id} data-testid={`track-lane-${track.id}`} />
   ),
 }));
 
@@ -76,10 +90,11 @@ describe('Timeline zoom anchor', () => {
     useUIStore.getState().setPixelsPerSecond(50);
   });
 
-  it('keeps the time under the cursor fixed when zooming with Cmd/Ctrl+scroll', () => {
+  it('keeps the time under the cursor fixed when zooming with Cmd/Ctrl+scroll', async () => {
     render(<Timeline />);
 
     const timeline = screen.getByRole('grid');
+    const trackListWidth = useUIStore.getState().trackListWidth;
     Object.defineProperty(timeline, 'scrollLeft', {
       value: 300,
       writable: true,
@@ -102,6 +117,9 @@ describe('Timeline zoom anchor', () => {
       toJSON: () => ({}),
     });
 
+    const pointerViewportX = 250 - trackListWidth;
+    const initialTime = (300 + pointerViewportX) / 50;
+
     // Dispatch a native WheelEvent (not React synthetic) because the handler
     // is now attached via addEventListener({ passive: false }), not onWheel
     timeline.dispatchEvent(
@@ -115,7 +133,12 @@ describe('Timeline zoom anchor', () => {
       }),
     );
 
-    expect(useUIStore.getState().pixelsPerSecond).toBe(100);
-    expect(timeline.scrollLeft).toBe(850);
+    await vi.waitFor(() => {
+      expect(useUIStore.getState().pixelsPerSecond).toBeGreaterThan(50);
+    });
+
+    const nextPixelsPerSecond = useUIStore.getState().pixelsPerSecond;
+    const anchoredTime = ((timeline as HTMLElement).scrollLeft + pointerViewportX) / nextPixelsPerSecond;
+    expect(anchoredTime).toBeCloseTo(initialTime, 1);
   });
 });

@@ -11,41 +11,39 @@ describe('uiStore', () => {
     useTransportStore.setState(useTransportStore.getInitialState(), true);
   });
 
-  describe('pixelsPerSecond zoom', () => {
+  describe('timeline zoom requests', () => {
     it('sets an explicit zoom level', () => {
       useUIStore.getState().setPixelsPerSecond(200);
 
       expect(useUIStore.getState().pixelsPerSecond).toBe(200);
     });
 
-    it('zooms in through discrete levels and stops at the maximum', () => {
+    it('emits incrementing step-in requests without mutating the zoom level directly', () => {
       useUIStore.getState().setPixelsPerSecond(50);
 
       useUIStore.getState().zoomIn();
-      expect(useUIStore.getState().pixelsPerSecond).toBe(100);
+      expect(useUIStore.getState().pixelsPerSecond).toBe(50);
+      expect(useUIStore.getState().timelineZoomRequest).toMatchObject({ id: 1, mode: 'stepIn' });
 
       useUIStore.getState().zoomIn();
-      expect(useUIStore.getState().pixelsPerSecond).toBe(200);
-
-      useUIStore.getState().zoomIn();
-      expect(useUIStore.getState().pixelsPerSecond).toBe(500);
-
-      useUIStore.getState().zoomIn();
-      expect(useUIStore.getState().pixelsPerSecond).toBe(500);
+      expect(useUIStore.getState().timelineZoomRequest).toMatchObject({ id: 2, mode: 'stepIn' });
     });
 
-    it('zooms out through discrete levels and stops at the minimum', () => {
+    it('emits incrementing step-out requests without mutating the zoom level directly', () => {
       useUIStore.getState().setPixelsPerSecond(200);
 
       useUIStore.getState().zoomOut();
-      expect(useUIStore.getState().pixelsPerSecond).toBe(100);
+      expect(useUIStore.getState().pixelsPerSecond).toBe(200);
+      expect(useUIStore.getState().timelineZoomRequest).toMatchObject({ id: 1, mode: 'stepOut' });
 
       useUIStore.getState().zoomOut();
-      expect(useUIStore.getState().pixelsPerSecond).toBe(50);
+      expect(useUIStore.getState().timelineZoomRequest).toMatchObject({ id: 2, mode: 'stepOut' });
+    });
 
-      useUIStore.getState().setPixelsPerSecond(10);
-      useUIStore.getState().zoomOut();
-      expect(useUIStore.getState().pixelsPerSecond).toBe(10);
+    it('emits a reset request for the timeline viewport model', () => {
+      useUIStore.getState().zoomReset();
+
+      expect(useUIStore.getState().timelineZoomRequest).toMatchObject({ id: 1, mode: 'reset' });
     });
   });
 
