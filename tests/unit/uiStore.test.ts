@@ -99,6 +99,16 @@ describe('uiStore', () => {
       useUIStore.getState().setShowGenerationHistoryPanel(false);
       expect(useUIStore.getState().showGenerationHistoryPanel).toBe(false);
     });
+
+    it('normalizes and persists theme selection across sessions', () => {
+      useUIStore.getState().setTheme('daylight');
+
+      expect(useUIStore.getState().themeId).toBe('daylight');
+      expect(JSON.parse(localStorage.getItem('ace-step-daw-ui') || '{}').state?.themeId).toBe('daylight');
+
+      useUIStore.getState().setTheme('unknown-theme');
+      expect(useUIStore.getState().themeId).toBe('midnight');
+    });
   });
 
   describe('selectedClipIds', () => {

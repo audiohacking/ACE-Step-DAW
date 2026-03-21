@@ -48,10 +48,12 @@ import { useUIStore } from '../../store/uiStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useEffectsSync } from '../../hooks/useEffectsSync';
 import { useShareLink } from '../../hooks/useShareLink';
+import { getThemeDefinition } from '../../theme/themes';
 
 function EditorShell() {
   const { resumeOnGesture } = useAudioEngine();
   const project = useProjectStore((s) => s.project);
+  const themeId = useUIStore((s) => s.themeId);
   const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
   const setHistoryFocusScope = useUIStore((s) => s.setHistoryFocusScope);
   const showOnboarding = useUIStore((s) => s.showOnboarding);
@@ -71,6 +73,7 @@ function EditorShell() {
   const showKeyboardShortcutsDialog = useUIStore((s) => s.showKeyboardShortcutsDialog);
   const showShortcutEditorDialog = useUIStore((s) => s.showShortcutEditorDialog);
   const [audioResumed, setAudioResumed] = useState(false);
+  const theme = getThemeDefinition(themeId);
 
   const handleClick = useCallback(async () => {
     await resumeOnGesture();
@@ -106,6 +109,11 @@ function EditorShell() {
       }
     }
   }, [onboardingCompleted, onboardingSkipped, project, setShowNewProjectDialog, setShowOnboarding]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme.id;
+    document.documentElement.style.colorScheme = theme.colorScheme;
+  }, [theme.colorScheme, theme.id]);
 
   // Warn before closing tab with unsaved project
   useEffect(() => {

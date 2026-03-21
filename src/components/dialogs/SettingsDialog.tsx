@@ -7,6 +7,9 @@ import { Button } from '../ui/Button';
 import { normalizePlaybackLatencySettings } from '../../utils/playbackLatency';
 import { getAudioEngine } from '../../hooks/useAudioEngine';
 import type { ModelEntry, LmModelEntry } from '../../types/api';
+import { ModelInventorySection } from './ModelInventorySection';
+import { ThemeSettingsSection } from './ThemeSettingsSection';
+import { normalizeThemeId, type ThemeId } from '../../theme/themes';
 
 function modelSupportsThinking(modelName: string): boolean {
   return modelName.includes('turbo') || modelName.includes('sft');
@@ -15,6 +18,8 @@ function modelSupportsThinking(modelName: string): boolean {
 export function SettingsDialog() {
   const show = useUIStore((s) => s.showSettingsDialog);
   const setShow = useUIStore((s) => s.setShowSettingsDialog);
+  const currentThemeId = useUIStore((s) => s.themeId);
+  const setTheme = useUIStore((s) => s.setTheme);
   const project = useProjectStore((s) => s.project);
 
   const [bpm, setBpm] = useState(120);
@@ -56,6 +61,7 @@ export function SettingsDialog() {
   const [timeSignature, setTimeSignature] = useState(4);
   const [measures, setMeasures] = useState(DEFAULT_MEASURES);
   const [globalCaption, setGlobalCaption] = useState('');
+  const [selectedThemeId, setSelectedThemeId] = useState<ThemeId>(normalizeThemeId(currentThemeId));
   const [manualLatencyText, setManualLatencyText] = useState('');
   const [steps, setSteps] = useState(DEFAULT_GENERATION.inferenceSteps);
   const [guidance, setGuidance] = useState(DEFAULT_GENERATION.guidanceScale);
@@ -134,6 +140,7 @@ export function SettingsDialog() {
       setTimeSignature(project?.timeSignature ?? 4);
       setMeasures(project?.measures ?? DEFAULT_MEASURES);
       setGlobalCaption(project?.globalCaption ?? '');
+      setSelectedThemeId(normalizeThemeId(currentThemeId));
       setManualLatencyText(
         project?.playbackLatency?.manualOverrideMs !== null && project?.playbackLatency?.manualOverrideMs !== undefined
           ? String(project.playbackLatency.manualOverrideMs)
@@ -151,7 +158,7 @@ export function SettingsDialog() {
       void refreshModels(gen.model);
     }
     prevShow.current = show;
-  }, [show, project]);
+  }, [currentThemeId, project, show]);
 
   if (!show) return null;
 
@@ -176,6 +183,7 @@ export function SettingsDialog() {
         },
       });
     }
+    setTheme(selectedThemeId);
     setBackendUrl(backendUrl);
     setShow(false);
   };
@@ -338,6 +346,8 @@ export function SettingsDialog() {
               Used as fallback when a clip's global caption is empty. Auto-filled from the first generation if left blank.
             </p>
           </div>
+
+          <ThemeSettingsSection selectedThemeId={selectedThemeId} onSelectTheme={setSelectedThemeId} />
 
           <div className="rounded-md border border-daw-border bg-daw-bg/60 p-3 space-y-2">
             <div className="flex items-center justify-between gap-3">
@@ -508,95 +518,14 @@ export function SettingsDialog() {
             <p className="text-[10px] text-emerald-400">{initMessage}</p>
           )}
 
-          {/* Custom Models inventory */}
-          {availableModels.length > 0 && (
-            <>
-              <h3 className="text-xs font-medium text-zinc-300 pt-2">Custom Models</h3>
-              <div className="bg-[#1a1a1a] rounded border border-daw-border max-h-[140px] overflow-y-auto">
-                <table className="w-full text-[10px]">
-                  <thead>
-                    <tr className="border-b border-daw-border text-zinc-400">
-                      <th className="text-left px-2 py-1.5 font-medium">DiT Model</th>
-                      <th className="text-center px-2 py-1.5 font-medium w-16">Default</th>
-                      <th className="text-center px-2 py-1.5 font-medium w-16">Loaded</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {availableModels.map((m) => (
-                      <tr
-                        key={m.name}
-                        onClick={() => handleModelChange(m.name)}
-                        className={`border-b border-[#2a2a2a] cursor-pointer transition-colors ${
-                          m.name === model ? 'bg-daw-accent/15' : 'hover:bg-[#252525]'
-                        }`}
-                      >
-                        <td className="px-2 py-1.5 text-zinc-200 truncate max-w-[200px]">
-                          {m.name}
-                          {m.name === model && (
-                            <span className="ml-1.5 text-[8px] text-daw-accent font-bold uppercase">selected</span>
-                          )}
-                        </td>
-                        <td className="text-center px-2 py-1.5">
-                          {m.is_default ? (
-                            <span className="text-emerald-400">Yes</span>
-                          ) : (
-                            <span className="text-zinc-600">-</span>
-                          )}
-                        </td>
-                        <td className="text-center px-2 py-1.5">
-                          {m.is_loaded ? (
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          ) : (
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-zinc-600" />
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {availableLmModels.length > 0 && (
-                <div className="bg-[#1a1a1a] rounded border border-daw-border max-h-[100px] overflow-y-auto mt-2">
-                  <table className="w-full text-[10px]">
-                    <thead>
-                      <tr className="border-b border-daw-border text-zinc-400">
-                        <th className="text-left px-2 py-1.5 font-medium">LM Model</th>
-                        <th className="text-center px-2 py-1.5 font-medium w-16">Loaded</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {availableLmModels.map((m) => (
-                        <tr
-                          key={m.name}
-                          onClick={() => setSelectedLmModel(m.name)}
-                          className={`border-b border-[#2a2a2a] cursor-pointer transition-colors ${
-                            m.name === selectedLmModel ? 'bg-daw-accent/15' : 'hover:bg-[#252525]'
-                          }`}
-                        >
-                          <td className="px-2 py-1.5 text-zinc-200 truncate max-w-[240px]">
-                            {m.name}
-                            {m.name === selectedLmModel && (
-                              <span className="ml-1.5 text-[8px] text-daw-accent font-bold uppercase">selected</span>
-                            )}
-                          </td>
-                          <td className="text-center px-2 py-1.5">
-                            {m.is_loaded ? (
-                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                            ) : (
-                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-zinc-600" />
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <p className="text-[10px] text-zinc-600 mt-1">
-                Click a row to select it. Selection is saved with project settings.
-              </p>
-            </>
-          )}
+          <ModelInventorySection
+            availableModels={availableModels}
+            availableLmModels={availableLmModels}
+            model={model}
+            selectedLmModel={selectedLmModel}
+            onSelectModel={handleModelChange}
+            onSelectLmModel={setSelectedLmModel}
+          />
         </div>
 
         <div className="px-4 pt-3 pb-1 space-y-2">

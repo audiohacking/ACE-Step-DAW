@@ -3,44 +3,117 @@
 @theme {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
-  --color-daw-bg: #151520;
-  --color-daw-surface: #1e1e2e;
-  --color-daw-surface-2: #2a2a3d;
-  --color-daw-surface-3: #353548;
-  --color-daw-border: #3a3a50;
-  --color-daw-accent: #4a90d9;
-  --color-daw-accent-hover: #5ba3ec;
-  --color-daw-playhead: #7c5bf5;
-  --color-daw-arrangement-header-bg: #1e1e2e;
-  --color-daw-arrangement-group-bg: #252538;
-  --color-daw-arrangement-empty-lane-bg: #1a1a2a;
-  --color-daw-arrangement-separator: #2e2e45;
-  --color-daw-grid-bar: #3a3a55;
-  --color-daw-grid-beat: #2a2a40;
-  --color-daw-region-audio: #4a8cc7;
-  --color-daw-region-midi: #5cb85c;
-  --color-daw-region-drummer: #d4a843;
-  --color-daw-region-sample: #9b59b6;
+  --color-daw-bg: var(--theme-daw-bg);
+  --color-daw-surface: var(--theme-daw-surface);
+  --color-daw-surface-2: var(--theme-daw-surface-2);
+  --color-daw-surface-3: var(--theme-daw-surface-3);
+  --color-daw-border: var(--theme-daw-border);
+  --color-daw-accent: var(--theme-daw-accent);
+  --color-daw-accent-hover: var(--theme-daw-accent-hover);
+  --color-daw-playhead: var(--theme-daw-playhead);
+  --color-daw-arrangement-header-bg: var(--theme-daw-arrangement-header-bg);
+  --color-daw-arrangement-group-bg: var(--theme-daw-arrangement-group-bg);
+  --color-daw-arrangement-empty-lane-bg: var(--theme-daw-arrangement-empty-lane-bg);
+  --color-daw-arrangement-separator: var(--theme-daw-arrangement-separator);
+  --color-daw-grid-bar: var(--theme-daw-grid-bar);
+  --color-daw-grid-beat: var(--theme-daw-grid-beat);
+  --color-daw-region-audio: var(--theme-daw-region-audio);
+  --color-daw-region-midi: var(--theme-daw-region-midi);
+  --color-daw-region-drummer: var(--theme-daw-region-drummer);
+  --color-daw-region-sample: var(--theme-daw-region-sample);
+}
+
+:root {
+  --theme-daw-bg: #151520;
+  --theme-daw-surface: #1e1e2e;
+  --theme-daw-surface-2: #2a2a3d;
+  --theme-daw-surface-3: #353548;
+  --theme-daw-border: #3a3a50;
+  --theme-daw-accent: #4a90d9;
+  --theme-daw-accent-hover: #5ba3ec;
+  --theme-daw-playhead: #7c5bf5;
+  --theme-daw-arrangement-header-bg: #1e1e2e;
+  --theme-daw-arrangement-group-bg: #252538;
+  --theme-daw-arrangement-empty-lane-bg: #1a1a2a;
+  --theme-daw-arrangement-separator: #2e2e45;
+  --theme-daw-grid-bar: #3a3a55;
+  --theme-daw-grid-beat: #2a2a40;
+  --theme-daw-region-audio: #4a8cc7;
+  --theme-daw-region-midi: #5cb85c;
+  --theme-daw-region-drummer: #d4a843;
+  --theme-daw-region-sample: #9b59b6;
+  --theme-scrollbar-thumb: #4a4a4a;
+  --theme-scrollbar-thumb-hover: #5a5a5a;
+  --theme-range-track: #4a4a4a;
+  --theme-range-thumb-border: rgba(255, 255, 255, 0.15);
+  --theme-focus-ring: rgba(74, 144, 217, 0.5);
+  --color-zinc-100: #f4f4f5;
+  --color-zinc-200: #e4e4e7;
+  --color-zinc-300: #d4d4d8;
+  --color-zinc-400: #a1a1aa;
+  --color-zinc-500: #71717a;
+  --color-zinc-600: #52525b;
+  --color-zinc-700: #3f3f46;
+  --color-zinc-800: #27272a;
+  --color-zinc-900: #18181b;
+}
+
+:root[data-theme='daylight'] {
+  --theme-daw-bg: #edf2f7;
+  --theme-daw-surface: #ffffff;
+  --theme-daw-surface-2: #e2e8f0;
+  --theme-daw-surface-3: #cbd5e1;
+  --theme-daw-border: #c6d0dd;
+  --theme-daw-accent: #2f6fb0;
+  --theme-daw-accent-hover: #225b92;
+  --theme-daw-playhead: #7c5bf5;
+  --theme-daw-arrangement-header-bg: #f8fafc;
+  --theme-daw-arrangement-group-bg: #dbe4f0;
+  --theme-daw-arrangement-empty-lane-bg: #f1f5f9;
+  --theme-daw-arrangement-separator: #c6d0dd;
+  --theme-daw-grid-bar: #94a3b8;
+  --theme-daw-grid-beat: #d3dae4;
+  --theme-daw-region-audio: #3f83c8;
+  --theme-daw-region-midi: #4f9b55;
+  --theme-daw-region-drummer: #c28d28;
+  --theme-daw-region-sample: #8653ab;
+  --theme-scrollbar-thumb: #94a3b8;
+  --theme-scrollbar-thumb-hover: #64748b;
+  --theme-range-track: #cbd5e1;
+  --theme-range-thumb-border: rgba(15, 23, 42, 0.15);
+  --theme-focus-ring: rgba(47, 111, 176, 0.35);
+  --color-zinc-100: #111827;
+  --color-zinc-200: #1f2937;
+  --color-zinc-300: #334155;
+  --color-zinc-400: #475569;
+  --color-zinc-500: #64748b;
+  --color-zinc-600: #94a3b8;
+  --color-zinc-700: #cbd5e1;
+  --color-zinc-800: #e2e8f0;
+  --color-zinc-900: #f8fafc;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #4a4a4a transparent;
+  scrollbar-color: var(--theme-scrollbar-thumb) transparent;
 }
 
+html,
 body {
   margin: 0;
   overflow: hidden;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: var(--theme-daw-bg);
+  color: var(--color-zinc-300);
 }
 
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
-  background: #4a4a4a;
+  background: var(--theme-range-track);
   border-radius: 2px;
   outline: none;
 }
@@ -51,13 +124,13 @@ input[type="range"]::-webkit-slider-thumb {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #4a90d9;
+  background: var(--theme-daw-accent);
   cursor: pointer;
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid var(--theme-range-thumb-border);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  background: #5ba3ec;
+  background: var(--theme-daw-accent-hover);
 }
 
 /* #548 — Focus-visible indicators for keyboard accessibility */
@@ -65,7 +138,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid rgba(74, 144, 217, 0.5);
+  outline: 2px solid var(--theme-focus-ring);
   outline-offset: 1px;
 }
 
@@ -78,11 +151,11 @@ select:focus-visible,
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #4a4a4a;
+  background: var(--theme-scrollbar-thumb);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #5a5a5a;
+  background: var(--theme-scrollbar-thumb-hover);
 }
 
 .gb-lcd {

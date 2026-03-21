@@ -19,6 +19,7 @@ import {
   type CommandPaletteSearchResult,
 } from '../services/commandPalette';
 import type { HistoryTarget } from './projectStore';
+import { DEFAULT_THEME_ID, normalizeThemeId, type ThemeId } from '../theme/themes';
 
 function createAssistantMessage(role: AIChatMessage['role'], content: string): AIChatMessage {
   return {
@@ -42,6 +43,7 @@ function clampPianoRollChordShape(abbr: string): PianoRollChordShape {
 
 export interface UIState {
   mainView: 'arrangement' | 'session';
+  themeId: ThemeId;
   keyboardContext: { scope: ShortcutContext; trackId: string | null };
   arrangementView: 'arrangement' | 'session';
   pixelsPerSecond: number;
@@ -182,6 +184,7 @@ export interface UIState {
   suggestionFrequency: 'off' | 'subtle' | 'active';
 
   setMainView: (view: 'arrangement' | 'session') => void;
+  setTheme: (themeId: ThemeId | string) => void;
   toggleMainView: () => void;
   setPixelsPerSecond: (pps: number) => void;
   setKeyboardContext: (scope: ShortcutContext, trackId?: string | null) => void;
@@ -381,6 +384,7 @@ export const useUIStore = create<UIState>()(
   persist(
     (set, get) => ({
   mainView: 'arrangement',
+  themeId: DEFAULT_THEME_ID,
   keyboardContext: { scope: 'timeline', trackId: null },
   arrangementView: 'arrangement',
   pixelsPerSecond: 50,
@@ -492,6 +496,7 @@ export const useUIStore = create<UIState>()(
   suggestionFrequency: 'subtle',
 
   setMainView: (mainView) => set({ mainView, arrangementView: mainView }),
+  setTheme: (themeId) => set({ themeId: normalizeThemeId(themeId) }),
   toggleMainView: () => set((s) => {
     const nextView = s.mainView === 'arrangement' ? 'session' : 'arrangement';
     return { mainView: nextView, arrangementView: nextView };
@@ -899,6 +904,7 @@ export const useUIStore = create<UIState>()(
         // Zoom level
         arrangementView: state.arrangementView,
         mainView: state.mainView,
+        themeId: state.themeId,
         pixelsPerSecond: state.pixelsPerSecond,
         // Snap
         snapEnabled: state.snapEnabled,

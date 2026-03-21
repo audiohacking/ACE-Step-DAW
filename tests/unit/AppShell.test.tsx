@@ -49,6 +49,9 @@ vi.mock('../../src/hooks/useShareLink', () => ({ useShareLink: vi.fn() }));
 
 describe('AppShell overlay orchestration', () => {
   beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.removeAttribute('data-theme');
+    document.documentElement.style.colorScheme = '';
     useProjectStore.setState(useProjectStore.getInitialState(), true);
     useUIStore.setState(useUIStore.getInitialState(), true);
     useProjectStore.getState().createProject({ name: 'Overlay Test' });
@@ -79,5 +82,14 @@ describe('AppShell overlay orchestration', () => {
     expect(screen.queryByText('CommandPalette')).not.toBeInTheDocument();
     expect(screen.queryByText('AIAssistantPanel')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Enable audio playback')).not.toBeInTheDocument();
+  });
+
+  it('applies the selected theme to the document root', () => {
+    useUIStore.getState().setTheme('daylight');
+
+    render(<AppShell />);
+
+    expect(document.documentElement.dataset.theme).toBe('daylight');
+    expect(document.documentElement.style.colorScheme).toBe('light');
   });
 });

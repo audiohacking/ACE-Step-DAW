@@ -114,5 +114,15 @@ describe('Custom fonts (#549)', () => {
       const css = fs.readFileSync(cssPath, 'utf-8');
       expect(css).toContain("--font-sans: 'Inter'");
     });
+
+    it('index.css defines a daylight theme variant with CSS variables', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+      const cssPath = path.resolve(__dirname, '../../src/index.css');
+      const css = fs.readFileSync(cssPath, 'utf-8');
+      expect(css).toContain(":root[data-theme='daylight']");
+      expect(css).toContain('--theme-daw-bg: #edf2f7');
+      expect(css).toContain('--theme-daw-surface: #ffffff');
+    });
   });
 });

@@ -200,5 +200,15 @@ describe('BPM input — clamp on blur, not keystroke', () => {
         compensationMs: 42,
       });
     });
+
+    it('saves the selected theme from settings', () => {
+      render(<SettingsDialog />);
+
+      fireEvent.click(screen.getByLabelText('Daylight theme'));
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(useUIStore.getState().themeId).toBe('daylight');
+      expect(JSON.parse(localStorage.getItem('ace-step-daw-ui') || '{}').state?.themeId).toBe('daylight');
+    });
   });
 });
