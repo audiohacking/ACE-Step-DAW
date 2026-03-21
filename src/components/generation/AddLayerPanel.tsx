@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useGenerationStore } from '../../store/generationStore';
 import { useUIStore } from '../../store/uiStore';
@@ -16,6 +16,12 @@ const LAYER_TYPES = [
 ] as const;
 
 type LayerTypeId = (typeof LAYER_TYPES)[number]['id'];
+type PanelPosition = { left: number; top: number };
+
+const PANEL_WIDTH = 420;
+const PANEL_MARGIN = 16;
+const PANEL_BOTTOM_GAP = 60;
+const FALLBACK_PANEL_HEIGHT = 680;
 
 function fmt(s: number) {
   return `${s.toFixed(1)}s`;
@@ -25,6 +31,57 @@ function fmtTime(s: number) {
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+function getAudioTargetTracks(project: NonNullable<ReturnType<typeof useProjectStore.getState>['project']>) {
+  return project.tracks.filter((track) => !track.isGroup && (track.trackType === undefined || track.trackType === 'stems' || track.trackType === 'sample'));
+}
+
+function getDefaultTargetTrackId(
+  project: NonNullable<ReturnType<typeof useProjectStore.getState>['project']>,
+  selectWindow: { startTime: number; endTime: number; trackIds: string[] } | null,
+  layerType: LayerTypeId,
+) {
+  const targetTracks = getAudioTargetTracks(project);
+  if (targetTracks.length === 0) return '';
+
+  const selectedTracks = targetTracks.filter((track) => selectWindow?.trackIds.includes(track.id));
+  const preferredTrackName =
+    layerType === 'vocal'
+      ? 'vocals'
+      : layerType === 'backing'
+        ? 'backing_vocals'
+        : null;
+
+  if (preferredTrackName) {
+    const matchingSelectedTrack = selectedTracks.find((track) => track.trackName === preferredTrackName);
+    if (matchingSelectedTrack) return matchingSelectedTrack.id;
+
+    const matchingTrack = targetTracks.find((track) => track.trackName === preferredTrackName);
+    if (matchingTrack) return matchingTrack.id;
+  }
+
+  if (selectedTracks.length > 0) return selectedTracks[0].id;
+
+  const firstInstrumentTrack = targetTracks.find((track) => !VOCAL_TRACK_NAMES.has(track.trackName));
+  return (firstInstrumentTrack ?? targetTracks[0]).id;
+}
+
+function clampPanelPosition(position: PanelPosition, width: number, height: number): PanelPosition {
+  const maxLeft = Math.max(PANEL_MARGIN, window.innerWidth - width - PANEL_MARGIN);
+  const maxTop = Math.max(PANEL_MARGIN, window.innerHeight - height - PANEL_MARGIN);
+
+  return {
+    left: Math.min(Math.max(PANEL_MARGIN, position.left), maxLeft),
+    top: Math.min(Math.max(PANEL_MARGIN, position.top), maxTop),
+  };
+}
+
+function keepPositionIfUnchanged(currentPosition: PanelPosition | null, nextPosition: PanelPosition) {
+  if (currentPosition && currentPosition.left === nextPosition.left && currentPosition.top === nextPosition.top) {
+    return currentPosition;
+  }
+  return nextPosition;
 }
 
 export function AddLayerPanel() {
@@ -39,6 +96,7 @@ export function AddLayerPanel() {
   const isGenerating = useGenerationStore((s) => s.isGenerating);
 
   const [layerType, setLayerType] = useState<LayerTypeId>('song');
+  const [targetTrackId, setTargetTrackId] = useState('');
   const [style, setStyle] = useState('');
   const [lyrics, setLyrics] = useState('');
   const [globalCaption, setGlobalCaption] = useState('');
@@ -58,6 +116,31 @@ export function AddLayerPanel() {
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const previewUrlRef = useRef<string | null>(null);
   const scrubIntervalRef = useRef<number | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const wasOpenRef = useRef(false);
+  const [panelPosition, setPanelPosition] = useState<PanelPosition | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const audioTargetTracks = useMemo(() => (project ? getAudioTargetTracks(project) : []), [project]);
+  const selectedTargetTrack = audioTargetTracks.find((track) => track.id === targetTrackId) ?? null;
+
+  const positionPanelNearBottomCenter = useCallback(() => {
+    if (!panelRef.current) return;
+
+    const width = panelRef.current.offsetWidth || PANEL_WIDTH;
+    const height = panelRef.current.offsetHeight || FALLBACK_PANEL_HEIGHT;
+    setPanelPosition(
+      clampPanelPosition(
+        {
+          left: (window.innerWidth - width) / 2,
+          top: window.innerHeight - height - PANEL_BOTTOM_GAP,
+        },
+        width,
+        height,
+      ),
+    );
+  }, []);
 
   const stopPreview = useCallback(() => {
     if (scrubIntervalRef.current) {
@@ -76,6 +159,72 @@ export function AddLayerPanel() {
   }, []);
 
   useEffect(() => stopPreview, [stopPreview]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsDragging(false);
+      dragOffsetRef.current = null;
+      return;
+    }
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const dragOffset = dragOffsetRef.current;
+      const panel = panelRef.current;
+      if (!dragOffset || !panel) return;
+
+      const width = panel.offsetWidth || PANEL_WIDTH;
+      const height = panel.offsetHeight || FALLBACK_PANEL_HEIGHT;
+      setPanelPosition(
+        clampPanelPosition(
+          {
+            left: event.clientX - dragOffset.x,
+            top: event.clientY - dragOffset.y,
+          },
+          width,
+          height,
+        ),
+      );
+    };
+
+    const stopDragging = () => {
+      dragOffsetRef.current = null;
+      setIsDragging(false);
+    };
+
+    const handleResize = () => {
+      if (!panelRef.current) return;
+      const width = panelRef.current.offsetWidth || PANEL_WIDTH;
+      const height = panelRef.current.offsetHeight || FALLBACK_PANEL_HEIGHT;
+      setPanelPosition((currentPosition) => {
+        if (!currentPosition) {
+          return keepPositionIfUnchanged(
+            currentPosition,
+            clampPanelPosition(
+              {
+                left: (window.innerWidth - width) / 2,
+                top: window.innerHeight - height - PANEL_BOTTOM_GAP,
+              },
+              width,
+              height,
+            ),
+          );
+        }
+        return keepPositionIfUnchanged(
+          currentPosition,
+          clampPanelPosition(currentPosition, width, height),
+        );
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', stopDragging);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', stopDragging);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isOpen]);
 
   const handleClose = useCallback(() => {
     stopPreview();
@@ -97,7 +246,9 @@ export function AddLayerPanel() {
 
   // Reset form when panel opens
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !wasOpenRef.current) {
+      setLayerType('song');
+      setTargetTrackId(project ? getDefaultTargetTrackId(project, selectWindow, 'song') : '');
       setStyle('');
       setLyrics('');
       setGlobalCaption(project?.globalCaption ?? '');
@@ -105,8 +256,42 @@ export function AddLayerPanel() {
       setSampleMode(false);
       setAutoExpandPrompt(true);
       setChunkMaskMode('auto');
+      setPanelPosition(null);
     }
-  }, [isOpen, project?.globalCaption]);
+    wasOpenRef.current = isOpen;
+  }, [isOpen, project, selectWindow]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (panelPosition === null) {
+        positionPanelNearBottomCenter();
+        return;
+      }
+
+      if (!panelRef.current) return;
+      const width = panelRef.current.offsetWidth || PANEL_WIDTH;
+      const height = panelRef.current.offsetHeight || FALLBACK_PANEL_HEIGHT;
+      setPanelPosition((currentPosition) => {
+        if (!currentPosition) return currentPosition;
+        return keepPositionIfUnchanged(
+          currentPosition,
+          clampPanelPosition(currentPosition, width, height),
+        );
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOpen, panelPosition, positionPanelNearBottomCenter, showAdvanced, sampleMode, layerType]);
+
+  useEffect(() => {
+    if (!project || !isOpen) return;
+    const hasSelectedTarget = audioTargetTracks.some((track) => track.id === targetTrackId);
+    if (!hasSelectedTarget) {
+      setTargetTrackId(getDefaultTargetTrackId(project, selectWindow, layerType));
+    }
+  }, [audioTargetTracks, isOpen, layerType, project, selectWindow, targetTrackId]);
 
   const handlePreviewContext = useCallback(async () => {
     if (previewState === 'playing') { stopPreview(); return; }
@@ -148,8 +333,6 @@ export function AddLayerPanel() {
   const endTime = selectWindow?.endTime ?? project.totalDuration;
   const duration = endTime - startTime;
 
-  const parsedSeed = seedValue.trim() ? parseInt(seedValue, 10) : undefined;
-
   const handleSelectWholeSong = () => {
     useUIStore.getState().setSelectWindow({
       startTime: 0,
@@ -161,12 +344,7 @@ export function AddLayerPanel() {
   const handleGenerate = async () => {
     stopPreview();
 
-    // Prefer the track the user actually selected via selectWindow;
-    // fall back to finding/creating a track by layer type name (#590)
-    let targetTrack: typeof project.tracks[number] | undefined;
-    if (selectWindow && selectWindow.trackIds.length > 0) {
-      targetTrack = project.tracks.find((t) => selectWindow.trackIds.includes(t.id));
-    }
+    let targetTrack = project.tracks.find((track) => track.id === targetTrackId);
     if (!targetTrack) {
       const targetTrackName = selectedLayerType.trackName;
       targetTrack = project.tracks.find((t) => t.trackName === targetTrackName);
@@ -193,18 +371,52 @@ export function AddLayerPanel() {
     });
   };
 
+  const handleHeaderMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || !panelRef.current) return;
+
+    const rect = panelRef.current.getBoundingClientRect();
+    dragOffsetRef.current = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+    setIsDragging(true);
+    event.preventDefault();
+  };
+
   return (
     <div
+      ref={panelRef}
       data-testid="add-layer-panel"
-      className="fixed left-1/2 -translate-x-1/2 bottom-[60px] w-[420px] max-h-[70vh] flex flex-col bg-[#1e1e22] border border-[#3a3a3a] rounded-xl shadow-2xl text-xs text-zinc-200"
-      style={{ zIndex: 60 }}
+      className={`fixed w-[420px] max-w-[calc(100vw-32px)] max-h-[70vh] flex flex-col bg-[#1e1e22]/98 border border-[#3a3a3a] rounded-2xl shadow-2xl backdrop-blur-md text-xs text-zinc-200 ${isDragging ? 'cursor-grabbing' : ''}`}
+      style={{
+        zIndex: 60,
+        left: panelPosition?.left ?? PANEL_MARGIN,
+        top: panelPosition?.top ?? PANEL_MARGIN,
+      }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#3a3a3a]">
-        <span className="text-sm font-semibold text-white">Add a Layer</span>
+      <div
+        data-testid="add-layer-drag-handle"
+        className={`flex items-start justify-between gap-3 px-4 py-3 border-b border-[#3a3a3a] select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        onMouseDown={handleHeaderMouseDown}
+        aria-label="Drag Add Layer panel"
+      >
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="flex flex-col gap-1 pt-0.5 text-zinc-500" aria-hidden="true">
+            <span className="block h-1 w-5 rounded-full bg-current/70" />
+            <span className="block h-1 w-5 rounded-full bg-current/40" />
+          </div>
+          <div className="min-w-0">
+            <span className="block text-sm font-semibold text-white">Add a Layer</span>
+            <span className="block text-[11px] text-zinc-500">
+              Selection {fmt(startTime)} - {fmt(endTime)}
+            </span>
+          </div>
+        </div>
         <button
           onClick={handleClose}
-          className="text-zinc-400 hover:text-zinc-200 transition-colors text-base leading-none"
+          onMouseDown={(event) => event.stopPropagation()}
+          className="text-zinc-400 hover:text-zinc-200 transition-colors text-base leading-none shrink-0"
           aria-label="Close"
         >
           ✕
@@ -225,6 +437,45 @@ export function AddLayerPanel() {
             >
               + Select the whole song
             </button>
+          )}
+        </div>
+
+        {/* Target track */}
+        <div>
+          <label className="text-[10px] uppercase tracking-wide text-zinc-500 block mb-1.5">
+            Target Track
+          </label>
+          {audioTargetTracks.length > 0 ? (
+            <div className="space-y-1.5">
+              <select
+                aria-label="Target Track"
+                value={targetTrackId}
+                onChange={(event) => setTargetTrackId(event.target.value)}
+                className="w-full bg-[#161618] border border-[#333] rounded-lg px-2.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-teal-600"
+              >
+                {audioTargetTracks.map((track) => (
+                  <option key={track.id} value={track.id}>
+                    {track.displayName}
+                  </option>
+                ))}
+              </select>
+              {selectedTargetTrack && (
+                <div className="flex items-center gap-2 text-[11px] text-zinc-400">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: selectedTargetTrack.color }}
+                    aria-hidden="true"
+                  />
+                  <span>
+                    Generate into {selectedTargetTrack.displayName}
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-[11px] text-zinc-500">
+              No audio track available. A new {selectedLayerType.label.toLowerCase()} will be created.
+            </div>
           )}
         </div>
 

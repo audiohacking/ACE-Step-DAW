@@ -45,10 +45,28 @@ describe('AddLayerPanel', () => {
     expect(screen.getByText('Add a Layer')).toBeInTheDocument();
   });
 
+  it('renders a target track selector', () => {
+    render(<AddLayerPanel />);
+    expect(screen.getByRole('combobox', { name: 'Target Track' })).toBeInTheDocument();
+  });
+
+  it('defaults target track to the first selected track in the select window', () => {
+    const bassTrack = useProjectStore.getState().project!.tracks.find((track) => track.trackName === 'bass');
+    expect(bassTrack).toBeDefined();
+
+    useUIStore.setState({
+      selectWindow: { startTime: 3, endTime: 7, trackIds: [bassTrack!.id] },
+    });
+
+    render(<AddLayerPanel />);
+    expect(screen.getByRole('combobox', { name: 'Target Track' })).toHaveValue(bassTrack!.id);
+    expect(screen.getByText(`Generate into ${bassTrack!.displayName}`)).toBeInTheDocument();
+  });
+
   it('displays the selection range from uiStore selectWindow', () => {
     render(<AddLayerPanel />);
-    expect(screen.getByText(/3\.0s/)).toBeInTheDocument();
-    expect(screen.getByText(/7\.0s/)).toBeInTheDocument();
+    expect(screen.getAllByText(/3\.0s/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/7\.0s/).length).toBeGreaterThan(0);
   });
 
   it('renders layer type buttons', () => {
@@ -152,6 +170,16 @@ describe('AddLayerPanel', () => {
     expect(screen.getByText('+ Select the whole song')).toBeInTheDocument();
   });
 
+  it('preserves typed style when selecting the whole song', () => {
+    render(<AddLayerPanel />);
+    const styleInput = screen.getByPlaceholderText('Describe the sound...');
+    fireEvent.change(styleInput, { target: { value: 'wide cinematic pads' } });
+
+    fireEvent.click(screen.getByText('+ Select the whole song'));
+
+    expect(screen.getByDisplayValue('wide cinematic pads')).toBeInTheDocument();
+  });
+
   it('does not show "Select the whole song" when selection covers full song', () => {
     const totalDuration = useProjectStore.getState().project!.totalDuration;
     useUIStore.setState({
@@ -174,5 +202,33 @@ describe('AddLayerPanel', () => {
 
     const vocalBtn = screen.getByText('Vocal');
     expect(vocalBtn.className).not.toContain('bg-teal-600');
+  });
+
+  it('moves the panel when dragging the header', () => {
+    render(<AddLayerPanel />);
+
+    const panel = screen.getByTestId('add-layer-panel');
+    const dragHandle = screen.getByTestId('add-layer-drag-handle');
+
+    Object.defineProperty(panel, 'offsetWidth', { configurable: true, value: 420 });
+    Object.defineProperty(panel, 'offsetHeight', { configurable: true, value: 520 });
+    vi.spyOn(panel, 'getBoundingClientRect').mockReturnValue({
+      x: 120,
+      y: 100,
+      width: 420,
+      height: 520,
+      top: 100,
+      right: 540,
+      bottom: 620,
+      left: 120,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.mouseDown(dragHandle, { button: 0, clientX: 150, clientY: 140 });
+    fireEvent.mouseMove(window, { clientX: 300, clientY: 260 });
+    fireEvent.mouseUp(window);
+
+    expect(panel.style.left).toBe('270px');
+    expect(panel.style.top).toBe('220px');
   });
 });
