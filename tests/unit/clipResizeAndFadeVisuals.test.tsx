@@ -77,6 +77,17 @@ describe('Clip resize handle width and fade visuals', () => {
     expect(handles[1].className).toContain('w-[16px]');
   });
 
+  it('renders a dedicated header rail and an ivory selected body surface', () => {
+    const { container } = renderClip();
+    const headerRail = container.querySelector('[data-testid="clip-header-rail"]') as HTMLElement;
+    const bodySurface = container.querySelector('[data-testid="clip-body-surface"]') as HTMLElement;
+
+    expect(headerRail).toBeTruthy();
+    expect(headerRail.getAttribute('aria-label')).toBe('Move clip clip-1');
+    expect(bodySurface).toBeTruthy();
+    expect(bodySurface.style.background).toContain('253, 251, 246');
+  });
+
   it('does not render fade controls or overlays for zero-fade clips', () => {
     const { container } = renderClip();
 

@@ -186,6 +186,33 @@ describe('ClipBlock hover and active feedback', () => {
     expect(clipEl.className).toMatch(/active:/);
   });
 
+  it('exposes a dedicated header rail move handle with grab affordance', () => {
+    const clip = makeClip();
+    const track = makeTrack();
+
+    render(<ClipBlock clip={clip} track={track} />);
+
+    const headerRail = screen.getByTestId('clip-header-rail') as HTMLElement;
+    expect(headerRail).toBeInTheDocument();
+    expect(headerRail.getAttribute('aria-label')).toBe(`Move clip ${clip.id}`);
+
+    const clipEl = screen.getByTestId(`clip-${clip.id}`) as HTMLElement;
+    vi.spyOn(clipEl, 'getBoundingClientRect').mockReturnValue({
+      x: 100,
+      y: 20,
+      width: 160,
+      height: 48,
+      top: 20,
+      right: 260,
+      bottom: 68,
+      left: 100,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.mouseMove(clipEl, { clientX: 140, clientY: 28 });
+    expect(clipEl.style.cursor).toBe('grab');
+  });
+
   it('uses clip color override instead of track color when present', () => {
     const clip = makeClip({ color: '#22c55e' });
     const track = makeTrack({ color: '#4488ff' });
@@ -193,11 +220,12 @@ describe('ClipBlock hover and active feedback', () => {
     render(<ClipBlock clip={clip} track={track} />);
 
     const clipEl = screen.getByTestId(`clip-${clip.id}`);
+    const headerRail = screen.getByTestId('clip-header-rail') as HTMLElement;
     // Color strip is now a child overlay div (not borderLeft) for waveform alignment
     const stripEl = clipEl.querySelector('.w-\\[3px\\]') as HTMLElement;
     expect(stripEl).toBeTruthy();
     expect(stripEl!.style.backgroundColor).toContain('rgb(34, 197, 94)');
-    expect(clipEl.style.background).toContain('34, 197, 94');
+    expect(headerRail.style.background).toContain('34, 197, 94');
   });
 
   it('falls back to the track color when no clip color override is set', () => {
@@ -207,10 +235,11 @@ describe('ClipBlock hover and active feedback', () => {
     render(<ClipBlock clip={clip} track={track} />);
 
     const clipEl = screen.getByTestId(`clip-${clip.id}`);
+    const headerRail = screen.getByTestId('clip-header-rail') as HTMLElement;
     // Color strip is now a child overlay div (not borderLeft) for waveform alignment
     const stripEl = clipEl.querySelector('.w-\\[3px\\]') as HTMLElement;
     expect(stripEl).toBeTruthy();
     expect(stripEl!.style.backgroundColor).toContain('rgb(68, 136, 255)');
-    expect(clipEl.style.background).toContain('68, 136, 255');
+    expect(headerRail.style.background).toContain('68, 136, 255');
   });
 });
