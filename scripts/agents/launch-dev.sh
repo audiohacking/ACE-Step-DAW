@@ -17,7 +17,7 @@ cleanup_stale_worktrees() {
       local issue_num=$(basename "$wt" | sed 's/agent-//')
       # Only clean if no active process
       if ! pgrep -f "run-agent.sh.*$wt" > /dev/null 2>&1; then
-        echo "[$(date)] Cleaning stale worktree: $wt (${age}s old)" >> /tmp/pm-activity.log
+        echo "[$(date)] Cleaning stale worktree: $wt (${age}s old)" >> $(cd "$(dirname "$0")/../.." /tmp/pm-activity.log/tmp/pm-activity.log pwd)/.pm/activity.log
         rm -rf "$wt"
         cd "$DAW" && git worktree prune 2>/dev/null
       fi
@@ -54,12 +54,12 @@ acquire_lock() {
 
 if [ "$TOOL" = "claude" ]; then
   if ! acquire_lock; then
-    echo "WARN: Could not acquire Claude launch lock for #$ISSUE_NUM, using Codex" >> /tmp/pm-activity.log
+    echo "WARN: Could not acquire Claude launch lock for #$ISSUE_NUM, using Codex" >> $(cd "$(dirname "$0")/../.." /tmp/pm-activity.log/tmp/pm-activity.log pwd)/.pm/activity.log
     TOOL="codex"
   else
     CC_COUNT=$(count_claude)
     if [ "$CC_COUNT" -ge "$MAX_CLAUDE" ]; then
-      echo "WARN: Claude at capacity ($CC_COUNT/$MAX_CLAUDE), using Codex for #$ISSUE_NUM" >> /tmp/pm-activity.log
+      echo "WARN: Claude at capacity ($CC_COUNT/$MAX_CLAUDE), using Codex for #$ISSUE_NUM" >> $(cd "$(dirname "$0")/../.." /tmp/pm-activity.log/tmp/pm-activity.log pwd)/.pm/activity.log
       TOOL="codex"
     else
       # Stagger launches: wait 3s between Claude starts to let Anthropic register sessions
@@ -67,7 +67,7 @@ if [ "$TOOL" = "claude" ]; then
       # Re-check after sleep (another launch-dev.sh may have started one)
       CC_COUNT=$(count_claude)
       if [ "$CC_COUNT" -ge "$MAX_CLAUDE" ]; then
-        echo "WARN: Claude filled during wait ($CC_COUNT/$MAX_CLAUDE), using Codex for #$ISSUE_NUM" >> /tmp/pm-activity.log
+        echo "WARN: Claude filled during wait ($CC_COUNT/$MAX_CLAUDE), using Codex for #$ISSUE_NUM" >> $(cd "$(dirname "$0")/../.." /tmp/pm-activity.log/tmp/pm-activity.log pwd)/.pm/activity.log
         TOOL="codex"
       fi
     fi
@@ -104,7 +104,7 @@ BRANCH="fix/issue-$ISSUE"
 MAX_ROUNDS=5          # Max fix iterations before giving up
 CI_POLL_INTERVAL=60   # Seconds between CI status checks
 CI_POLL_TIMEOUT=900   # Max seconds to wait for CI (15 min)
-LOG="/tmp/pm-activity.log"
+LOG="$(cd "$(dirname "$0")/../.." /tmp/pm-activity.log/tmp/pm-activity.log pwd)/.pm/activity.log"
 SESSION_FILE="$WT/.agent-session-id"  # Persist session ID across rounds
 
 log() { echo "[$(date)] [agent-$ISSUE] $*" >> "$LOG"; echo "$*"; }
@@ -163,12 +163,12 @@ run_codex() {
     local session_id
     session_id=$(cat "$SESSION_FILE")
     log "Resuming Codex session $session_id"
-    codex exec resume "$session_id" "$prompt"
+    codex exec resume --dangerously-bypass-approvals-and-sandbox "$session_id" "$prompt"
   else
     # First run — capture session ID from codex output
     # Use --json + -o to get structured output with session info
     local output_file="$WT/.codex-output.tmp"
-    codex exec -C "$WT" -s danger-full-access \
+    codex exec -C "$WT" --dangerously-bypass-approvals-and-sandbox \
       -o "$output_file" "$prompt"
     # Codex stores sessions by cwd; use --last for resume
     # Save a marker so we know to use --last next time
@@ -284,6 +284,10 @@ gh pr create --repo "$REPO" --title "feat: #$ISSUE — $TITLE" \
 PR_NUM=$(gh pr list --repo "$REPO" --head "$BRANCH" --json number -q '.[0].number' 2>/dev/null)
 [ -z "$PR_NUM" ] && { log "Could not find PR for $BRANCH, exiting"; exit 0; }
 log "PR #$PR_NUM created for #$ISSUE"
+
+# Request Copilot code review on every PR
+gh api "repos/$REPO/pulls/$PR_NUM/requested_reviewers" \
+  -f "reviewers[]=copilot[bot]" 2>/dev/null && log "Copilot review requested on PR #$PR_NUM" || true
 
 # ═══════════════════════════════════════════
 # Phase 2: Feedback loop — same agent owns PR until merge
