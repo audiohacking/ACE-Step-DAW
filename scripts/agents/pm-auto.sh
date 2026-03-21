@@ -94,62 +94,45 @@ for PR_NUM in $MERGE_READY; do
 done
 
 # ═══════════════════════════════════════════
-# Step 4: DISPATCH NEW AGENTS
+# Step 3.5: FIX FAILING PRs via Feedback Runner (native sub-agents)
 # ═══════════════════════════════════════════
 
-# Recalculate after merges/recoveries
-CC_COUNT=$(ps aux | grep -E 'claude.*(--print|bypassPermissions|dangerously)' | grep -v grep | wc -l | tr -d ' ')
-CX_COUNT=$(ps aux | grep 'codex' | grep -v grep | grep -v 'pm-auto\|project-manager' | wc -l | tr -d ' ')
-CX_AGENTS=$(( CX_COUNT / 3 ))
-
-# Get open issues not already being worked
-OPEN_ISSUES=$(gh issue list --repo "$REPO" --state open --limit 50 \
-  --json number,labels \
-  --jq '.[] | "\(.number)\t\([.labels[].name] | join(","))"' 2>/dev/null)
-
-while IFS=$'\t' read -r ISSUE_NUM LABELS; do
-  [ -z "$ISSUE_NUM" ] && continue
-  
-  # Skip if already has a worktree (agent working or stale — stale handled above)
-  [ -d "/tmp/daw-worktrees/agent-$ISSUE_NUM" ] && continue
-  
-  # Skip if already has an open PR
-  BRANCH="fix/issue-$ISSUE_NUM"
-  HAS_PR=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number -q '.[0].number' 2>/dev/null)
-  [ -n "$HAS_PR" ] && continue
-
-  # Determine tool by priority
-  TOOL="codex"
-  if echo "$LABELS" | grep -q 'P0'; then
-    if [ "$CC_COUNT" -lt "$MAX_CLAUDE" ]; then
-      TOOL="claude"
-    fi
+if [ ! -d "/tmp/feedback-runner.lock.d" ]; then
+  FAILING=$(gh pr list --repo "$REPO" --state open --json statusCheckRollup \
+    --jq '[.[] | select(.statusCheckRollup | length > 0) | select(.statusCheckRollup | any(.conclusion == "FAILURE" or .conclusion == "ERROR"))] | length' 2>/dev/null)
+  if [ "$FAILING" -gt 0 ] 2>/dev/null; then
+    nohup bash scripts/agents/feedback-runner.sh 4 >> "$LOG" 2>&1 &
+    log "Launched feedback runner for $FAILING failing PRs (PID $!)"
   fi
+fi
 
-  # Check capacity
-  if [ "$TOOL" = "claude" ] && [ "$CC_COUNT" -ge "$MAX_CLAUDE" ]; then
-    TOOL="codex"  # Fallback to codex if claude is full
-  fi
-  if [ "$TOOL" = "codex" ] && [ "$CX_AGENTS" -ge "$MAX_CODEX" ]; then
-    log "All slots full (Claude=$CC_COUNT/$MAX_CLAUDE, Codex≈$CX_AGENTS/$MAX_CODEX) — stopping dispatch"
-    break
-  fi
+# ═══════════════════════════════════════════
+# Step 4: DISPATCH via Sprint Runner (native sub-agents)
+# ═══════════════════════════════════════════
 
-  # Launch
-  log "Dispatching #$ISSUE_NUM via $TOOL (labels: $LABELS)"
-  nohup bash scripts/agents/launch-dev.sh "$ISSUE_NUM" "$TOOL" >> "$LOG" 2>&1 &
-  sleep 3
-
-  # Update counts
-  if [ "$TOOL" = "claude" ]; then
-    CC_COUNT=$((CC_COUNT + 1))
+# Check if sprint runner is already active
+if [ -d "/tmp/sprint-runner.lock.d" ]; then
+  RUNNER_AGE=$(( $(date +%s) - $(stat -f %m "/tmp/sprint-runner.lock.d" 2>/dev/null || echo 0) ))
+  if [ "$RUNNER_AGE" -lt 3600 ]; then
+    log "Sprint runner still active (${RUNNER_AGE}s) — skipping dispatch"
   else
-    CX_AGENTS=$((CX_AGENTS + 1))
+    log "Sprint runner stale (${RUNNER_AGE}s) — will relaunch"
+    rm -rf "/tmp/sprint-runner.lock.d"
+    nohup bash scripts/agents/sprint-runner.sh 6 >> "$LOG" 2>&1 &
+    log "Relaunched sprint runner (PID $!)"
   fi
+else
+  # Check if there are un-assigned issues
+  HAS_WORK=$(gh issue list --repo "$REPO" --state open --limit 1 --json number -q '.[0].number' 2>/dev/null)
+  if [ -n "$HAS_WORK" ]; then
+    nohup bash scripts/agents/sprint-runner.sh 6 >> "$LOG" 2>&1 &
+    log "Launched sprint runner (PID $!)"
+  else
+    log "No open issues — nothing to dispatch"
+  fi
+fi
 
-done <<< "$OPEN_ISSUES"
-
-log "PM-auto tick complete: Claude=$CC_COUNT Codex≈$CX_AGENTS"
+log "PM-auto tick complete"
 
 # Trim log
 if [ -f "$LOG" ]; then
