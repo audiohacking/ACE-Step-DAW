@@ -82,6 +82,7 @@ function focusTrack(delta: number) {
 function shouldDeferToPianoRollTools(event: KeyboardEvent): boolean {
   const ui = useUIStore.getState();
   if (ui.keyboardContext.scope !== 'pianoRoll') return false;
+  if (!ui.openPianoRollTrackId) return false;
   if (event.metaKey || event.ctrlKey || event.altKey) return false;
   return ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'KeyV', 'KeyB', 'KeyX'].includes(event.code);
 }

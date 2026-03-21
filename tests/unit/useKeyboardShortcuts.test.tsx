@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
+import { PianoRoll } from '../../src/components/pianoroll/PianoRoll';
 import { useKeyboardShortcuts } from '../../src/hooks/useKeyboardShortcuts';
 import { useProjectStore } from '../../src/store/projectStore';
+import { useShortcutsStore } from '../../src/store/shortcutsStore';
 import { useUIStore } from '../../src/store/uiStore';
 import { useTransportStore } from '../../src/store/transportStore';
 
@@ -29,6 +31,34 @@ vi.mock('../../src/services/generationPipeline', () => ({
   generateSingleClip: vi.fn(),
 }));
 
+vi.mock('../../src/hooks/useAudioImport', () => ({
+  useAudioImport: () => ({
+    importAudioFileAsSampler: vi.fn(),
+    importAssetAsQuickSampler: vi.fn(),
+    openSamplerFilePicker: vi.fn(),
+  }),
+}));
+
+vi.mock('../../src/components/pianoroll/PianoRollCanvas', () => ({
+  PianoRollCanvas: () => <div aria-label="Piano roll canvas stub">canvas</div>,
+}));
+
+vi.mock('../../src/components/pianoroll/QuickSamplerEditor', () => ({
+  QuickSamplerEditor: () => <div>sampler</div>,
+}));
+
+vi.mock('../../src/components/pianoroll/GeneratePatternDialog', () => ({
+  GeneratePatternDialog: () => null,
+}));
+
+vi.mock('../../src/components/pianoroll/QuantizeDialog', () => ({
+  QuantizeDialog: () => null,
+}));
+
+vi.mock('../../src/components/pianoroll/TransformMenu', () => ({
+  TransformMenu: () => <div>transform</div>,
+}));
+
 function Harness() {
   useKeyboardShortcuts();
   return null;
@@ -39,6 +69,7 @@ describe('useKeyboardShortcuts', () => {
     localStorage.clear();
     vi.clearAllMocks();
     useProjectStore.setState(useProjectStore.getInitialState(), true);
+    useShortcutsStore.setState(useShortcutsStore.getInitialState(), true);
     useUIStore.setState(useUIStore.getInitialState(), true);
     useTransportStore.setState(useTransportStore.getInitialState(), true);
     useProjectStore.getState().createProject({ name: 'Shortcut Test' });
@@ -173,8 +204,14 @@ describe('useKeyboardShortcuts', () => {
 
   it('defers piano-roll tool keys while keeping global panel toggles available', () => {
     const keys = useProjectStore.getState().addTrack('keyboard', 'pianoRoll');
+    useUIStore.getState().setOpenPianoRoll(keys.id);
     useUIStore.getState().setKeyboardContext('pianoRoll', keys.id);
-    render(<Harness />);
+    render(
+      <>
+        <Harness />
+        <PianoRoll />
+      </>,
+    );
 
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyB' }));
     expect(useUIStore.getState().showSmartControls).toBe(false);
@@ -186,16 +223,23 @@ describe('useKeyboardShortcuts', () => {
     expect(useUIStore.getState().loopBrowserOpen).toBe(true);
   });
 
-  it('keeps V available for piano-roll tools without affecting global state', () => {
+  it('defers custom KeyV global shortcuts while piano-roll tools stay active', () => {
     const keys = useProjectStore.getState().addTrack('keyboard', 'pianoRoll');
+    useShortcutsStore.getState().setBinding('panels.mixer', { code: 'KeyV' });
     useUIStore.getState().setOpenPianoRoll(keys.id);
     useUIStore.getState().setKeyboardContext('pianoRoll', keys.id);
-    useUIStore.getState().setShowMixer(true);
-    render(<Harness />);
+    useUIStore.getState().setShowMixer(false);
+    useUIStore.getState().setActivePianoRollTool('pencil');
+    render(
+      <>
+        <Harness />
+        <PianoRoll />
+      </>,
+    );
 
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV' }));
 
-    expect(useUIStore.getState().showMixer).toBe(true);
+    expect(useUIStore.getState().showMixer).toBe(false);
     expect(useUIStore.getState().activePianoRollTool).toBe('select');
   });
 

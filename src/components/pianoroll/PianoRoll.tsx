@@ -63,6 +63,7 @@ export function PianoRoll() {
       const tagName = target?.tagName;
       if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') return;
       if (ui.keyboardContext.scope !== 'pianoRoll' || !ui.openPianoRollTrackId) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
 
       const toolByCode: Partial<Record<KeyboardEvent['code'], PianoRollTool>> = {
         KeyV: 'select',

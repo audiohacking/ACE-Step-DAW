@@ -120,6 +120,23 @@ describe('PianoRoll', () => {
     expect(useUIStore.getState().activePianoRollTool).toBe('select');
   });
 
+  it('ignores modified key combos so browser and system shortcuts still win', () => {
+    render(<PianoRoll />);
+
+    const region = screen.getByRole('region');
+    region.focus();
+    useUIStore.getState().setActivePianoRollTool('select');
+
+    fireEvent.keyDown(window, { key: 'b', code: 'KeyB', metaKey: true });
+    expect(useUIStore.getState().activePianoRollTool).toBe('select');
+
+    fireEvent.keyDown(window, { key: '1', code: 'Digit1', ctrlKey: true });
+    expect(useUIStore.getState().activePianoRollTool).toBe('select');
+
+    fireEvent.keyDown(window, { key: 'x', code: 'KeyX', altKey: true });
+    expect(useUIStore.getState().activePianoRollTool).toBe('select');
+  });
+
   it('lets the user select the active chord stamp shape for Shift-click placement', () => {
     render(<PianoRoll />);
 
