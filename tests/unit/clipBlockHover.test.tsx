@@ -131,6 +131,7 @@ describe('ClipBlock hover and active feedback', () => {
     expect(leftHandle.style.cursor).toBe('col-resize');
     expect(clipEl.style.cursor).toBe('col-resize');
     expect(document.body.style.cursor).toBe('col-resize');
+    expect(document.documentElement.style.cursor).toBe('col-resize');
     expect(leftIndicator.style.backgroundColor).toContain('255, 255, 255');
     expect(leftHoverZone.style.background).toContain('linear-gradient');
 
@@ -138,6 +139,33 @@ describe('ClipBlock hover and active feedback', () => {
 
     expect(clipEl.style.cursor).toBe('');
     expect(document.body.style.cursor).toBe('');
+    expect(document.documentElement.style.cursor).toBe('');
+  });
+
+  it('switches to resize cursor immediately when entering the clip at the edge', () => {
+    const clip = makeClip();
+    const track = makeTrack();
+
+    render(<ClipBlock clip={clip} track={track} />);
+
+    const clipEl = screen.getByTestId(`clip-${clip.id}`) as HTMLElement;
+    vi.spyOn(clipEl, 'getBoundingClientRect').mockReturnValue({
+      x: 100,
+      y: 20,
+      width: 160,
+      height: 40,
+      top: 20,
+      right: 260,
+      bottom: 60,
+      left: 100,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.mouseEnter(clipEl, { clientX: 103, clientY: 24 });
+
+    expect(clipEl.style.cursor).toBe('col-resize');
+    expect(document.body.style.cursor).toBe('col-resize');
+    expect(document.documentElement.style.cursor).toBe('col-resize');
   });
 
   it('does not interfere with selection ring when clip is selected', () => {

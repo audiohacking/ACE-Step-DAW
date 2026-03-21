@@ -110,6 +110,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
     return () => {
       if (scissorRef.current) document.body.style.cursor = '';
       if (document.body.style.cursor === 'col-resize') document.body.style.cursor = '';
+      if (document.documentElement.style.cursor === 'col-resize') document.documentElement.style.cursor = '';
     };
   }, []);
 
@@ -589,49 +590,53 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
 
   const closeCtxMenu = useCallback(() => setCtxMenu(null), []);
 
-  const handleMouseMoveLocal = useCallback((e: React.MouseEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const relX = e.clientX - rect.left;
-    const el = e.currentTarget as HTMLElement;
+  const setResizeCursor = useCallback((active: boolean) => {
+    const cursor = active ? 'col-resize' : '';
+    if (clipBlockRef.current) {
+      clipBlockRef.current.style.cursor = cursor;
+    }
+    document.body.style.cursor = cursor;
+    document.documentElement.style.cursor = cursor;
+  }, []);
+
+  const syncHoverState = useCallback((clientX: number, altKey: boolean, currentTarget: HTMLElement) => {
+    const rect = currentTarget.getBoundingClientRect();
+    const relX = clientX - rect.left;
+
     if (relX <= EDGE_HANDLE_PX || relX >= rect.width - EDGE_HANDLE_PX) {
       setHoveredResizeEdge(relX <= EDGE_HANDLE_PX ? 'left' : 'right');
-      el.style.cursor = 'col-resize';
-      document.body.style.cursor = 'col-resize';
+      setResizeCursor(true);
     } else {
       setHoveredResizeEdge(null);
-      el.style.cursor = e.altKey ? 'ew-resize' : 'grab';
-      if (document.body.style.cursor === 'col-resize') {
-        document.body.style.cursor = '';
-      }
+      currentTarget.style.cursor = altKey ? 'ew-resize' : 'grab';
+      setResizeCursor(false);
     }
-  }, []);
+  }, [setResizeCursor]);
+
+  const handleMouseEnterLocal = useCallback((e: React.MouseEvent) => {
+    syncHoverState(e.clientX, e.altKey, e.currentTarget as HTMLElement);
+  }, [syncHoverState]);
+
+  const handleMouseMoveLocal = useCallback((e: React.MouseEvent) => {
+    syncHoverState(e.clientX, e.altKey, e.currentTarget as HTMLElement);
+  }, [syncHoverState]);
 
   const handleMouseLeaveLocal = useCallback((e: React.MouseEvent) => {
     const el = e.currentTarget as HTMLElement;
     setHoveredResizeEdge(null);
     el.style.cursor = '';
-    if (document.body.style.cursor === 'col-resize') {
-      document.body.style.cursor = '';
-    }
-  }, []);
+    setResizeCursor(false);
+  }, [setResizeCursor]);
 
   const handleResizeHandleEnter = useCallback((edge: 'left' | 'right') => () => {
     setHoveredResizeEdge(edge);
-    if (clipBlockRef.current) {
-      clipBlockRef.current.style.cursor = 'col-resize';
-    }
-    document.body.style.cursor = 'col-resize';
-  }, []);
+    setResizeCursor(true);
+  }, [setResizeCursor]);
 
   const handleResizeHandleLeave = useCallback(() => {
     setHoveredResizeEdge(null);
-    if (clipBlockRef.current?.style.cursor === 'col-resize') {
-      clipBlockRef.current.style.cursor = '';
-    }
-    if (document.body.style.cursor === 'col-resize') {
-      document.body.style.cursor = '';
-    }
-  }, []);
+    setResizeCursor(false);
+  }, [setResizeCursor]);
 
   const updateFadeFromPointer = useCallback((edge: 'in' | 'out', clientX: number) => {
     const rect = clipBlockRef.current?.getBoundingClientRect();
@@ -760,6 +765,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
         onMouseDown={handleMouseDown}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
+        onMouseEnter={handleMouseEnterLocal}
         onMouseMove={handleMouseMoveLocal}
         onMouseLeave={handleMouseLeaveLocal}
         onContextMenu={handleContextMenu}
