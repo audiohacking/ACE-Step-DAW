@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { useTransportStore } from '../../store/transportStore';
@@ -75,6 +75,22 @@ export function TimeRuler() {
     return Math.min(project.totalDuration, altKey ? 0.01 : getBeatDuration(project.bpm));
   }, [project]);
 
+  const moveLoopRegion = useCallback((nextStart: number, originalStart: number, originalEnd: number) => {
+    if (!project) return;
+    const originalDuration = Math.min(project.totalDuration, Math.max(0, originalEnd - originalStart));
+    const clampedStart = Math.max(0, Math.min(nextStart, project.totalDuration - originalDuration));
+    const unclampedEnd = clampedStart + originalDuration;
+    const { start, end } = clampLoopRange(clampedStart, unclampedEnd);
+    setLoopRegion(start, end);
+  }, [clampLoopRange, project, setLoopRegion]);
+
+  const getLoopKeyboardStep = useCallback((altKey: boolean, shiftKey: boolean) => {
+    if (!project) return 0;
+    if (altKey) return 0.01;
+    if (shiftKey) return getBarDuration(project.bpm, project.timeSignature);
+    return getBeatDuration(project.bpm);
+  }, [project]);
+
   const updateLoopRegionFromPointer = useCallback((clientX: number, altKey: boolean) => {
     const dragState = loopDragRef.current;
     const container = rulerRef.current;
@@ -84,15 +100,11 @@ export function TimeRuler() {
     if (rawTime === undefined) return;
 
     const minDuration = getMinimumLoopDuration(altKey);
-    const originalDuration = dragState.loopEnd - dragState.loopStart;
-
     if (dragState.mode === 'move') {
       const delta = rawTime - dragState.pointerStartTime;
       const nextStartBase = dragState.loopStart + delta;
       const nextStart = getSnappedTime(nextStartBase, altKey);
-      const clampedStart = Math.max(0, Math.min(nextStart, project.totalDuration - originalDuration));
-      const clampedEnd = clampedStart + originalDuration;
-      setLoopRegion(clampedStart, clampedEnd);
+      moveLoopRegion(nextStart, dragState.loopStart, dragState.loopEnd);
       return;
     }
 
@@ -108,9 +120,92 @@ export function TimeRuler() {
     const boundedEnd = Math.min(project.totalDuration, Math.max(nextEnd, dragState.loopStart + minDuration));
     const { start, end } = clampLoopRange(dragState.loopStart, boundedEnd);
     setLoopRegion(start, end);
-  }, [clampLoopRange, getMinimumLoopDuration, getSnappedTime, getTimeFromX, project, setLoopRegion]);
+  }, [clampLoopRange, getMinimumLoopDuration, getSnappedTime, getTimeFromX, moveLoopRegion, project, setLoopRegion]);
 
-  const handleLoopPointerDown = useCallback((mode: LoopDragMode) => (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleLoopKeyDown = useCallback((mode: LoopDragMode) => (e: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (!project || !loopEnabled || loopEnd <= loopStart) return;
+
+    const step = getLoopKeyboardStep(e.altKey, e.shiftKey);
+    const minDuration = getMinimumLoopDuration(e.altKey);
+    let handled = true;
+
+    if (mode === 'move') {
+      const duration = Math.min(project.totalDuration, Math.max(0, loopEnd - loopStart));
+      switch (e.key) {
+        case 'ArrowLeft':
+        case 'ArrowDown':
+          moveLoopRegion(loopStart - step, loopStart, loopEnd);
+          break;
+        case 'ArrowRight':
+        case 'ArrowUp':
+          moveLoopRegion(loopStart + step, loopStart, loopEnd);
+          break;
+        case 'Home':
+          moveLoopRegion(0, loopStart, loopEnd);
+          break;
+        case 'End':
+          moveLoopRegion(project.totalDuration - duration, loopStart, loopEnd);
+          break;
+        default:
+          handled = false;
+      }
+    } else if (mode === 'start') {
+      switch (e.key) {
+        case 'ArrowLeft':
+        case 'ArrowDown': {
+          const boundedStart = Math.max(0, Math.min(loopStart - step, loopEnd - minDuration));
+          const { start, end } = clampLoopRange(boundedStart, loopEnd);
+          setLoopRegion(start, end);
+          break;
+        }
+        case 'ArrowRight':
+        case 'ArrowUp': {
+          const boundedStart = Math.max(0, Math.min(loopStart + step, loopEnd - minDuration));
+          const { start, end } = clampLoopRange(boundedStart, loopEnd);
+          setLoopRegion(start, end);
+          break;
+        }
+        case 'Home': {
+          const { start, end } = clampLoopRange(0, loopEnd);
+          setLoopRegion(start, end);
+          break;
+        }
+        default:
+          handled = false;
+      }
+    } else {
+      switch (e.key) {
+        case 'ArrowLeft':
+        case 'ArrowDown': {
+          const boundedEnd = Math.min(project.totalDuration, Math.max(loopEnd - step, loopStart + minDuration));
+          const { start, end } = clampLoopRange(loopStart, boundedEnd);
+          setLoopRegion(start, end);
+          break;
+        }
+        case 'ArrowRight':
+        case 'ArrowUp': {
+          const boundedEnd = Math.min(project.totalDuration, Math.max(loopEnd + step, loopStart + minDuration));
+          const { start, end } = clampLoopRange(loopStart, boundedEnd);
+          setLoopRegion(start, end);
+          break;
+        }
+        case 'End': {
+          const { start, end } = clampLoopRange(loopStart, project.totalDuration);
+          setLoopRegion(start, end);
+          break;
+        }
+        default:
+          handled = false;
+      }
+    }
+
+    if (handled) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, [clampLoopRange, getLoopKeyboardStep, getMinimumLoopDuration, loopEnabled, loopEnd, loopStart, moveLoopRegion, project, setLoopRegion]);
+
+  const handleLoopPointerDown = useCallback((mode: LoopDragMode) => (e: React.PointerEvent<HTMLButtonElement>) => {
     if (!project || !loopEnabled || loopEnd <= loopStart || e.button !== 0) return;
     const container = rulerRef.current;
     if (!container) return;
@@ -134,14 +229,14 @@ export function TimeRuler() {
     }
   }, [getTimeFromX, loopEnabled, loopEnd, loopStart, project]);
 
-  const handleLoopPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const handleLoopPointerMove = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
     if (!loopDragRef.current || loopDragRef.current.pointerId !== e.pointerId) return;
     e.preventDefault();
     e.stopPropagation();
     updateLoopRegionFromPointer(e.clientX, e.altKey);
   }, [updateLoopRegionFromPointer]);
 
-  const handleLoopPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const handleLoopPointerUp = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
     if (!loopDragRef.current || loopDragRef.current.pointerId !== e.pointerId) return;
     e.preventDefault();
     e.stopPropagation();
@@ -287,35 +382,48 @@ export function TimeRuler() {
             borderRight: '1px solid rgba(234,179,8,0.5)',
           }}
         >
-          <div
-            className="absolute inset-y-0 left-0 w-2 -translate-x-1/2 cursor-col-resize bg-amber-300/50 hover:bg-amber-300/80"
+          <button
+            type="button"
+            className="absolute inset-y-0 left-0 w-2 -translate-x-1/2 appearance-none border-0 bg-amber-300/50 p-0 cursor-col-resize hover:bg-amber-300/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/80"
             aria-label="Adjust loop start"
-            role="separator"
+            aria-valuemin={0}
+            aria-valuemax={project.totalDuration}
+            aria-valuenow={loopStart}
+            aria-valuetext={`${loopStart.toFixed(2)} seconds`}
+            role="slider"
             data-testid="timeline-loop-start-handle"
             onPointerDown={handleLoopPointerDown('start')}
             onPointerMove={handleLoopPointerMove}
             onPointerUp={handleLoopPointerUp}
             onPointerCancel={handleLoopPointerUp}
+            onKeyDown={handleLoopKeyDown('start')}
           />
-          <div
-            className="absolute inset-y-[3px] left-1 right-1 rounded-sm border border-amber-300/40 bg-amber-300/10 cursor-grab active:cursor-grabbing"
+          <button
+            type="button"
+            className="absolute inset-y-[3px] left-1 right-1 appearance-none rounded-sm border border-amber-300/40 bg-amber-300/10 p-0 cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/80"
             aria-label="Move loop region"
-            role="button"
             data-testid="timeline-loop-move-handle"
             onPointerDown={handleLoopPointerDown('move')}
             onPointerMove={handleLoopPointerMove}
             onPointerUp={handleLoopPointerUp}
             onPointerCancel={handleLoopPointerUp}
+            onKeyDown={handleLoopKeyDown('move')}
           />
-          <div
-            className="absolute inset-y-0 right-0 w-2 translate-x-1/2 cursor-col-resize bg-amber-300/50 hover:bg-amber-300/80"
+          <button
+            type="button"
+            className="absolute inset-y-0 right-0 w-2 translate-x-1/2 appearance-none border-0 bg-amber-300/50 p-0 cursor-col-resize hover:bg-amber-300/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/80"
             aria-label="Adjust loop end"
-            role="separator"
+            aria-valuemin={0}
+            aria-valuemax={project.totalDuration}
+            aria-valuenow={loopEnd}
+            aria-valuetext={`${loopEnd.toFixed(2)} seconds`}
+            role="slider"
             data-testid="timeline-loop-end-handle"
             onPointerDown={handleLoopPointerDown('end')}
             onPointerMove={handleLoopPointerMove}
             onPointerUp={handleLoopPointerUp}
             onPointerCancel={handleLoopPointerUp}
+            onKeyDown={handleLoopKeyDown('end')}
           />
         </div>
       )}
