@@ -2,6 +2,7 @@ import { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useTransportStore } from '../../store/transportStore';
 import { useUIStore } from '../../store/uiStore';
+import { useGenerationStore } from '../../store/generationStore';
 import { TimeRuler } from './TimeRuler';
 import { TrackLane } from './TrackLane';
 import { Playhead } from './Playhead';
@@ -104,10 +105,16 @@ export function Timeline() {
   const [fileDragOver, setFileDragOver] = useState(false);
   const dragCounterRef = useRef(0);
   const { importMultipleFiles, importLoopToTrack, importAssetToTrack, importAudioFileAsNewQuickSampler, importAssetAsQuickSampler } = useAudioImport();
+  const placeGenerationHistoryOnTrack = useGenerationStore((s) => s.placeGenerationHistoryOnTrack);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     const types = e.dataTransfer.types;
-    if (types.includes('Files') || types.includes('application/x-loop-id') || types.includes('application/x-asset-id')) {
+    if (
+      types.includes('Files')
+      || types.includes('application/x-loop-id')
+      || types.includes('application/x-asset-id')
+      || types.includes('application/x-generation-history-id')
+    ) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
     }
@@ -115,7 +122,12 @@ export function Timeline() {
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     const types = e.dataTransfer.types;
-    if (types.includes('Files') || types.includes('application/x-loop-id') || types.includes('application/x-asset-id')) {
+    if (
+      types.includes('Files')
+      || types.includes('application/x-loop-id')
+      || types.includes('application/x-asset-id')
+      || types.includes('application/x-generation-history-id')
+    ) {
       e.preventDefault();
       dragCounterRef.current++;
       setFileDragOver(true);
@@ -134,6 +146,13 @@ export function Timeline() {
     e.preventDefault();
     dragCounterRef.current = 0;
     setFileDragOver(false);
+
+    const historyId = e.dataTransfer.getData('application/x-generation-history-id');
+    if (historyId) {
+      const newTrack = addTrack('custom', 'sample');
+      placeGenerationHistoryOnTrack(historyId, newTrack.id, 0);
+      return;
+    }
 
     // Handle preset loop drop -> create new sample track
     const loopId = e.dataTransfer.getData('application/x-loop-id');
@@ -161,7 +180,7 @@ export function Timeline() {
         }
       }
     }
-  }, [addTrack, importMultipleFiles, importLoopToTrack, importAssetToTrack, importAudioFileAsNewQuickSampler, importAssetAsQuickSampler]);
+  }, [addTrack, placeGenerationHistoryOnTrack, importMultipleFiles, importLoopToTrack, importAssetToTrack, importAudioFileAsNewQuickSampler, importAssetAsQuickSampler]);
 
   // Safety net: if a child (e.g. TrackLane) stops propagation on drop,
   // the Timeline's own handleDrop never fires. Listen globally to clear the overlay.
