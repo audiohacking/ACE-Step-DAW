@@ -125,6 +125,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const applyAudioQuantize = useProjectStore((s) => s.applyAudioQuantize);
   const clearAudioQuantize = useProjectStore((s) => s.clearAudioQuantize);
   const exportMidiClip = useProjectStore((s) => s.exportMidiClip);
+  const sliceClipToRange = useProjectStore((s) => s.sliceClipToRange);
   const splitClipAtZeroCrossing = useProjectStore((s) => s.splitClipAtZeroCrossing);
   const batchDuplicateClips = useProjectStore((s) => s.batchDuplicateClips);
   const batchMoveClips = useProjectStore((s) => s.batchMoveClips);
@@ -139,10 +140,12 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [dragGhost, setDragGhost] = useState<DragGhostInfo | null>(null);
   const [scissorLine, setScissorLine] = useState<number | null>(null);
+  const [rangePreview, setRangePreview] = useState<{ left: number; width: number } | null>(null);
   const [hoveredResizeEdge, setHoveredResizeEdge] = useState<'left' | 'right' | null>(null);
   const [hoverSeekX, setHoverSeekX] = useState<number | null>(null);
   const scissorRef = useRef(false);
   const suppressContextMenuRef = useRef(false);
+  const rangePreviewCommittedRef = useRef(false);
 
   // Cleanup cursor on unmount if scissor mode was active
   useEffect(() => {
@@ -278,6 +281,59 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
       || mode === 'resize-right'
       || (isHeaderRailTarget && (mode === 'move' || mode === 'slip'));
     const canStartSecondaryGesture = isSecondaryPress && mode === 'move';
+
+    if (!isSecondaryPress && !canStartPrimaryDrag && mode === 'move') {
+      e.stopPropagation();
+      e.preventDefault();
+
+      const clipRect = clipBlockRef.current?.getBoundingClientRect();
+      if (!clipRect) return;
+
+      const startRelX = Math.max(0, Math.min(e.clientX - clipRect.left, clipRect.width));
+      let didDrag = false;
+
+      const updatePreview = (clientX: number) => {
+        const currentRelX = Math.max(0, Math.min(clientX - clipRect.left, clipRect.width));
+        const leftPx = Math.min(startRelX, currentRelX);
+        const widthPx = Math.abs(currentRelX - startRelX);
+        setRangePreview(widthPx > 0 ? { left: leftPx, width: widthPx } : null);
+        return { leftPx, widthPx };
+      };
+
+      const onMouseMove = (ev: MouseEvent) => {
+        const { widthPx } = updatePreview(ev.clientX);
+        if (widthPx >= 3) {
+          didDrag = true;
+        }
+      };
+
+      const onMouseUp = (ev: MouseEvent) => {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+
+        const { leftPx, widthPx } = updatePreview(ev.clientX);
+        setRangePreview(null);
+
+        if (!didDrag || widthPx < 3) {
+          return;
+        }
+
+        rangePreviewCommittedRef.current = true;
+
+        const previewStartTime = clip.startTime + (leftPx / pixelsPerSecond);
+        const previewEndTime = clip.startTime + ((leftPx + widthPx) / pixelsPerSecond);
+
+        void sliceClipToRange(clip.id, previewStartTime, previewEndTime).then((selectedClipId) => {
+          if (!selectedClipId) return;
+          selectClip(selectedClipId, false);
+          useUIStore.getState().selectTrack(track.id, false);
+        });
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+      return;
+    }
 
     if (!canStartPrimaryDrag && !canStartSecondaryGesture) {
       return;
@@ -615,11 +671,14 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
     window.addEventListener('keydown', onKeyDown);
-  }, [clip, pixelsPerSecond, project, updateClip, getDragMode, track.id, moveClipToTrack, duplicateClipToTrack, batchDuplicateClips, batchMoveClips, selectedClipIds, findClosestLane, beginDrag, endDrag, undo, snapClipEdgeToZeroCrossing, splitClipAtZeroCrossing]);
+  }, [clip, pixelsPerSecond, project, updateClip, getDragMode, track.id, moveClipToTrack, duplicateClipToTrack, batchDuplicateClips, batchMoveClips, selectedClipIds, findClosestLane, beginDrag, endDrag, undo, snapClipEdgeToZeroCrossing, sliceClipToRange, splitClipAtZeroCrossing, selectClip]);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (dragRef.current) return;
+    if (dragRef.current || rangePreviewCommittedRef.current) {
+      rangePreviewCommittedRef.current = false;
+      return;
+    }
     setCtxMenu(null);
     const isMultiSelect = e.metaKey || e.ctrlKey;
     selectClip(clip.id, isMultiSelect);
@@ -634,7 +693,10 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (dragRef.current) return;
+    if (dragRef.current || rangePreviewCommittedRef.current) {
+      rangePreviewCommittedRef.current = false;
+      return;
+    }
     if (isMidiClip) {
       setOpenPianoRoll(track.id, clip.id);
       return;
@@ -1121,6 +1183,20 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
           >
             <div className="absolute -top-1 -left-[5px] w-[11px] h-[11px] border-2 border-yellow-400 bg-zinc-900 rounded-full" />
           </div>
+        )}
+
+        {rangePreview && (
+          <div
+            className="absolute bottom-0 pointer-events-none z-20"
+            data-testid="clip-range-preview"
+            style={{
+              top: HEADER_RAIL_HEIGHT_PX,
+              left: rangePreview.left,
+              width: rangePreview.width,
+              background: 'rgba(255, 255, 255, 0.26)',
+              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.7)',
+            }}
+          />
         )}
       </div>
 
