@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ClipBlock } from '../../src/components/timeline/ClipBlock';
 import { useProjectStore } from '../../src/store/projectStore';
@@ -113,6 +113,27 @@ describe('ClipBlock hover and active feedback', () => {
 
     expect(leftLine).toBeInTheDocument();
     expect(rightLine).toBeInTheDocument();
+  });
+
+  it('forces a resize cursor and visible edge feedback on hover', () => {
+    const clip = makeClip();
+    const track = makeTrack();
+
+    render(<ClipBlock clip={clip} track={track} />);
+
+    const leftHandle = screen.getByTestId('resize-handle-left');
+    const leftIndicator = screen.getByTestId('resize-indicator-left') as HTMLElement;
+    const leftHoverZone = screen.getByTestId('resize-hover-zone-left') as HTMLElement;
+
+    fireEvent.mouseEnter(leftHandle);
+
+    expect(document.body.style.cursor).toBe('col-resize');
+    expect(leftIndicator.style.backgroundColor).toContain('255, 255, 255');
+    expect(leftHoverZone.style.background).toContain('linear-gradient');
+
+    fireEvent.mouseLeave(leftHandle);
+
+    expect(document.body.style.cursor).toBe('');
   });
 
   it('does not interfere with selection ring when clip is selected', () => {

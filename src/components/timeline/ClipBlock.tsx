@@ -101,6 +101,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [dragGhost, setDragGhost] = useState<DragGhostInfo | null>(null);
   const [scissorLine, setScissorLine] = useState<number | null>(null);
+  const [hoveredResizeEdge, setHoveredResizeEdge] = useState<'left' | 'right' | null>(null);
   const scissorRef = useRef(false);
   const suppressContextMenuRef = useRef(false);
 
@@ -108,6 +109,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   useEffect(() => {
     return () => {
       if (scissorRef.current) document.body.style.cursor = '';
+      if (document.body.style.cursor === 'col-resize') document.body.style.cursor = '';
     };
   }, []);
 
@@ -592,9 +594,36 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
     const relX = e.clientX - rect.left;
     const el = e.currentTarget as HTMLElement;
     if (relX <= EDGE_HANDLE_PX || relX >= rect.width - EDGE_HANDLE_PX) {
+      setHoveredResizeEdge(relX <= EDGE_HANDLE_PX ? 'left' : 'right');
       el.style.cursor = 'col-resize';
+      document.body.style.cursor = 'col-resize';
     } else {
+      setHoveredResizeEdge(null);
       el.style.cursor = e.altKey ? 'ew-resize' : 'grab';
+      if (document.body.style.cursor === 'col-resize') {
+        document.body.style.cursor = '';
+      }
+    }
+  }, []);
+
+  const handleMouseLeaveLocal = useCallback((e: React.MouseEvent) => {
+    const el = e.currentTarget as HTMLElement;
+    setHoveredResizeEdge(null);
+    el.style.cursor = '';
+    if (document.body.style.cursor === 'col-resize') {
+      document.body.style.cursor = '';
+    }
+  }, []);
+
+  const handleResizeHandleEnter = useCallback((edge: 'left' | 'right') => () => {
+    setHoveredResizeEdge(edge);
+    document.body.style.cursor = 'col-resize';
+  }, []);
+
+  const handleResizeHandleLeave = useCallback(() => {
+    setHoveredResizeEdge(null);
+    if (document.body.style.cursor === 'col-resize') {
+      document.body.style.cursor = '';
     }
   }, []);
 
@@ -726,13 +755,42 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
         onMouseMove={handleMouseMoveLocal}
+        onMouseLeave={handleMouseLeaveLocal}
         onContextMenu={handleContextMenu}
       >
-        <div className="absolute top-0 bottom-0 left-0 w-[16px] cursor-col-resize z-10 group/resize-left" data-testid="resize-handle-left">
-          <div className="absolute top-0 bottom-0 left-0 w-[2px] bg-white/0 group-hover/resize-left:bg-white/20 transition-colors duration-100" data-testid="resize-indicator-left" />
+        <div
+          className="absolute top-0 bottom-0 left-0 w-[16px] cursor-col-resize z-10 group/resize-left"
+          data-testid="resize-handle-left"
+          onMouseEnter={handleResizeHandleEnter('left')}
+          onMouseLeave={handleResizeHandleLeave}
+        >
+          <div
+            className="absolute inset-y-0 left-0 w-full transition-colors duration-100"
+            style={{ background: hoveredResizeEdge === 'left' ? 'linear-gradient(90deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 100%)' : 'transparent' }}
+            data-testid="resize-hover-zone-left"
+          />
+          <div
+            className="absolute top-0 bottom-0 left-0 w-[2px] transition-colors duration-100"
+            style={{ backgroundColor: hoveredResizeEdge === 'left' ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0)' }}
+            data-testid="resize-indicator-left"
+          />
         </div>
-        <div className="absolute top-0 bottom-0 right-0 w-[16px] cursor-col-resize z-10 group/resize-right" data-testid="resize-handle-right">
-          <div className="absolute top-0 bottom-0 right-0 w-[2px] bg-white/0 group-hover/resize-right:bg-white/20 transition-colors duration-100" data-testid="resize-indicator-right" />
+        <div
+          className="absolute top-0 bottom-0 right-0 w-[16px] cursor-col-resize z-10 group/resize-right"
+          data-testid="resize-handle-right"
+          onMouseEnter={handleResizeHandleEnter('right')}
+          onMouseLeave={handleResizeHandleLeave}
+        >
+          <div
+            className="absolute inset-y-0 right-0 w-full transition-colors duration-100"
+            style={{ background: hoveredResizeEdge === 'right' ? 'linear-gradient(270deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 100%)' : 'transparent' }}
+            data-testid="resize-hover-zone-right"
+          />
+          <div
+            className="absolute top-0 bottom-0 right-0 w-[2px] transition-colors duration-100"
+            style={{ backgroundColor: hoveredResizeEdge === 'right' ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0)' }}
+            data-testid="resize-indicator-right"
+          />
         </div>
 
         {/* Color strip — overlay instead of borderLeft to avoid shifting waveform content */}
