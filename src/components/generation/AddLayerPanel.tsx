@@ -5,8 +5,10 @@ import { useUIStore } from '../../store/uiStore';
 import { generateFromAddLayer } from '../../services/generationPipeline';
 import { extractContextAudioLazy } from '../../services/lazyContextAudioExtractor';
 import type { TrackName } from '../../types/project';
+import { TRACK_CATALOG, TRACK_NAMES } from '../../constants/tracks';
 
 const VOCAL_TRACK_NAMES = new Set<string>(['vocals', 'backing_vocals']);
+const TARGET_TRACK_OPTIONS = TRACK_NAMES.map((trackName) => TRACK_CATALOG[trackName]);
 
 const LAYER_TYPES = [
   { id: 'song', label: 'Song Track', trackName: 'custom' as TrackName },
@@ -37,34 +39,44 @@ function getAudioTargetTracks(project: NonNullable<ReturnType<typeof useProjectS
   return project.tracks.filter((track) => !track.isGroup && (track.trackType === undefined || track.trackType === 'stems' || track.trackType === 'sample'));
 }
 
-function getDefaultTargetTrackId(
+function getDefaultTargetTrackName(
   project: NonNullable<ReturnType<typeof useProjectStore.getState>['project']>,
   selectWindow: { startTime: number; endTime: number; trackIds: string[] } | null,
   layerType: LayerTypeId,
-) {
+) : TrackName {
   const targetTracks = getAudioTargetTracks(project);
-  if (targetTracks.length === 0) return '';
+  if (targetTracks.length === 0) {
+    return layerType === 'vocal'
+      ? 'vocals'
+      : layerType === 'backing'
+        ? 'backing_vocals'
+        : 'drums';
+  }
 
   const selectedTracks = targetTracks.filter((track) => selectWindow?.trackIds.includes(track.id));
-  const preferredTrackName =
+  const selectedPresetTrack = selectedTracks.find((track) => track.trackName !== 'custom');
+  const preferredTrackName: TrackName | null =
     layerType === 'vocal'
       ? 'vocals'
       : layerType === 'backing'
         ? 'backing_vocals'
         : null;
 
+  if (selectedPresetTrack) return selectedPresetTrack.trackName;
+
   if (preferredTrackName) {
     const matchingSelectedTrack = selectedTracks.find((track) => track.trackName === preferredTrackName);
-    if (matchingSelectedTrack) return matchingSelectedTrack.id;
+    if (matchingSelectedTrack) return matchingSelectedTrack.trackName;
 
     const matchingTrack = targetTracks.find((track) => track.trackName === preferredTrackName);
-    if (matchingTrack) return matchingTrack.id;
+    if (matchingTrack) return matchingTrack.trackName;
   }
 
-  if (selectedTracks.length > 0) return selectedTracks[0].id;
+  if (selectedTracks.length > 0 && selectedTracks[0].trackName !== 'custom') return selectedTracks[0].trackName;
 
-  const firstInstrumentTrack = targetTracks.find((track) => !VOCAL_TRACK_NAMES.has(track.trackName));
-  return (firstInstrumentTrack ?? targetTracks[0]).id;
+  const firstInstrumentTrack = targetTracks.find((track) => track.trackName !== 'custom' && !VOCAL_TRACK_NAMES.has(track.trackName));
+  const fallbackTrack = firstInstrumentTrack ?? targetTracks.find((track) => track.trackName !== 'custom');
+  return fallbackTrack?.trackName ?? 'drums';
 }
 
 function clampPanelPosition(position: PanelPosition, width: number, height: number): PanelPosition {
@@ -96,7 +108,7 @@ export function AddLayerPanel() {
   const isGenerating = useGenerationStore((s) => s.isGenerating);
 
   const [layerType, setLayerType] = useState<LayerTypeId>('song');
-  const [targetTrackId, setTargetTrackId] = useState('');
+  const [targetTrackName, setTargetTrackName] = useState<TrackName>('drums');
   const [style, setStyle] = useState('');
   const [lyrics, setLyrics] = useState('');
   const [globalCaption, setGlobalCaption] = useState('');
@@ -119,11 +131,17 @@ export function AddLayerPanel() {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const wasOpenRef = useRef(false);
+  const [savedSelectionBeforeWholeSong, setSavedSelectionBeforeWholeSong] = useState<{
+    startTime: number;
+    endTime: number;
+    trackIds: string[];
+  } | null>(null);
   const [panelPosition, setPanelPosition] = useState<PanelPosition | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const audioTargetTracks = useMemo(() => (project ? getAudioTargetTracks(project) : []), [project]);
-  const selectedTargetTrack = audioTargetTracks.find((track) => track.id === targetTrackId) ?? null;
+  const selectedTargetTrack = audioTargetTracks.find((track) => track.trackName === targetTrackName) ?? null;
+  const selectedTargetTrackInfo = TRACK_CATALOG[targetTrackName];
 
   const positionPanelNearBottomCenter = useCallback(() => {
     if (!panelRef.current) return;
@@ -248,7 +266,7 @@ export function AddLayerPanel() {
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
       setLayerType('song');
-      setTargetTrackId(project ? getDefaultTargetTrackId(project, selectWindow, 'song') : '');
+      setTargetTrackName(project ? getDefaultTargetTrackName(project, selectWindow, 'song') : 'drums');
       setStyle('');
       setLyrics('');
       setGlobalCaption(project?.globalCaption ?? '');
@@ -256,6 +274,7 @@ export function AddLayerPanel() {
       setSampleMode(false);
       setAutoExpandPrompt(true);
       setChunkMaskMode('auto');
+      setSavedSelectionBeforeWholeSong(null);
       setPanelPosition(null);
     }
     wasOpenRef.current = isOpen;
@@ -287,11 +306,11 @@ export function AddLayerPanel() {
 
   useEffect(() => {
     if (!project || !isOpen) return;
-    const hasSelectedTarget = audioTargetTracks.some((track) => track.id === targetTrackId);
-    if (!hasSelectedTarget) {
-      setTargetTrackId(getDefaultTargetTrackId(project, selectWindow, layerType));
+    const hasPresetTarget = TARGET_TRACK_OPTIONS.some((track) => track.name === targetTrackName);
+    if (!hasPresetTarget) {
+      setTargetTrackName(getDefaultTargetTrackName(project, selectWindow, layerType));
     }
-  }, [audioTargetTracks, isOpen, layerType, project, selectWindow, targetTrackId]);
+  }, [audioTargetTracks, isOpen, layerType, project, selectWindow, targetTrackName]);
 
   const handlePreviewContext = useCallback(async () => {
     if (previewState === 'playing') { stopPreview(); return; }
@@ -332,8 +351,16 @@ export function AddLayerPanel() {
   const startTime = selectWindow?.startTime ?? 0;
   const endTime = selectWindow?.endTime ?? project.totalDuration;
   const duration = endTime - startTime;
+  const selectionCoversWholeSong = startTime <= 0 && endTime >= project.totalDuration;
 
   const handleSelectWholeSong = () => {
+    if (selectWindow) {
+      setSavedSelectionBeforeWholeSong({
+        startTime: selectWindow.startTime,
+        endTime: selectWindow.endTime,
+        trackIds: [...selectWindow.trackIds],
+      });
+    }
     useUIStore.getState().setSelectWindow({
       startTime: 0,
       endTime: project.totalDuration,
@@ -341,16 +368,18 @@ export function AddLayerPanel() {
     });
   };
 
+  const handleRestorePreviousWindow = () => {
+    if (!savedSelectionBeforeWholeSong) return;
+    useUIStore.getState().setSelectWindow(savedSelectionBeforeWholeSong);
+    setSavedSelectionBeforeWholeSong(null);
+  };
+
   const handleGenerate = async () => {
     stopPreview();
 
-    let targetTrack = project.tracks.find((track) => track.id === targetTrackId);
+    let targetTrack = project.tracks.find((track) => track.trackName === targetTrackName);
     if (!targetTrack) {
-      const targetTrackName = selectedLayerType.trackName;
-      targetTrack = project.tracks.find((t) => t.trackName === targetTrackName);
-      if (!targetTrack) {
-        targetTrack = addTrack(targetTrackName, 'stems');
-      }
+      targetTrack = addTrack(targetTrackName, 'stems');
     }
 
     if (style) {
@@ -430,12 +459,20 @@ export function AddLayerPanel() {
           <div className="text-zinc-400 text-xs">
             Selection: {fmt(startTime)} - {fmt(endTime)}
           </div>
-          {(startTime > 0 || endTime < project.totalDuration) && (
+          {!selectionCoversWholeSong && (
             <button
               onClick={handleSelectWholeSong}
               className="text-teal-400 hover:text-teal-300 text-[11px] mt-0.5 transition-colors"
             >
               + Select the whole song
+            </button>
+          )}
+          {selectionCoversWholeSong && savedSelectionBeforeWholeSong && (
+            <button
+              onClick={handleRestorePreviousWindow}
+              className="text-zinc-300 hover:text-white text-[11px] mt-0.5 transition-colors"
+            >
+              Restore previous window
             </button>
           )}
         </div>
@@ -445,38 +482,48 @@ export function AddLayerPanel() {
           <label className="text-[10px] uppercase tracking-wide text-zinc-500 block mb-1.5">
             Target Track
           </label>
-          {audioTargetTracks.length > 0 ? (
-            <div className="space-y-1.5">
-              <select
-                aria-label="Target Track"
-                value={targetTrackId}
-                onChange={(event) => setTargetTrackId(event.target.value)}
-                className="w-full bg-[#161618] border border-[#333] rounded-lg px-2.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-teal-600"
-              >
-                {audioTargetTracks.map((track) => (
-                  <option key={track.id} value={track.id}>
-                    {track.displayName}
-                  </option>
-                ))}
-              </select>
-              {selectedTargetTrack && (
-                <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: selectedTargetTrack.color }}
-                    aria-hidden="true"
-                  />
-                  <span>
-                    Generate into {selectedTargetTrack.displayName}
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Target Track">
+            {TARGET_TRACK_OPTIONS.map((track) => {
+              const isActive = targetTrackName === track.name;
+              const existingTrack = audioTargetTracks.find((candidate) => candidate.trackName === track.name);
+
+              return (
+                <button
+                  key={track.name}
+                  type="button"
+                  aria-label={`Target track: ${track.displayName}`}
+                  onClick={() => setTargetTrackName(track.name)}
+                  className={`px-2.5 py-1.5 rounded-full border text-[11px] transition-colors ${
+                    isActive
+                      ? 'border-zinc-200 text-white bg-white/10'
+                      : 'border-[#333] text-zinc-400 hover:text-zinc-200 hover:border-[#555]'
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: track.color }}
+                      aria-hidden="true"
+                    />
+                    <span>{track.displayName}</span>
+                    {!existingTrack && <span className="text-[10px] text-zinc-500">new</span>}
                   </span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-[11px] text-zinc-500">
-              No audio track available. A new {selectedLayerType.label.toLowerCase()} will be created.
-            </div>
-          )}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-zinc-400 mt-2">
+            <span
+              className="h-2.5 w-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: selectedTargetTrackInfo.color }}
+              aria-hidden="true"
+            />
+            <span>
+              {selectedTargetTrack
+                ? `Generate into ${selectedTargetTrack.displayName}`
+                : `Create a new ${selectedTargetTrackInfo.displayName} track`}
+            </span>
+          </div>
         </div>
 
         {/* Layer Type */}

@@ -47,10 +47,17 @@ describe('AddLayerPanel', () => {
 
   it('renders a target track selector', () => {
     render(<AddLayerPanel />);
-    expect(screen.getByRole('combobox', { name: 'Target Track' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Target Track' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Target track: Drums' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Target track: Vocals' })).toBeInTheDocument();
   });
 
-  it('defaults target track to the first selected track in the select window', () => {
+  it('shows all 12 preset target tracks', () => {
+    render(<AddLayerPanel />);
+    expect(screen.getAllByRole('button', { name: /Target track:/i })).toHaveLength(12);
+  });
+
+  it('defaults target track to the first selected preset track in the select window', () => {
     const bassTrack = useProjectStore.getState().project!.tracks.find((track) => track.trackName === 'bass');
     expect(bassTrack).toBeDefined();
 
@@ -59,7 +66,8 @@ describe('AddLayerPanel', () => {
     });
 
     render(<AddLayerPanel />);
-    expect(screen.getByRole('combobox', { name: 'Target Track' })).toHaveValue(bassTrack!.id);
+    const bassButton = screen.getByRole('button', { name: 'Target track: Bass' });
+    expect(bassButton.className).toContain('bg-white/10');
     expect(screen.getByText(`Generate into ${bassTrack!.displayName}`)).toBeInTheDocument();
   });
 
@@ -178,6 +186,23 @@ describe('AddLayerPanel', () => {
     fireEvent.click(screen.getByText('+ Select the whole song'));
 
     expect(screen.getByDisplayValue('wide cinematic pads')).toBeInTheDocument();
+  });
+
+  it('offers a way to restore the previous window after selecting the whole song', () => {
+    render(<AddLayerPanel />);
+
+    fireEvent.click(screen.getByText('+ Select the whole song'));
+
+    expect(screen.getByText('Restore previous window')).toBeInTheDocument();
+    expect(useUIStore.getState().selectWindow).toMatchObject({ startTime: 0 });
+
+    fireEvent.click(screen.getByText('Restore previous window'));
+
+    expect(useUIStore.getState().selectWindow).toEqual({
+      startTime: 3,
+      endTime: 7,
+      trackIds: [],
+    });
   });
 
   it('does not show "Select the whole song" when selection covers full song', () => {
