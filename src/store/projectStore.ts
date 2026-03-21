@@ -34,6 +34,7 @@ import type {
   Take,
   Marker,
   TempoEvent,
+  TempoCurveType,
   TimeSignatureEvent,
   AudioWarpMarker,
   StretchMode,
@@ -652,6 +653,8 @@ export interface ProjectState {
   addTempoEvent: (event: TempoEvent) => void;
   removeTempoEvent: (beat: number) => void;
   updateTempoEvent: (beat: number, updates: Partial<TempoEvent>) => void;
+  updateTempoCurve: (beat: number, curve: number, curveType?: TempoCurveType) => void;
+  resetTempoCurve: (beat: number) => void;
   clearTempoMap: () => void;
 
   // Time signature map
@@ -5556,6 +5559,31 @@ export const useProjectStore = create<ProjectState>()(
     const updated = { ...state.project, updatedAt: Date.now(), tempoMap: map };
     updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.tempoMap, updated.timeSignatureMap);
     set({ project: updated });
+  },
+
+  updateTempoCurve: (beat: number, curve: number, curveType?: TempoCurveType) => {
+    const clampedCurve = Math.max(-1, Math.min(1, curve));
+    const resolvedCurveType: TempoCurveType = curveType ?? (
+      Math.abs(clampedCurve) < 0.01
+        ? 'linear'
+        : clampedCurve > 0
+          ? 'exponential'
+          : 'logarithmic'
+    );
+
+    get().updateTempoEvent(beat, {
+      ramp: true,
+      curve: Math.abs(clampedCurve) < 0.01 ? 0 : clampedCurve,
+      curveType: resolvedCurveType,
+    });
+  },
+
+  resetTempoCurve: (beat: number) => {
+    get().updateTempoEvent(beat, {
+      ramp: true,
+      curve: 0,
+      curveType: 'linear',
+    });
   },
 
   clearTempoMap: () => {

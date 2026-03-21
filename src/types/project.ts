@@ -691,6 +691,8 @@ export interface Project {
 
 // ─── Tempo & Time Signature Map Types ────────────────────────────────────────
 
+export type TempoCurveType = 'linear' | 'logarithmic' | 'exponential';
+
 /** A discrete tempo change at a specific beat position. */
 export interface TempoEvent {
   /** Beat position (0-indexed) where the tempo change occurs. */
@@ -701,6 +703,8 @@ export interface TempoEvent {
   ramp?: boolean;
   /** Optional curve amount for a ramp, from -1 (fast start) to +1 (slow start). */
   curve?: number;
+  /** Optional curve family for ramp interpolation. */
+  curveType?: TempoCurveType;
 }
 
 /** A time signature change at a specific bar position. */

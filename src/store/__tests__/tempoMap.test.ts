@@ -65,6 +65,38 @@ describe('tempoMap store actions', () => {
     });
   });
 
+  describe('tempo curve actions', () => {
+    it('updates the curve amount and type for a ramped event', () => {
+      useProjectStore.getState().addTempoEvent({ beat: 0, bpm: 100 });
+      useProjectStore.getState().addTempoEvent({ beat: 8, bpm: 140, ramp: true, curve: 0 });
+
+      useProjectStore.getState().updateTempoCurve(8, -0.65);
+
+      expect(useProjectStore.getState().project!.tempoMap).toEqual([
+        { beat: 0, bpm: 100 },
+        { beat: 8, bpm: 140, ramp: true, curve: -0.65, curveType: 'logarithmic' },
+      ]);
+    });
+
+    it('resets the curve back to a linear ramp', () => {
+      useProjectStore.getState().addTempoEvent({ beat: 0, bpm: 100 });
+      useProjectStore.getState().addTempoEvent({
+        beat: 8,
+        bpm: 140,
+        ramp: true,
+        curve: 0.8,
+        curveType: 'exponential',
+      });
+
+      useProjectStore.getState().resetTempoCurve(8);
+
+      expect(useProjectStore.getState().project!.tempoMap).toEqual([
+        { beat: 0, bpm: 100 },
+        { beat: 8, bpm: 140, ramp: true, curve: 0, curveType: 'linear' },
+      ]);
+    });
+  });
+
   describe('clearTempoMap', () => {
     it('removes all tempo events', () => {
       useProjectStore.getState().addTempoEvent({ beat: 0, bpm: 100 });

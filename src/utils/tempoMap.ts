@@ -1,7 +1,11 @@
-import type { TempoEvent, TimeSignatureEvent } from '../types/project';
+import type { TempoCurveType, TempoEvent, TimeSignatureEvent } from '../types/project';
 
 const TEMPO_CURVE_EPSILON = 0.01;
 const TEMPO_CURVE_SAMPLES = 32;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
 
 export function getTimeSignatureBeatLength(denominator: number): number {
   return 4 / Math.max(1, denominator);
@@ -12,19 +16,40 @@ export function getTimeSignatureBarLength(numerator: number, denominator: number
 }
 
 export function clampTempoCurve(curve: number | undefined): number {
-  return Math.max(-1, Math.min(1, curve ?? 0));
+  return clamp(curve ?? 0, -1, 1);
 }
 
-export function getTempoCurveProgress(progress: number, curve: number | undefined): number {
-  const t = Math.max(0, Math.min(1, progress));
+function getTempoCurveKind(curve: number | undefined, curveType: TempoCurveType | undefined): TempoCurveType {
+  if (curveType) return curveType;
+
   const clampedCurve = clampTempoCurve(curve);
   if (Math.abs(clampedCurve) < TEMPO_CURVE_EPSILON) {
+    return 'linear';
+  }
+
+  return clampedCurve > 0 ? 'exponential' : 'logarithmic';
+}
+
+export function getTempoCurveProgress(
+  progress: number,
+  curve: number | undefined,
+  curveType?: TempoCurveType,
+): number {
+  const t = clamp(progress, 0, 1);
+  const clampedCurve = clampTempoCurve(curve);
+  const kind = getTempoCurveKind(clampedCurve, curveType);
+  const amount = Math.abs(clampedCurve);
+
+  if (kind === 'linear' || amount < TEMPO_CURVE_EPSILON) {
     return t;
   }
 
-  return clampedCurve > 0
-    ? Math.pow(t, 1 + clampedCurve * 3)
-    : 1 - Math.pow(1 - t, 1 + Math.abs(clampedCurve) * 3);
+  const exponent = 1 + amount * 3;
+  if (kind === 'logarithmic') {
+    return 1 - Math.pow(1 - t, exponent);
+  }
+
+  return Math.pow(t, exponent);
 }
 
 export function interpolateTempoRamp(
@@ -32,23 +57,25 @@ export function interpolateTempoRamp(
   endBpm: number,
   progress: number,
   curve: number | undefined,
+  curveType?: TempoCurveType,
 ): number {
-  const curvedProgress = getTempoCurveProgress(progress, curve);
+  const curvedProgress = getTempoCurveProgress(progress, curve, curveType);
   return startBpm + (endBpm - startBpm) * curvedProgress;
 }
 
-function integrateTempoRamp(
+function getRampDurationSeconds(
   startBpm: number,
   endBpm: number,
   segmentBeats: number,
   partialBeats: number,
   curve: number | undefined,
+  curveType?: TempoCurveType,
 ): number {
   if (segmentBeats <= 0 || partialBeats <= 0) {
     return 0;
   }
 
-  const beats = Math.max(0, Math.min(segmentBeats, partialBeats));
+  const beats = clamp(partialBeats, 0, segmentBeats);
   const steps = Math.max(8, Math.ceil(TEMPO_CURVE_SAMPLES * (beats / segmentBeats)));
   const beatSize = beats / steps;
   let seconds = 0;
@@ -58,7 +85,7 @@ function integrateTempoRamp(
     const progress = beatMidpoint / segmentBeats;
     const bpm = Math.max(
       1e-6,
-      interpolateTempoRamp(startBpm, endBpm, progress, curve),
+      interpolateTempoRamp(startBpm, endBpm, progress, curve, curveType),
     );
     seconds += (beatSize / bpm) * 60;
   }
@@ -86,8 +113,8 @@ export function getTempoAtBeat(
       if (ev.ramp) {
         const range = ev.beat - prevBeat;
         if (range <= 0) return ev.bpm;
-        const t = (beat - prevBeat) / range;
-        return interpolateTempoRamp(prevBpm, ev.bpm, t, ev.curve);
+        const progress = (beat - prevBeat) / range;
+        return interpolateTempoRamp(prevBpm, ev.bpm, progress, ev.curve, ev.curveType);
       }
       return prevBpm;
     }
@@ -117,13 +144,13 @@ export function beatToTime(
   for (const ev of tempoMap) {
     if (ev.beat >= beat) {
       if (ev.ramp && ev.beat > currentBeat) {
-        const segBeats = beat - currentBeat;
-        time += integrateTempoRamp(
+        time += getRampDurationSeconds(
           currentBpm,
           ev.bpm,
           ev.beat - currentBeat,
-          segBeats,
+          beat - currentBeat,
           ev.curve,
+          ev.curveType,
         );
       } else {
         time += ((beat - currentBeat) / currentBpm) * 60;
@@ -131,14 +158,22 @@ export function beatToTime(
       return time;
     }
 
-    const segBeats = ev.beat - currentBeat;
-    if (segBeats > 0) {
+    const segmentBeats = ev.beat - currentBeat;
+    if (segmentBeats > 0) {
       if (ev.ramp) {
-        time += integrateTempoRamp(currentBpm, ev.bpm, segBeats, segBeats, ev.curve);
+        time += getRampDurationSeconds(
+          currentBpm,
+          ev.bpm,
+          segmentBeats,
+          segmentBeats,
+          ev.curve,
+          ev.curveType,
+        );
       } else {
-        time += (segBeats / currentBpm) * 60;
+        time += (segmentBeats / currentBpm) * 60;
       }
     }
+
     currentBeat = ev.beat;
     currentBpm = ev.bpm;
   }
@@ -155,51 +190,44 @@ export function timeToBeat(
   tempoMap: TempoEvent[] | undefined,
   fallbackBpm: number,
 ): number {
+  if (targetTime <= 0) return 0;
   if (!tempoMap || tempoMap.length === 0) {
     return (targetTime / 60) * fallbackBpm;
   }
 
-  let time = 0;
-  let currentBeat = 0;
-  let currentBpm = fallbackBpm;
+  const peakBpm = tempoMap.reduce((maxBpm, event) => Math.max(maxBpm, event.bpm), fallbackBpm);
+  const lastBeat = tempoMap[tempoMap.length - 1]?.beat ?? 0;
 
-  for (const ev of tempoMap) {
-    const segBeats = ev.beat - currentBeat;
-    if (segBeats > 0) {
-      let segTime: number;
-      if (ev.ramp) {
-        segTime = integrateTempoRamp(currentBpm, ev.bpm, segBeats, segBeats, ev.curve);
-      } else {
-        segTime = (segBeats / currentBpm) * 60;
-      }
-
-      if (time + segTime >= targetTime) {
-        const remaining = targetTime - time;
-        if (ev.ramp) {
-          let lo = 0;
-          let hi = segBeats;
-          for (let iter = 0; iter < 24; iter++) {
-            const mid = (lo + hi) / 2;
-            const elapsed = integrateTempoRamp(currentBpm, ev.bpm, segBeats, mid, ev.curve);
-            if (elapsed < remaining) {
-              lo = mid;
-            } else {
-              hi = mid;
-            }
-          }
-          return currentBeat + (lo + hi) / 2;
-        } else {
-          return currentBeat + (remaining / 60) * currentBpm;
-        }
-      }
-      time += segTime;
-    }
-    currentBeat = ev.beat;
-    currentBpm = ev.bpm;
+  let low = 0;
+  let high = Math.max(lastBeat + (targetTime / 60) * peakBpm + 16, 1);
+  while (beatToTime(high, tempoMap, fallbackBpm) < targetTime) {
+    high *= 2;
   }
 
-  const remaining = targetTime - time;
-  return currentBeat + (remaining / 60) * currentBpm;
+  for (let i = 0; i < 40; i++) {
+    const mid = (low + high) / 2;
+    const elapsed = beatToTime(mid, tempoMap, fallbackBpm);
+    if (elapsed < targetTime) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+
+  const result = (low + high) / 2;
+  const epsilon = 1e-6;
+  const candidateBeats = new Set<number>([
+    Math.round(result),
+    ...tempoMap.map((event) => event.beat),
+  ]);
+
+  for (const candidateBeat of candidateBeats) {
+    if (Math.abs(beatToTime(candidateBeat, tempoMap, fallbackBpm) - targetTime) < epsilon) {
+      return candidateBeat;
+    }
+  }
+
+  return result;
 }
 
 /**
