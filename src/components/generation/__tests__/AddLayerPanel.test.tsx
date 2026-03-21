@@ -59,6 +59,7 @@ describe('AddLayerPanel', () => {
   });
 
   it('defaults target track to the first selected preset track in the select window', () => {
+    useProjectStore.getState().addTrack('bass');
     const bassTrack = useProjectStore.getState().project!.tracks.find((track) => track.trackName === 'bass');
     expect(bassTrack).toBeDefined();
 
@@ -73,6 +74,7 @@ describe('AddLayerPanel', () => {
   });
 
   it('creates a new preset track instead of falling back to the first existing track when the selection is on an empty row', async () => {
+    useProjectStore.getState().addTrack('drums');
     useUIStore.setState({
       selectWindow: { startTime: 3, endTime: 7, trackIds: ['__empty-0'], primaryTrackId: '__empty-0', targetRowIndex: 0 },
     });
@@ -110,6 +112,9 @@ describe('AddLayerPanel', () => {
   });
 
   it('prefers the dragged empty row over overlapped existing tracks when generating', async () => {
+    useProjectStore.getState().addTrack('drums');
+    useProjectStore.getState().addTrack('bass');
+    useProjectStore.getState().addTrack('guitar');
     const thirdTrack = useProjectStore.getState().project!.tracks[2];
     expect(thirdTrack).toBeDefined();
 
@@ -323,6 +328,7 @@ describe('AddLayerPanel', () => {
   });
 
   it('clears the select window after generation starts', async () => {
+    useProjectStore.getState().addTrack('bass');
     const bassTrack = useProjectStore.getState().project!.tracks.find((track) => track.trackName === 'bass');
     useUIStore.setState({
       selectWindow: { startTime: 3, endTime: 7, trackIds: [bassTrack!.id] },
