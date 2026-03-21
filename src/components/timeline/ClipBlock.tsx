@@ -102,6 +102,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const [dragGhost, setDragGhost] = useState<DragGhostInfo | null>(null);
   const [scissorLine, setScissorLine] = useState<number | null>(null);
   const [hoveredResizeEdge, setHoveredResizeEdge] = useState<'left' | 'right' | null>(null);
+  const [hoverSeekX, setHoverSeekX] = useState<number | null>(null);
   const scissorRef = useRef(false);
   const suppressContextMenuRef = useRef(false);
 
@@ -563,8 +564,16 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
     e.stopPropagation();
     if (dragRef.current) return;
     setCtxMenu(null);
-    selectClip(clip.id, e.metaKey || e.ctrlKey);
-  }, [clip.id, selectClip]);
+    const isMultiSelect = e.metaKey || e.ctrlKey;
+    selectClip(clip.id, isMultiSelect);
+    useUIStore.getState().selectTrack(track.id, isMultiSelect);
+    if (!isMultiSelect) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const relX = e.clientX - rect.left;
+      const clickTime = clip.startTime + relX / pixelsPerSecond;
+      useTransportStore.getState().seek(clickTime);
+    }
+  }, [clip.id, clip.startTime, track.id, selectClip, pixelsPerSecond]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -605,9 +614,11 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
 
     if (relX <= EDGE_HANDLE_PX || relX >= rect.width - EDGE_HANDLE_PX) {
       setHoveredResizeEdge(relX <= EDGE_HANDLE_PX ? 'left' : 'right');
+      setHoverSeekX(null);
       setResizeCursor(true);
     } else {
       setHoveredResizeEdge(null);
+      setHoverSeekX(relX);
       currentTarget.style.cursor = altKey ? 'ew-resize' : 'grab';
       setResizeCursor(false);
     }
@@ -624,6 +635,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   const handleMouseLeaveLocal = useCallback((e: React.MouseEvent) => {
     const el = e.currentTarget as HTMLElement;
     setHoveredResizeEdge(null);
+    setHoverSeekX(null);
     el.style.cursor = '';
     setResizeCursor(false);
   }, [setResizeCursor]);
@@ -976,6 +988,19 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
           >
             <span className="text-[9px] font-bold tracking-wider text-zinc-400 uppercase opacity-80">Muted</span>
           </div>
+        )}
+
+        {hoverSeekX !== null && (
+          <div
+            className="absolute top-0 bottom-0 pointer-events-none z-20"
+            data-testid="hover-seek-line"
+            style={{
+              left: hoverSeekX,
+              width: 1,
+              background: 'rgba(255, 255, 255, 0.18)',
+              boxShadow: '0 0 3px rgba(255, 255, 255, 0.10), 0 0 8px rgba(255, 255, 255, 0.05)',
+            }}
+          />
         )}
 
         {scissorLine !== null && (
