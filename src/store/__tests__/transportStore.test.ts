@@ -10,6 +10,7 @@ describe('transportStore', () => {
       countInActive: false,
       countInBeat: 0,
       currentTime: 0,
+      playStartTime: 0,
       loopEnabled: false,
       loopStart: 0,
       loopEnd: 0,

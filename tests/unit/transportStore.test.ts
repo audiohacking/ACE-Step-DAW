@@ -22,6 +22,7 @@ describe('transportStore', () => {
       expect(state.isPlaying).toBe(false);
       expect(state.currentTime).toBe(0);
     });
+
   });
 
   describe('seek bounds', () => {

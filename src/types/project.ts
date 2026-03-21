@@ -314,6 +314,7 @@ export interface GainEnvelopePoint {
 export interface Clip {
   id: string;
   trackId: string;
+  color?: string;
   startTime: number;
   duration: number;
   prompt: string;
@@ -446,6 +447,7 @@ export interface TrackPresetSettings {
   compressorEnabled?: boolean;
   compressorThreshold?: number;
   compressorRatio?: number;
+  effectsBypassed?: boolean;
   reverbMix?: number;
   reverbRoomSize?: number;
   localCaption?: string;
@@ -483,6 +485,7 @@ export interface Track {
   synthPreset?: SynthPreset;
   sampler?: SamplerSettings;
   effects?: TrackEffect[];
+  effectsBypassed?: boolean;
   midiEffects?: MidiEffect[];
   drumKit?: DrumKitName;
   drumMachine?: DrumMachineConfig;

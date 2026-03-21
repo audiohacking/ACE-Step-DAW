@@ -164,6 +164,7 @@ describe('collaborationService', () => {
         projectId: 'proj-1',
         readOnly: true,
         expiresAt: null,
+        mode: 'viewer',
       });
     });
 
@@ -178,11 +179,13 @@ describe('collaborationService', () => {
     it('parses non-viewer mode as readOnly=false', () => {
       const params = parseShareParams('?share=abc&project=p1');
       expect(params?.readOnly).toBe(false);
+      expect(params?.mode).toBeNull();
     });
 
     it('parses expiration timestamp', () => {
       const params = parseShareParams('?share=abc&project=p1&expires=12345');
       expect(params?.expiresAt).toBe(12345);
+      expect(params?.mode).toBeNull();
     });
 
     it('round-trips with generateShareLink', () => {
@@ -196,6 +199,7 @@ describe('collaborationService', () => {
       expect(params!.projectId).toBe('test-project-1');
       expect(params!.readOnly).toBe(true);
       expect(params!.expiresAt).toBe(99999);
+      expect(params!.mode).toBe('viewer');
     });
   });
 });

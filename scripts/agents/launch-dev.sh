@@ -17,7 +17,7 @@ cleanup_stale_worktrees() {
       local issue_num=$(basename "$wt" | sed 's/agent-//')
       # Only clean if no active process
       if ! pgrep -f "run-agent.sh.*$wt" > /dev/null 2>&1; then
-        echo "[$(date)] Cleaning stale worktree: $wt (${age}s old)" >> /tmp/pm-activity.log
+        echo "[$(date)] Cleaning stale worktree: $wt (${age}s old)" >> $(cd "$(dirname "$0")/../.." /tmp/pm-activity.log/tmp/pm-activity.log pwd)/.pm/activity.log
         rm -rf "$wt"
         cd "$DAW" && git worktree prune 2>/dev/null
       fi
@@ -54,12 +54,12 @@ acquire_lock() {
 
 if [ "$TOOL" = "claude" ]; then
   if ! acquire_lock; then
-    echo "WARN: Could not acquire Claude launch lock for #$ISSUE_NUM, using Codex" >> /tmp/pm-activity.log
+    echo "WARN: Could not acquire Claude launch lock for #$ISSUE_NUM, using Codex" >> $(cd "$(dirname "$0")/../.." /tmp/pm-activity.log/tmp/pm-activity.log pwd)/.pm/activity.log
     TOOL="codex"
   else
     CC_COUNT=$(count_claude)
     if [ "$CC_COUNT" -ge "$MAX_CLAUDE" ]; then
-      echo "WARN: Claude at capacity ($CC_COUNT/$MAX_CLAUDE), using Codex for #$ISSUE_NUM" >> /tmp/pm-activity.log
+      echo "WARN: Claude at capacity ($CC_COUNT/$MAX_CLAUDE), using Codex for #$ISSUE_NUM" >> $(cd "$(dirname "$0")/../.." /tmp/pm-activity.log/tmp/pm-activity.log pwd)/.pm/activity.log
       TOOL="codex"
     else
       # Stagger launches: wait 3s between Claude starts to let Anthropic register sessions
@@ -67,7 +67,7 @@ if [ "$TOOL" = "claude" ]; then
       # Re-check after sleep (another launch-dev.sh may have started one)
       CC_COUNT=$(count_claude)
       if [ "$CC_COUNT" -ge "$MAX_CLAUDE" ]; then
-        echo "WARN: Claude filled during wait ($CC_COUNT/$MAX_CLAUDE), using Codex for #$ISSUE_NUM" >> /tmp/pm-activity.log
+        echo "WARN: Claude filled during wait ($CC_COUNT/$MAX_CLAUDE), using Codex for #$ISSUE_NUM" >> $(cd "$(dirname "$0")/../.." /tmp/pm-activity.log/tmp/pm-activity.log pwd)/.pm/activity.log
         TOOL="codex"
       fi
     fi
@@ -76,25 +76,60 @@ fi
 
 TITLE=$(timeout 10 gh issue view $ISSUE_NUM --repo $REPO --json title --jq .title 2>/dev/null || echo "issue $ISSUE_NUM")
 
-# Clean worktree
-[ -n "$WT" ] && [[ "$WT" == /tmp/daw-worktrees/* ]] && rm -rf "$WT"
+# ── Takeover vs fresh start ──
+TAKEOVER=false
+EXISTING_PR=""
+if [ -d "$WT" ]; then
+  # Worktree exists — check if agent is dead and PR is open
+  if ! pgrep -f "run-agent.sh.*agent-$ISSUE_NUM" > /dev/null 2>&1; then
+    BRANCH_NAME="fix/issue-$ISSUE_NUM"
+    EXISTING_PR=$(gh pr list --repo "$REPO" --head "$BRANCH_NAME" --state open --json number -q '.[0].number' 2>/dev/null)
+    if [ -n "$EXISTING_PR" ]; then
+      TAKEOVER=true
+      log "Takeover: #$ISSUE_NUM has dead agent + open PR #$EXISTING_PR — resuming"
+      cd "$WT"
+      git fetch origin main 2>/dev/null
+    else
+      log "Dead agent for #$ISSUE_NUM but no open PR — starting fresh"
+      [ -n "$WT" ] && [[ "$WT" == /tmp/daw-worktrees/* ]] && rm -rf "$WT"
+    fi
+  else
+    echo "SKIP: agent for #$ISSUE_NUM still alive"
+    exit 0
+  fi
+fi
 
-# Create fresh worktree
-cd "$DAW"
-git fetch origin main 2>/dev/null
-git worktree prune 2>/dev/null
-git branch -D "fix/issue-$ISSUE_NUM" 2>/dev/null
-git worktree add "$WT" origin/main --detach 2>/dev/null || { echo "ERROR: worktree fail #$ISSUE_NUM"; exit 1; }
-cd "$WT"
-git checkout -B "fix/issue-$ISSUE_NUM" origin/main 2>/dev/null
+if [ "$TAKEOVER" = false ]; then
+  # Create fresh worktree
+  [ -n "$WT" ] && [[ "$WT" == /tmp/daw-worktrees/* ]] && rm -rf "$WT"
+  cd "$DAW"
+  git fetch origin main 2>/dev/null
+  git worktree prune 2>/dev/null
+  git branch -D "fix/issue-$ISSUE_NUM" 2>/dev/null
+  git worktree add "$WT" origin/main --detach 2>/dev/null || { echo "ERROR: worktree fail #$ISSUE_NUM"; exit 1; }
+  cd "$WT"
+  git checkout -B "fix/issue-$ISSUE_NUM" origin/main 2>/dev/null
+fi
 
 # Write prompt to file
 cat "$DAW/scripts/agents/AGENT_CONTEXT.md" > "$WT/agent-prompt.txt" 2>/dev/null
 echo "---" >> "$WT/agent-prompt.txt"
-echo "IMPLEMENT ISSUE #$ISSUE_NUM: $TITLE" >> "$WT/agent-prompt.txt"
-timeout 10 gh issue view $ISSUE_NUM --repo $REPO --json body --jq .body 2>/dev/null >> "$WT/agent-prompt.txt"
-echo "" >> "$WT/agent-prompt.txt"
-echo "You are on branch fix/issue-$ISSUE_NUM. Implement, then: npx tsc --noEmit && npm run build && npx vitest run tests/unit/ && git add -A && git commit -m 'feat: resolve #$ISSUE_NUM'. Do NOT push." >> "$WT/agent-prompt.txt"
+if [ "$TAKEOVER" = true ]; then
+  echo "TAKEOVER: Issue #$ISSUE_NUM has an existing PR #$EXISTING_PR that needs fixing." >> "$WT/agent-prompt.txt"
+  echo "The previous agent died. You are taking over." >> "$WT/agent-prompt.txt"
+  echo "1. Check the current state: git status, git log --oneline -5" >> "$WT/agent-prompt.txt"
+  echo "2. Rebase onto latest main: git fetch origin main && git rebase origin/main" >> "$WT/agent-prompt.txt"
+  echo "3. If rebase conflicts, resolve them" >> "$WT/agent-prompt.txt"
+  echo "4. Run quality gates: npx tsc --noEmit && npm run build && npx vitest run tests/unit/" >> "$WT/agent-prompt.txt"
+  echo "5. If gates fail, fix the code" >> "$WT/agent-prompt.txt"
+  echo "6. git add -A && git commit -m 'fix: takeover and resolve #$ISSUE_NUM'" >> "$WT/agent-prompt.txt"
+  echo "Do NOT push." >> "$WT/agent-prompt.txt"
+else
+  echo "IMPLEMENT ISSUE #$ISSUE_NUM: $TITLE" >> "$WT/agent-prompt.txt"
+  timeout 10 gh issue view $ISSUE_NUM --repo $REPO --json body --jq .body 2>/dev/null >> "$WT/agent-prompt.txt"
+  echo "" >> "$WT/agent-prompt.txt"
+  echo "You are on branch fix/issue-$ISSUE_NUM. Implement, then: npx tsc --noEmit && npm run build && npx vitest run tests/unit/ && git add -A && git commit -m 'feat: resolve #$ISSUE_NUM'. Do NOT push." >> "$WT/agent-prompt.txt"
+fi
 
 # Write wrapper
 cat > "$WT/run-agent.sh" << 'WEOF'
@@ -104,7 +139,7 @@ BRANCH="fix/issue-$ISSUE"
 MAX_ROUNDS=5          # Max fix iterations before giving up
 CI_POLL_INTERVAL=60   # Seconds between CI status checks
 CI_POLL_TIMEOUT=900   # Max seconds to wait for CI (15 min)
-LOG="/tmp/pm-activity.log"
+LOG="/Users/junmingong/.openclaw/workspace/acestep-daw/.pm/activity.log"
 SESSION_FILE="$WT/.agent-session-id"  # Persist session ID across rounds
 
 log() { echo "[$(date)] [agent-$ISSUE] $*" >> "$LOG"; echo "$*"; }
@@ -163,12 +198,12 @@ run_codex() {
     local session_id
     session_id=$(cat "$SESSION_FILE")
     log "Resuming Codex session $session_id"
-    codex exec resume "$session_id" "$prompt"
+    codex exec resume --dangerously-bypass-approvals-and-sandbox "$session_id" "$prompt"
   else
     # First run — capture session ID from codex output
     # Use --json + -o to get structured output with session info
     local output_file="$WT/.codex-output.tmp"
-    codex exec -C "$WT" -s danger-full-access \
+    codex exec -C "$WT" --dangerously-bypass-approvals-and-sandbox \
       -o "$output_file" "$prompt"
     # Codex stores sessions by cwd; use --last for resume
     # Save a marker so we know to use --last next time
@@ -264,17 +299,31 @@ PROMPT=$(cat "$WT/agent-prompt.txt")
 log "Phase 1: initial implementation for #$ISSUE"
 run_agent "$PROMPT"
 
-# Post-agent: verify + push + rebase + push + PR
+# Post-agent: verify + rebase (agent resolves conflicts) + push + PR
 cd "$WT" || exit 0
 AHEAD=$(git rev-list origin/main..HEAD --count 2>/dev/null)
 [ "$AHEAD" = "0" ] && { log "No commits produced, exiting"; exit 0; }
-# Push raw commits first (safety net — work is on remote even if rebase fails)
-git push origin "$BRANCH" --force-with-lease 2>/dev/null
-# Then rebase for clean history
+
+# Rebase onto latest main before pushing
 git fetch origin main 2>/dev/null
-git rebase origin/main 2>/dev/null || { git rebase --abort 2>/dev/null; log "Rebase conflict, raw commits preserved on remote"; }
-# Push rebased version
-git push origin "$BRANCH" --force-with-lease 2>/dev/null || { log "Push failed after rebase"; }
+if ! git rebase origin/main 2>/dev/null; then
+  # Rebase conflict — let the coding agent resolve it
+  git rebase --abort 2>/dev/null
+  log "Rebase conflict on #$ISSUE — delegating to agent to resolve"
+  run_agent "Your branch fix/issue-$ISSUE has rebase conflicts with origin/main.
+Please resolve them:
+1. git fetch origin main
+2. git rebase origin/main
+3. For each conflicted file: edit to resolve, then git add <file>
+4. git rebase --continue
+5. Run quality gates: npx tsc --noEmit && npm run build && npx vitest run tests/unit/
+6. If gates fail, fix the code and amend the commit.
+Do NOT push."
+  cd "$WT" || exit 0
+fi
+
+# Push
+git push origin "$BRANCH" --force-with-lease 2>/dev/null || { log "Push failed for #$ISSUE"; }
 
 # Create PR (or get existing PR number)
 # Unregister from registry
@@ -284,6 +333,10 @@ gh pr create --repo "$REPO" --title "feat: #$ISSUE — $TITLE" \
 PR_NUM=$(gh pr list --repo "$REPO" --head "$BRANCH" --json number -q '.[0].number' 2>/dev/null)
 [ -z "$PR_NUM" ] && { log "Could not find PR for $BRANCH, exiting"; exit 0; }
 log "PR #$PR_NUM created for #$ISSUE"
+
+# Request Copilot code review on every PR
+gh api "repos/$REPO/pulls/$PR_NUM/requested_reviewers" \
+  -f "reviewers[]=copilot[bot]" 2>/dev/null && log "Copilot review requested on PR #$PR_NUM" || true
 
 # ═══════════════════════════════════════════
 # Phase 2: Feedback loop — same agent owns PR until merge
@@ -336,15 +389,23 @@ Do NOT push."
   cd "$WT" || exit 0
   run_agent "$FIX_PROMPT"
 
-  # Push the fix
+  # Push the fix (with rebase conflict resolution)
   cd "$WT" || exit 0
-  # Push raw commits first (safety net — work is on remote even if rebase fails)
-  git push origin "$BRANCH" --force-with-lease 2>/dev/null
-  # Then rebase for clean history
   git fetch origin main 2>/dev/null
-  git rebase origin/main 2>/dev/null || { git rebase --abort 2>/dev/null; log "Rebase conflict, raw commits preserved on remote"; }
-  # Push rebased version
-  git push origin "$BRANCH" --force-with-lease 2>/dev/null || { log "Push failed after rebase"; }
+  if ! git rebase origin/main 2>/dev/null; then
+    git rebase --abort 2>/dev/null
+    log "Rebase conflict in fix round $ROUND for #$ISSUE — delegating to agent"
+    run_agent "Your branch fix/issue-$ISSUE has rebase conflicts with origin/main after fix round $ROUND.
+Resolve them:
+1. git fetch origin main
+2. git rebase origin/main
+3. For each conflicted file: edit to resolve, then git add <file>
+4. git rebase --continue
+5. Run quality gates: npx tsc --noEmit && npm run build && npx vitest run tests/unit/
+Do NOT push."
+    cd "$WT" || exit 0
+  fi
+  git push origin "$BRANCH" --force-with-lease 2>/dev/null || { log "Push failed round $ROUND for #$ISSUE"; }
   log "Fix pushed (round $ROUND), looping back to wait for CI"
 done
 

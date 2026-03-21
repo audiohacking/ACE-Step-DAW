@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { DEFAULT_BPM, DEFAULT_DURATION, DEFAULT_KEY_SCALE, MAX_BPM, MAX_DURATION, MIN_BPM, MIN_DURATION } from '../constants/defaults';
+import { DEFAULT_BPM, DEFAULT_DURATION, DEFAULT_KEY_SCALE, DEFAULT_GENERATION, MAX_BPM, MAX_DURATION, MIN_BPM, MIN_DURATION } from '../constants/defaults';
 import type { GenerationPreset } from '../constants/generationPresets';
 import { useProjectStore } from './projectStore';
+import { loadAudioBlobByKey } from '../services/audioFileManager';
 import {
   applyPromptAutocompleteSuggestion as applyPromptAutocompleteSuggestionToPrompt,
   getPromptAutocompleteSuggestions as getPromptAutocompleteSuggestionsForPrompt,
@@ -159,6 +160,33 @@ export interface PromptHistoryEntry {
   keyScale?: string;
 }
 
+export type GenerationHistoryStatus = GenerationJob['status'] | VariationStatus;
+
+export interface GenerationHistoryRecord {
+  id: string;
+  clipId: string | null;
+  trackId: string | null;
+  trackName: string;
+  prompt: string;
+  model: string;
+  duration: number;
+  status: GenerationHistoryStatus;
+  createdAt: number;
+  updatedAt: number;
+  startedAt?: number | null;
+  completedAt?: number | null;
+  taskId?: string;
+  audioKey?: string | null;
+  audioDuration?: number | null;
+  error?: string;
+}
+
+export interface GenerationHistoryFilter {
+  model?: string;
+  search?: string;
+  timeRange?: 'all' | '24h' | '7d' | '30d';
+}
+
 export type VariationStatus = 'pending' | 'generating' | 'processing' | 'done' | 'error' | 'cancelled';
 
 export interface Variation {
@@ -179,6 +207,20 @@ export interface Variation {
   progressPercent?: number;
   /** Estimated seconds remaining */
   etaSeconds?: number;
+  /** Model used for this variation (cross-model comparison) */
+  modelName?: string;
+  /** LM model used for this variation */
+  lmModelName?: string;
+  /** Per-variation inference steps override */
+  inferenceSteps?: number;
+  /** Per-variation guidance scale override */
+  guidanceScale?: number;
+}
+
+export interface ModelOverride {
+  modelName: string;
+  inferenceSteps?: number;
+  guidanceScale?: number;
 }
 
 export interface VariationSessionParams {
@@ -194,6 +236,15 @@ export interface VariationSessionParams {
   lyrics?: string;
   globalCaption?: string;
   presetId?: string;
+  inferenceSteps?: number;
+  shift?: number;
+  thinking?: boolean;
+  seed?: string;
+  useRandomSeed?: boolean;
+  /** Comparison mode: 'cross-model' enables per-variation model switching */
+  comparisonMode?: 'same-model' | 'cross-model';
+  /** Per-variation model overrides for cross-model comparison */
+  modelOverrides?: ModelOverride[];
 }
 
 export interface VariationSession {
@@ -237,6 +288,14 @@ export interface GenerationFormState {
   lyrics: string;
   presetId: string | null;
   requestError: string | null;
+  inferenceSteps: number;
+  guidanceScale: number;
+  shift: number;
+  thinking: boolean;
+  seed: string;
+  useRandomSeed: boolean;
+  compareModelsEnabled: boolean;
+  compareModelOverrides: ModelOverride[];
 }
 
 export interface GenerationValidationInput {
@@ -262,6 +321,18 @@ function clampTemperature(value: number) {
 
 function clampVariationCount(value: number) {
   return Math.max(1, Math.min(4, Math.round(value)));
+}
+
+function clampInferenceSteps(value: number) {
+  return Math.max(1, Math.min(200, Math.round(value)));
+}
+
+function clampGuidanceScale(value: number) {
+  return Math.max(0, Math.min(20, Number(value.toFixed(1))));
+}
+
+function clampShift(value: number) {
+  return Math.max(0, Math.min(10, Number(value.toFixed(1))));
 }
 
 function sanitizeStyleTag(tag: string) {
@@ -290,12 +361,19 @@ function normalizeVariationSessionParams(
     variationCount: clampVariationCount(params.variationCount),
     bpm: clampBpm(params.bpm),
     duration: clampLengthSeconds(params.duration),
-    guidanceScale: clampTemperature(params.guidanceScale),
+    guidanceScale: params.guidanceScale != null ? clampGuidanceScale(params.guidanceScale) : clampTemperature(params.temperature ?? 0.7),
     temperature: clampTemperature(params.temperature ?? params.guidanceScale),
     styleTags: normalizeStyleTags(params.styleTags ?? []),
     lyrics: params.lyrics?.trim() || undefined,
     globalCaption: params.globalCaption?.trim() || undefined,
     presetId: params.presetId ?? fallbackPresetId ?? undefined,
+    inferenceSteps: params.inferenceSteps != null ? clampInferenceSteps(params.inferenceSteps) : undefined,
+    shift: params.shift != null ? clampShift(params.shift) : undefined,
+    thinking: params.thinking,
+    seed: params.seed,
+    useRandomSeed: params.useRandomSeed,
+    comparisonMode: params.comparisonMode,
+    modelOverrides: params.modelOverrides,
   };
 }
 
@@ -312,6 +390,14 @@ export function createDefaultGenerationFormState(): GenerationFormState {
     lyrics: '',
     presetId: null,
     requestError: null,
+    inferenceSteps: DEFAULT_GENERATION.inferenceSteps,
+    guidanceScale: DEFAULT_GENERATION.guidanceScale,
+    shift: DEFAULT_GENERATION.shift,
+    thinking: DEFAULT_GENERATION.thinking,
+    seed: '',
+    useRandomSeed: true,
+    compareModelsEnabled: false,
+    compareModelOverrides: [],
   };
 }
 
@@ -341,6 +427,8 @@ export interface GenerationState {
   jobs: GenerationJob[];
   isGenerating: boolean;
   promptHistory: PromptHistoryEntry[];
+  generationHistory: GenerationHistoryRecord[];
+  previewingHistoryId: string | null;
   variationSession: VariationSession | null;
   generationForm: GenerationFormState;
   lastSubmittedRequest: SubmittedGenerationRequest | null;
@@ -352,6 +440,11 @@ export interface GenerationState {
   setIsGenerating: (v: boolean) => void;
   addPromptToHistory: (prompt: string, meta?: Partial<Omit<PromptHistoryEntry, 'id' | 'prompt' | 'timestamp'>>) => void;
   clearPromptHistory: () => void;
+  upsertGenerationHistoryRecord: (record: Omit<GenerationHistoryRecord, 'id'> & { id?: string }) => string;
+  getGenerationHistoryRecords: (filters?: GenerationHistoryFilter) => GenerationHistoryRecord[];
+  previewGenerationHistory: (recordId: string) => Promise<boolean>;
+  stopGenerationHistoryPreview: () => void;
+  placeGenerationHistoryOnTrack: (recordId: string, trackId: string, startTime: number) => string | null;
   hydrateGenerationForm: (updates: Partial<GenerationFormState>) => void;
   resetGenerationForm: () => void;
   setGenerationPrompt: (prompt: string) => void;
@@ -364,6 +457,12 @@ export interface GenerationState {
   setGenerationVariationCount: (variationCount: number) => void;
   setGenerationTargetTrack: (trackId: string) => void;
   setGenerationLyrics: (lyrics: string) => void;
+  setGenerationInferenceSteps: (steps: number) => void;
+  setGenerationGuidanceScale: (scale: number) => void;
+  setGenerationShift: (shift: number) => void;
+  setGenerationThinking: (thinking: boolean) => void;
+  setGenerationSeed: (seed: string) => void;
+  setGenerationUseRandomSeed: (useRandom: boolean) => void;
   setGenerationRequestError: (message: string | null) => void;
   applyGenerationPreset: (preset: GenerationPreset) => void;
   getPromptAutocompleteSuggestions: (prompt?: string, caretIndex?: number, limit?: number) => PromptAutocompleteSuggestion[];
@@ -372,11 +471,48 @@ export interface GenerationState {
   canSubmitGeneration: () => boolean;
   submitGenerationRequest: (context?: { globalCaption?: string | null }) => VariationSessionParams | null;
 
+  setCompareModelsEnabled: (enabled: boolean) => void;
+  setCompareModelOverrides: (overrides: ModelOverride[]) => void;
+
   startVariationSession: (params: VariationSessionParams) => void;
   updateVariation: (index: number, updates: Partial<Omit<Variation, 'index'>>) => void;
   setActiveVariation: (index: number) => void;
   clearVariationSession: () => void;
   cancelVariationSession: () => void;
+}
+
+let activeHistoryPreviewAudio: HTMLAudioElement | null = null;
+let activeHistoryPreviewUrl: string | null = null;
+
+function stopActiveHistoryPreview() {
+  activeHistoryPreviewAudio?.pause();
+  activeHistoryPreviewAudio = null;
+  if (activeHistoryPreviewUrl) {
+    URL.revokeObjectURL(activeHistoryPreviewUrl);
+    activeHistoryPreviewUrl = null;
+  }
+}
+
+function matchesGenerationHistoryTimeRange(
+  updatedAt: number,
+  timeRange: GenerationHistoryFilter['timeRange'],
+): boolean {
+  if (!timeRange || timeRange === 'all') return true;
+  const maxAgeMs = timeRange === '24h'
+    ? 24 * 60 * 60 * 1000
+    : timeRange === '7d'
+      ? 7 * 24 * 60 * 60 * 1000
+      : 30 * 24 * 60 * 60 * 1000;
+  return (Date.now() - updatedAt) <= maxAgeMs;
+}
+
+function normalizeGenerationHistorySearch(search?: string): string[] {
+  return search
+    ?.toLowerCase()
+    .split(/\s+/u)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    ?? [];
 }
 
 export const useGenerationStore = create<GenerationState>()(
@@ -385,6 +521,8 @@ export const useGenerationStore = create<GenerationState>()(
       jobs: [],
       isGenerating: false,
       promptHistory: [],
+      generationHistory: [],
+      previewingHistoryId: null,
       variationSession: null,
       generationForm: createDefaultGenerationFormState(),
       lastSubmittedRequest: null,
@@ -464,6 +602,112 @@ export const useGenerationStore = create<GenerationState>()(
       }),
 
       clearPromptHistory: () => set({ promptHistory: [] }),
+
+      upsertGenerationHistoryRecord: (record) => {
+        const recordId = record.id ?? crypto.randomUUID();
+        set((state) => {
+          const existing = state.generationHistory.find((entry) => (
+            (record.clipId && entry.clipId === record.clipId)
+            || entry.id === recordId
+          ));
+          const nextRecord: GenerationHistoryRecord = existing
+            ? {
+                ...existing,
+                ...record,
+                id: existing.id,
+                createdAt: existing.createdAt,
+                updatedAt: record.updatedAt ?? Date.now(),
+              }
+            : {
+                ...record,
+                id: recordId,
+                clipId: record.clipId ?? null,
+                trackId: record.trackId ?? null,
+                trackName: record.trackName,
+                prompt: record.prompt,
+                model: record.model,
+                duration: record.duration,
+                status: record.status,
+                createdAt: record.createdAt,
+                updatedAt: record.updatedAt ?? record.createdAt,
+                startedAt: record.startedAt ?? null,
+                completedAt: record.completedAt ?? null,
+                taskId: record.taskId,
+                audioKey: record.audioKey ?? null,
+                audioDuration: record.audioDuration ?? null,
+                error: record.error,
+              };
+          const nextHistory = existing
+            ? state.generationHistory.map((entry) => (entry.id === existing.id ? nextRecord : entry))
+            : [nextRecord, ...state.generationHistory];
+
+          nextHistory.sort((a, b) => b.updatedAt - a.updatedAt);
+          return { generationHistory: nextHistory };
+        });
+        return get().generationHistory.find((entry) => entry.clipId === record.clipId || entry.id === recordId)?.id ?? recordId;
+      },
+
+      getGenerationHistoryRecords: (filters = {}) => {
+        const searchTokens = normalizeGenerationHistorySearch(filters.search);
+        return get().generationHistory.filter((entry) => {
+          if (filters.model && filters.model !== 'all' && entry.model !== filters.model) return false;
+          if (!matchesGenerationHistoryTimeRange(entry.updatedAt, filters.timeRange ?? 'all')) return false;
+          if (searchTokens.length === 0) return true;
+          const haystack = `${entry.prompt} ${entry.model} ${entry.trackName} ${entry.status}`.toLowerCase();
+          return searchTokens.every((token) => haystack.includes(token));
+        });
+      },
+
+      previewGenerationHistory: async (recordId) => {
+        const record = get().generationHistory.find((entry) => entry.id === recordId);
+        if (!record?.audioKey) return false;
+
+        stopActiveHistoryPreview();
+        const blob = await loadAudioBlobByKey(record.audioKey);
+        if (!blob) return false;
+
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        activeHistoryPreviewUrl = url;
+        activeHistoryPreviewAudio = audio;
+        audio.addEventListener('ended', () => {
+          stopActiveHistoryPreview();
+          set({ previewingHistoryId: null });
+        }, { once: true });
+        await audio.play();
+        set({ previewingHistoryId: recordId });
+        return true;
+      },
+
+      stopGenerationHistoryPreview: () => {
+        stopActiveHistoryPreview();
+        set({ previewingHistoryId: null });
+      },
+
+      placeGenerationHistoryOnTrack: (recordId, trackId, startTime) => {
+        const state = get();
+        const record = state.generationHistory.find((entry) => entry.id === recordId);
+        const projectStore = useProjectStore.getState();
+        const track = projectStore.project?.tracks.find((candidate) => candidate.id === trackId);
+        if (!record?.audioKey || !track) return null;
+        if (track.trackType === 'pianoRoll' || track.trackType === 'sequencer' || track.trackType === 'drumMachine') {
+          return null;
+        }
+
+        const clip = projectStore.addClip(trackId, {
+          startTime,
+          duration: record.duration,
+          prompt: record.prompt,
+          globalCaption: '',
+          lyrics: '',
+          source: 'generated',
+        });
+        projectStore.updateClipStatus(clip.id, 'ready', {
+          isolatedAudioKey: record.audioKey,
+          audioDuration: record.audioDuration ?? record.duration,
+        });
+        return clip.id;
+      },
 
       hydrateGenerationForm: (updates) => set((s) => ({
         generationForm: {
@@ -559,11 +803,39 @@ export const useGenerationStore = create<GenerationState>()(
       })),
 
       setGenerationLyrics: (lyrics) => set((s) => ({
-        generationForm: {
-          ...s.generationForm,
-          lyrics,
-          requestError: null,
-        },
+        generationForm: { ...s.generationForm, lyrics, requestError: null },
+      })),
+
+      setGenerationInferenceSteps: (steps) => set((s) => ({
+        generationForm: { ...s.generationForm, inferenceSteps: clampInferenceSteps(steps), requestError: null },
+      })),
+
+      setGenerationGuidanceScale: (scale) => set((s) => ({
+        generationForm: { ...s.generationForm, guidanceScale: clampGuidanceScale(scale), requestError: null },
+      })),
+
+      setGenerationShift: (shift) => set((s) => ({
+        generationForm: { ...s.generationForm, shift: clampShift(shift), requestError: null },
+      })),
+
+      setGenerationThinking: (thinking) => set((s) => ({
+        generationForm: { ...s.generationForm, thinking, requestError: null },
+      })),
+
+      setGenerationSeed: (seed) => set((s) => ({
+        generationForm: { ...s.generationForm, seed, requestError: null },
+      })),
+
+      setGenerationUseRandomSeed: (useRandom) => set((s) => ({
+        generationForm: { ...s.generationForm, useRandomSeed: useRandom, requestError: null },
+      })),
+
+      setCompareModelsEnabled: (enabled) => set((s) => ({
+        generationForm: { ...s.generationForm, compareModelsEnabled: enabled, requestError: null },
+      })),
+
+      setCompareModelOverrides: (overrides) => set((s) => ({
+        generationForm: { ...s.generationForm, compareModelOverrides: overrides, requestError: null },
       })),
 
       setGenerationRequestError: (message) => set((s) => ({
@@ -631,12 +903,23 @@ export const useGenerationStore = create<GenerationState>()(
           bpm: generationForm.bpm,
           keyScale: generationForm.keyScale,
           duration: generationForm.lengthSeconds,
-          guidanceScale: generationForm.temperature,
+          guidanceScale: generationForm.guidanceScale,
           temperature: generationForm.temperature,
           styleTags: generationForm.styleTags,
           lyrics: generationForm.lyrics.trim() || undefined,
           globalCaption: context?.globalCaption?.trim() || undefined,
           presetId: generationForm.presetId ?? undefined,
+          inferenceSteps: generationForm.inferenceSteps,
+          shift: generationForm.shift,
+          thinking: generationForm.thinking,
+          seed: generationForm.useRandomSeed ? undefined : generationForm.seed || undefined,
+          useRandomSeed: generationForm.useRandomSeed,
+          ...(generationForm.compareModelsEnabled && generationForm.compareModelOverrides.length > 0
+            ? {
+                comparisonMode: 'cross-model' as const,
+                modelOverrides: generationForm.compareModelOverrides,
+              }
+            : {}),
         }, generationForm.presetId);
 
         set({
@@ -790,6 +1073,7 @@ export const useGenerationStore = create<GenerationState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         promptHistory: state.promptHistory,
+        generationHistory: state.generationHistory,
         generationForm: state.generationForm,
       }),
     },

@@ -56,6 +56,19 @@ describe('useKeyboardShortcuts', () => {
     expect(track?.soloed).toBe(true);
   });
 
+  it('toggles FX bypass for the focused track with KeyP', () => {
+    const drums = useProjectStore.getState().addTrack('drums');
+    useProjectStore.getState().addTrackEffect(drums.id, 'delay');
+    useUIStore.getState().setKeyboardContext('timeline', drums.id);
+    render(<Harness />);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP' }));
+    expect(useProjectStore.getState().project?.tracks.find((candidate) => candidate.id === drums.id)?.effectsBypassed).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyP' }));
+    expect(useProjectStore.getState().project?.tracks.find((candidate) => candidate.id === drums.id)?.effectsBypassed).toBe(false);
+  });
+
   it('moves keyboard focus between tracks and targets the next focused track', () => {
     const drums = useProjectStore.getState().addTrack('drums');
     const bass = useProjectStore.getState().addTrack('bass');
@@ -178,8 +191,24 @@ describe('useKeyboardShortcuts', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyB' }));
     expect(useUIStore.getState().showSmartControls).toBe(false);
 
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX' }));
+    expect(useUIStore.getState().showMixer).toBe(false);
+
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyO' }));
     expect(useUIStore.getState().loopBrowserOpen).toBe(true);
+  });
+
+  it('keeps V available for piano-roll tools without affecting global state', () => {
+    const keys = useProjectStore.getState().addTrack('keyboard', 'pianoRoll');
+    useUIStore.getState().setOpenPianoRoll(keys.id);
+    useUIStore.getState().setKeyboardContext('pianoRoll', keys.id);
+    useUIStore.getState().setShowMixer(true);
+    render(<Harness />);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV' }));
+
+    expect(useUIStore.getState().showMixer).toBe(true);
+    expect(useUIStore.getState().activePianoRollTool).toBe('select');
   });
 
   it('routes Cmd+Z to the active scoped history context', () => {
@@ -238,6 +267,30 @@ describe('useKeyboardShortcuts', () => {
     expect(useUIStore.getState().snapEnabled).toBe(true);
   });
 
+  it('toggles generation history panel with KeyH', () => {
+    render(<Harness />);
+
+    expect(useUIStore.getState().showGenerationHistoryPanel).toBe(false);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyH' }));
+    expect(useUIStore.getState().showGenerationHistoryPanel).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyH' }));
+    expect(useUIStore.getState().showGenerationHistoryPanel).toBe(false);
+  });
+
+  it('toggles the virtual keyboard overlay with Slash', () => {
+    render(<Harness />);
+
+    expect(useUIStore.getState().showVirtualKeyboard).toBe(false);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Slash' }));
+    expect(useUIStore.getState().showVirtualKeyboard).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Slash' }));
+    expect(useUIStore.getState().showVirtualKeyboard).toBe(false);
+  });
+
   it('suppresses single-key shortcuts while typing in editable fields', () => {
     const drums = useProjectStore.getState().addTrack('drums');
     useUIStore.getState().setKeyboardContext('timeline', drums.id);
@@ -263,5 +316,13 @@ describe('useKeyboardShortcuts', () => {
 
     contentEditable.remove();
     input.remove();
+  });
+
+  it('keeps Space mapped to the existing play/pause behavior', () => {
+    render(<Harness />);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+
+    expect(transportSpies.play).toHaveBeenCalledTimes(1);
   });
 });

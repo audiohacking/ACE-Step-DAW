@@ -5,7 +5,9 @@ import {
   deriveGenerationJobProgress,
   type VariationSessionParams,
   type VariationStatus,
+  type ModelOverride,
 } from '../store/generationStore';
+import { useModelStore } from '../store/modelStore';
 import { useUIStore } from '../store/uiStore';
 import type { LegoTaskParams, CoverTaskParams, RepaintTaskParams, RepaintMode, TaskResultEntry, TaskResultItem } from '../types/api';
 import type { InferredMetas } from '../types/project';
@@ -71,6 +73,16 @@ export interface ClipInternalOptions {
   repaintRange?: { start: number; end: number };
   /** Manual override for the backend guidance scale. */
   guidanceScaleOverride?: number;
+  /** Manual override for inference steps. */
+  inferenceStepsOverride?: number;
+  /** Manual override for shift parameter. */
+  shiftOverride?: number;
+  /** Manual override for thinking mode. */
+  thinkingOverride?: boolean;
+  /** Manual override for seed value. */
+  seedOverride?: number;
+  /** Whether to use a random seed (overrides seedOverride). */
+  useRandomSeedOverride?: boolean;
   /** Optional variation index for progressive multi-variation sessions. */
   variationIndex?: number;
 }
@@ -273,17 +285,84 @@ export async function generateVariationSession(
       return clip.id;
     });
 
-    const results = await Promise.allSettled(
-      clipIds.map((clipId, index) =>
-        generateClip(clipId, null, {
-          forceSilence: true,
-          localDescription: params.prompt,
-          globalCaptionOverride: params.globalCaption,
-          lyricsOverride: params.lyrics,
-          variationIndex: index,
-        }),
-      ),
-    );
+    const isCrossModel = params.comparisonMode === 'cross-model' && params.modelOverrides && params.modelOverrides.length > 0;
+
+    let results: PromiseSettledResult<GenerationOutcome>[];
+
+    if (isCrossModel) {
+      // Cross-model mode: generate sequentially, switching models between variations
+      const outcomes: PromiseSettledResult<GenerationOutcome>[] = [];
+      const currentModelId = useModelStore.getState().activeModelId;
+
+      for (let index = 0; index < clipIds.length; index++) {
+        const clipId = clipIds[index];
+        const override: ModelOverride | undefined = params.modelOverrides![index];
+        const targetModel = override?.modelName;
+
+        // Switch model if needed
+        if (targetModel && targetModel !== useModelStore.getState().activeModelId) {
+          try {
+            await api.initModel({ model: targetModel });
+            // Update model store to reflect the switch
+            useModelStore.setState({ activeModelId: targetModel });
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            useGenerationStore.getState().updateVariation(index, {
+              status: 'error',
+              error: `Model switch failed: ${errorMsg}`,
+              completedAt: Date.now(),
+            });
+            outcomes.push({ status: 'fulfilled', value: { cumulativeBlob: null, succeeded: false, errorMessage: errorMsg } });
+            continue;
+          }
+        }
+
+        try {
+          const outcome = await generateClip(clipId, null, {
+            forceSilence: true,
+            localDescription: params.prompt,
+            globalCaptionOverride: params.globalCaption,
+            lyricsOverride: params.lyrics,
+            variationIndex: index,
+            guidanceScaleOverride: override?.guidanceScale ?? params.guidanceScale,
+            inferenceStepsOverride: override?.inferenceSteps ?? params.inferenceSteps,
+            shiftOverride: params.shift,
+            thinkingOverride: params.thinking,
+            seedOverride: params.seed ? Number(params.seed) : undefined,
+            useRandomSeedOverride: params.useRandomSeed,
+          });
+          outcomes.push({ status: 'fulfilled', value: outcome });
+        } catch (err) {
+          outcomes.push({ status: 'rejected', reason: err });
+        }
+
+        // Record model name on the variation
+        if (targetModel) {
+          useGenerationStore.getState().updateVariation(index, { modelName: targetModel });
+        }
+      }
+
+      results = outcomes;
+    } else {
+      // Same-model mode: generate in parallel (existing behavior)
+      results = await Promise.allSettled(
+        clipIds.map((clipId, index) =>
+          generateClip(clipId, null, {
+            forceSilence: true,
+            localDescription: params.prompt,
+            globalCaptionOverride: params.globalCaption,
+            lyricsOverride: params.lyrics,
+            variationIndex: index,
+            guidanceScaleOverride: params.guidanceScale,
+            inferenceStepsOverride: params.inferenceSteps,
+            shiftOverride: params.shift,
+            thinkingOverride: params.thinking,
+            seedOverride: params.seed ? Number(params.seed) : undefined,
+            useRandomSeedOverride: params.useRandomSeed,
+          }),
+        ),
+      );
+    }
 
     const firstCompletedVariation = useGenerationStore.getState().variationSession?.variations.find(
       (variation) => variation.status === 'done' && variation.clipId,
@@ -479,14 +558,41 @@ async function generateClipInternal(
       bpm: resolvedBpm,
       key_scale: resolvedKey,
       time_signature: resolvedTimeSig,
-      inference_steps: project.generationDefaults.inferenceSteps,
+      inference_steps: options.inferenceStepsOverride ?? project.generationDefaults.inferenceSteps,
       guidance_scale: options.guidanceScaleOverride ?? project.generationDefaults.guidanceScale,
-      shift: project.generationDefaults.shift,
+      shift: options.shiftOverride ?? project.generationDefaults.shift,
       batch_size: 1,
       audio_format: 'wav',
-      thinking: project.generationDefaults.thinking,
+      thinking: options.thinkingOverride ?? project.generationDefaults.thinking,
       model: project.generationDefaults.model,
     } as LegoTaskParams;
+
+    // Per-generation seed override from advanced params
+    if (options.useRandomSeedOverride === false && options.seedOverride !== undefined) {
+      params.seed = options.seedOverride;
+      params.use_random_seed = false;
+    } else if (options.useRandomSeedOverride === true) {
+      params.use_random_seed = true;
+    }
+
+    const historyUpdatedAt = Date.now();
+    genStore.upsertGenerationHistoryRecord({
+      clipId,
+      trackId: track.id,
+      trackName: track.trackName,
+      prompt: effectivePrompt,
+      model: params.model ?? '',
+      duration: clip.duration,
+      status: 'queued',
+      createdAt: historyUpdatedAt,
+      updatedAt: historyUpdatedAt,
+      startedAt: null,
+      completedAt: null,
+      taskId: undefined,
+      audioKey: null,
+      audioDuration: clip.duration,
+      error: undefined,
+    });
 
     // Shared seed: override backend randomness so all batch tracks are correlated
     if (options.sharedSeed !== undefined) {
@@ -535,6 +641,21 @@ async function generateClipInternal(
     const releaseResp = await api.releaseLegoTask(srcAudioBlob, params);
     const taskId = releaseResp.task_id;
     useGenerationStore.getState().updateJob(jobId, { taskId });
+    genStore.upsertGenerationHistoryRecord({
+      clipId,
+      trackId: track.id,
+      trackName: track.trackName,
+      prompt: effectivePrompt,
+      model: params.model ?? '',
+      duration: clip.duration,
+      status: 'generating',
+      createdAt: historyUpdatedAt,
+      updatedAt: Date.now(),
+      startedAt: jobStartedAt,
+      taskId,
+      audioKey: null,
+      audioDuration: clip.duration,
+    });
     updateVariationProgress({
       taskId,
       status: 'generating',
@@ -702,11 +823,43 @@ async function generateClipInternal(
       seed: firstResult?.seed_value,
       completedAt: Date.now(),
     });
+    genStore.upsertGenerationHistoryRecord({
+      clipId,
+      trackId: track.id,
+      trackName: track.trackName,
+      prompt: effectivePrompt,
+      model: params.model ?? '',
+      duration: clip.duration,
+      status: 'done',
+      createdAt: historyUpdatedAt,
+      updatedAt: Date.now(),
+      startedAt: jobStartedAt,
+      completedAt: Date.now(),
+      taskId,
+      audioKey: isolatedKey,
+      audioDuration: clipDuration,
+      error: undefined,
+    });
 
     return { cumulativeBlob, succeeded: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     useProjectStore.getState().updateClipStatus(clipId, 'error', { errorMessage: message });
+    genStore.upsertGenerationHistoryRecord({
+      clipId,
+      trackId: track.id,
+      trackName: track.trackName,
+      prompt: clip.prompt ?? '',
+      model: project.generationDefaults.model ?? '',
+      duration: clip.duration,
+      status: 'error',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      completedAt: Date.now(),
+      audioKey: null,
+      audioDuration: clip.duration,
+      error: message,
+    });
     {
       const currentJob = useGenerationStore.getState().jobs.find((job) => job.id === jobId);
       useGenerationStore.getState().updateJob(jobId, {

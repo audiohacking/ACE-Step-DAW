@@ -9,6 +9,7 @@ import { useRecording } from '../../hooks/useRecording';
 import { getMidiCaptureService } from '../../services/midiCaptureService';
 import { formatTime, formatBarsBeats } from '../../utils/time';
 import { Button } from '../ui/Button';
+import { ModelStatusBadge } from './ModelStatusBadge';
 
 function LCDDisplay() {
   const currentTime = useTransportStore((s) => s.currentTime);
@@ -172,6 +173,7 @@ function FileMenu({ disabled }: { disabled: boolean }) {
 
 export function Toolbar() {
   const project = useProjectStore((s) => s.project);
+  const modelName = useProjectStore((s) => s.project?.generationDefaults.model ?? '');
   const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
   const setShowSettingsDialog = useUIStore((s) => s.setShowSettingsDialog);
   const setShowProjectListDialog = useUIStore((s) => s.setShowProjectListDialog);
@@ -192,6 +194,8 @@ export function Toolbar() {
   const toggleAIAssistant = useUIStore((s) => s.toggleAIAssistant);
   const showGenerationPanel = useUIStore((s) => s.showGenerationPanel);
   const toggleGenerationPanel = useUIStore((s) => s.toggleGenerationPanel);
+  const showGenerationHistoryPanel = useUIStore((s) => s.showGenerationHistoryPanel);
+  const toggleGenerationHistoryPanel = useUIStore((s) => s.toggleGenerationHistoryPanel);
   const isViewerMode = useCollaborationStore((s) => s.isViewerMode);
   const { toggleRecord } = useRecording();
 
@@ -205,6 +209,8 @@ export function Toolbar() {
   const toggleMetronome = useTransportStore((s) => s.toggleMetronome);
   const zoomIn = useUIStore((s) => s.zoomIn);
   const zoomOut = useUIStore((s) => s.zoomOut);
+  const autoScrollEnabled = useUIStore((s) => s.autoScrollEnabled);
+  const toggleAutoScroll = useUIStore((s) => s.toggleAutoScroll);
 
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__commandPaletteRuntime = {
@@ -300,6 +306,19 @@ export function Toolbar() {
         >
           AI
         </button>
+        <button
+          onClick={toggleGenerationHistoryPanel}
+          disabled={!project}
+          aria-pressed={showGenerationHistoryPanel}
+          className={`rounded-md px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors ${
+            showGenerationHistoryPanel
+              ? 'border border-emerald-400/50 bg-emerald-500/20 text-emerald-100'
+              : 'border border-[#4b4b4b] bg-[#242424] text-zinc-300 hover:bg-daw-surface-2'
+          } disabled:opacity-30`}
+          title="Generation History Panel (H)"
+        >
+          Hist
+        </button>
       </div>
 
       <ToolbarSeparator />
@@ -316,6 +335,7 @@ export function Toolbar() {
           New
         </Button>
         <FileMenu disabled={!project} />
+        <ModelStatusBadge modelName={modelName} onClick={() => setShowLibrary(true)} />
       </div>
 
       <div className="flex-1" />
@@ -408,6 +428,21 @@ export function Toolbar() {
             <path d="M4 13L7 1l3 12" />
             <path d="M3 13h8" />
             <path d="M7 5l4-2" />
+          </svg>
+        </ControlBarButton>
+        <ControlBarButton
+          active={autoScrollEnabled}
+          onClick={toggleAutoScroll}
+          title="Auto-Scroll / Follow Playhead (Shift+F)"
+          disabled={!project}
+          dataTarget="auto-scroll-button"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 1v12" />
+            <path d="M7 1l-2.5 3" />
+            <path d="M7 1l2.5 3" />
+            <path d="M1 5h4" />
+            <path d="M9 5h4" />
           </svg>
         </ControlBarButton>
       </div>

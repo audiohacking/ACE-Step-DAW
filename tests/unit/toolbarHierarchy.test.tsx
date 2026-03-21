@@ -5,6 +5,7 @@ import { Toolbar } from '../../src/components/layout/Toolbar';
 import { useProjectStore } from '../../src/store/projectStore';
 import { useUIStore } from '../../src/store/uiStore';
 import { useTransportStore } from '../../src/store/transportStore';
+import { useModelStore } from '../../src/store/modelStore';
 
 // Mock all external dependencies
 vi.mock('../../src/store/collaborationStore', () => ({
@@ -40,12 +41,30 @@ vi.mock('../../src/services/projectStorage', () => ({
   saveProject: vi.fn(),
 }));
 
+vi.mock('../../src/services/aceStepApi', () => ({
+  healthCheck: vi.fn().mockResolvedValue(false),
+  listModels: vi.fn().mockResolvedValue({ models: [], default_model: null, lm_models: [], loaded_lm_model: null, llm_initialized: false }),
+  initModel: vi.fn().mockResolvedValue({}),
+  getStats: vi.fn().mockResolvedValue({}),
+}));
+
 describe('Toolbar visual hierarchy and grouping (#544)', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.clearAllMocks();
     useProjectStore.setState(useProjectStore.getInitialState(), true);
     useUIStore.setState(useUIStore.getInitialState(), true);
     useTransportStore.setState(useTransportStore.getInitialState(), true);
+    useModelStore.setState({
+      availableModels: [],
+      availableLmModels: [],
+      activeModelId: null,
+      activeLmModelId: null,
+      modelLoadingState: 'idle',
+      connected: false,
+      lastRefreshedAt: 0,
+      stats: null,
+    });
     useProjectStore.getState().createProject({ name: 'Toolbar Test' });
   });
 
@@ -121,5 +140,73 @@ describe('Toolbar visual hierarchy and grouping (#544)', () => {
     expect(screen.getByTitle('Keyboard Shortcuts (?)')).toBeInTheDocument();
     expect(screen.getByTitle('Zoom Out')).toBeInTheDocument();
     expect(screen.getByTitle('Zoom In')).toBeInTheDocument();
+  });
+
+  it('shows the loaded model badge and opens the library panel when clicked', () => {
+    useProjectStore.setState((state) => ({
+      project: state.project
+        ? {
+          ...state.project,
+          generationDefaults: {
+            ...state.project.generationDefaults,
+            model: 'ace-step-large',
+          },
+        }
+        : state.project,
+    }));
+    useModelStore.setState({
+      connected: true,
+      activeModelId: 'ace-step-large',
+      modelLoadingState: 'idle',
+      availableModels: [
+        { name: 'ace-step-large', is_default: true, is_loaded: true } as any,
+      ],
+    });
+
+    render(<Toolbar />);
+
+    const badge = screen.getByRole('button', { name: /model status: ace-step-large/i });
+    expect(badge).toHaveTextContent('ace-step-large');
+    expect(badge.querySelector('[data-testid="toolbar-model-status-dot"]')).toHaveClass('bg-emerald-500');
+
+    fireEvent.click(badge);
+    expect(useUIStore.getState().showLibrary).toBe(true);
+  });
+
+  it('shows loading and empty badge states as the model status changes', () => {
+    // Start with no model selected, connected but nothing loaded
+    useModelStore.setState({
+      connected: true,
+      activeModelId: null,
+      modelLoadingState: 'idle',
+      availableModels: [
+        { name: 'switching-model', is_default: true, is_loaded: false } as any,
+      ],
+    });
+
+    const { rerender } = render(<Toolbar />);
+
+    const emptyBadge = screen.getByRole('button', { name: /model status: no model/i });
+    expect(emptyBadge).toHaveTextContent('No model');
+    expect(emptyBadge.querySelector('[data-testid="toolbar-model-status-dot"]')).toHaveClass('bg-zinc-500');
+
+    // Now set a model name and put the store in loading state
+    useProjectStore.setState((state) => ({
+      project: state.project
+        ? {
+          ...state.project,
+          generationDefaults: {
+            ...state.project.generationDefaults,
+            model: 'switching-model',
+          },
+        }
+        : state.project,
+    }));
+    useModelStore.setState({ modelLoadingState: 'loading' });
+    rerender(<Toolbar />);
+
+    const loadingBadge = screen.getByRole('button', { name: /model status: switching-model/i });
+    expect(loadingBadge).toHaveTextContent('switching-model');
+    expect(loadingBadge.querySelector('[data-testid="toolbar-model-status-dot"]')).toHaveClass('bg-amber-400');
   });
 });

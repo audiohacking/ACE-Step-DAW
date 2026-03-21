@@ -10,8 +10,11 @@ import { useCollaborationStore } from './store/collaborationStore';
 import { useShortcutsStore } from './store/shortcutsStore';
 import { useGenerationStore } from './store/generationStore';
 import { useSessionStore } from './store/sessionStore';
+import { useModelStore } from './store/modelStore';
 import { projectActionApi } from './services/actionApi';
 import { getDAWApi } from './api/dawApi';
+import { cloudStorage } from './services/cloudStorageService';
+import { createProjectShare } from './services/projectSharingService';
 import { generateProjectSummary, generateProjectStructure } from './utils/dawStateSummary';
 import { getMidiCaptureService } from './services/midiCaptureService';
 import { executeCoreDawShortcut } from './services/coreDawShortcuts';
@@ -99,6 +102,7 @@ const agentProjectStore = {
 (window as unknown as Record<string, unknown>).__collaborationStore = useCollaborationStore;
 (window as unknown as Record<string, unknown>).__generationStore = useGenerationStore;
 (window as unknown as Record<string, unknown>).__sessionStore = useSessionStore;
+(window as unknown as Record<string, unknown>).__modelStore = useModelStore;
 (window as unknown as Record<string, unknown>).__getAudioEngine = () => getAudioEngine();
 (window as unknown as Record<string, unknown>).__shortcutsStore = useShortcutsStore;
 (window as unknown as Record<string, unknown>).__coreDawShortcuts = {
@@ -114,6 +118,18 @@ const agentProjectStore = {
 (window as unknown as Record<string, unknown>).__keyboardCommands = {
   execute: (actionId: Parameters<ReturnType<typeof getDAWApi>['commands']['executeCoreShortcut']>[0]) =>
     getDAWApi().commands.executeCoreShortcut(actionId),
+};
+(window as unknown as Record<string, unknown>).__sharingApi = {
+  createLink: async () => {
+    const project = useProjectStore.getState().project;
+    if (!project) {
+      throw new Error('Create or open a project before sharing');
+    }
+
+    return createProjectShare(project, `${window.location.origin}${window.location.pathname}`);
+  },
+  loadSharedProject: (token: string) => cloudStorage.loadSharedProject(token),
+  listSharedProjects: () => cloudStorage.listSharedProjects(),
 };
 
 // Expose DAW state summary for LLM agents

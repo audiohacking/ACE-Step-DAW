@@ -75,7 +75,7 @@ import {
   DEFAULT_GENERATION,
 } from '../constants/defaults';
 import { saveProject as saveProjectToIDB } from '../services/projectStorage';
-import { exportStemToWav, type ExportClip } from '../engine/exportMix';
+import { exportTrackStems, getStemExportTracks, trackHasExportableContent } from '../engine/exportMix';
 import { applyTransform, type TransformOptions } from '../utils/midiTransforms';
 import { generatePattern, type PatternOptions } from '../utils/midiPatternGenerator';
 import { loadAudioBlobByKey, saveAudioBlob } from '../services/audioFileManager';
@@ -458,6 +458,7 @@ export interface ProjectState {
   setMasteringEnabled: (enabled: boolean) => void;
   removeMastering: () => void;
   updateTrackMixer: (trackId: string, updates: Partial<Pick<Track, 'pan' | 'eqLowGain' | 'eqMidGain' | 'eqHighGain' | 'compressorEnabled' | 'compressorThreshold' | 'compressorRatio'>>) => void;
+  toggleTrackEffectsBypass: (trackId: string) => void;
   setPanMode: (trackId: string, mode: 'stereo' | 'dual-mono') => void;
   setDualMonoPan: (trackId: string, left: number, right: number) => void;
   setTrackLocalCaption: (trackId: string, caption: string) => void;
@@ -498,6 +499,10 @@ export interface ProjectState {
   addClip: (trackId: string, clip: Omit<Clip, 'id' | 'trackId' | 'generationStatus' | 'generationJobId' | 'cumulativeMixKey' | 'isolatedAudioKey' | 'waveformPeaks'>) => Clip;
   ensureMidiClip: (trackId: string, startTime?: number, duration?: number) => Clip;
   updateClip: (clipId: string, updates: Partial<Clip>) => void;
+  updateClipColor: (clipId: string, color: string | undefined) => void;
+  updateClipColors: (clipIds: string[], color: string | undefined) => void;
+  /** Toggle muted state on one or more clips. If any are active, mute all; if all muted, unmute all. */
+  toggleClipMuted: (clipIds: string[]) => void;
   removeClip: (clipId: string) => void;
   duplicateClip: (clipId: string) => Clip | undefined;
   updateClipStatus: (clipId: string, status: ClipGenerationStatus, extra?: Partial<Clip>) => void;
@@ -797,6 +802,7 @@ function createNeutralBouncedTrack(track: Track, bouncedClip: Clip, displayName:
     compressorEnabled: false,
     compressorThreshold: -24,
     compressorRatio: 4,
+    effectsBypassed: false,
     reverbMix: 0,
     reverbRoomSize: 0.5,
     plugins: [],
@@ -1379,6 +1385,7 @@ function createTrackFromTemplate(
     soloed: false,
     clips: [],
     effects: cloneTrackEffectsWithNewIds(presetEffects),
+    effectsBypassed: overrides?.effectsBypassed ?? false,
     midiEffects: cloneMidiEffectsWithNewIds(presetMidiEffects),
   };
 
@@ -1424,6 +1431,7 @@ function createTrackPresetSnapshot(track: Track, name: string): TrackPreset {
     compressorEnabled: track.compressorEnabled,
     compressorThreshold: track.compressorThreshold,
     compressorRatio: track.compressorRatio,
+    effectsBypassed: track.effectsBypassed ?? false,
     reverbMix: track.reverbMix,
     reverbRoomSize: track.reverbRoomSize,
     localCaption: track.localCaption,
@@ -1446,6 +1454,7 @@ function ensureTrackDefaults(track: Track): Track {
     ...track,
     synthPreset: track.synthPreset ?? getDefaultTrackSynthPreset(track.trackName),
     effects: track.effects ?? [],
+    effectsBypassed: track.effectsBypassed ?? false,
     midiEffects: track.midiEffects ?? [],
     drumKit: track.drumKit ?? '808',
     clips: track.clips.map((clip) => ({
@@ -1843,6 +1852,24 @@ export const useProjectStore = create<ProjectState>()(
         updatedAt: Date.now(),
         tracks: state.project.tracks.map((t) =>
           t.id === trackId ? { ...t, ...updates } : t,
+        ),
+      },
+    });
+  },
+
+  toggleTrackEffectsBypass: (trackId) => {
+    const state = get();
+    if (_isViewerMode()) return;
+    if (!state.project) return;
+    _pushHistory(state.project, { scope: 'mixer', label: 'Toggle FX bypass', trackId });
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        tracks: state.project.tracks.map((track) =>
+          track.id === trackId
+            ? { ...track, effectsBypassed: !(track.effectsBypassed ?? false) }
+            : track,
         ),
       },
     });
@@ -2599,6 +2626,7 @@ export const useProjectStore = create<ProjectState>()(
     const clip: Clip = {
       id: uuidv4(),
       trackId,
+      color: clipData.color,
       startTime: clipData.startTime,
       duration: clipData.duration,
       prompt: clipData.prompt,
@@ -2671,6 +2699,75 @@ export const useProjectStore = create<ProjectState>()(
         c.id === clipId ? { ...c, ...updates } : c,
       ),
     }));
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        tracks: newTracks,
+      },
+    });
+  },
+
+  updateClipColor: (clipId, color) => {
+    get().updateClipColors([clipId], color);
+  },
+
+  updateClipColors: (clipIds, color) => {
+    const state = get();
+    if (_isViewerMode()) return;
+    if (!state.project || clipIds.length === 0) return;
+
+    const clipIdSet = new Set(clipIds);
+    _pushHistory(state.project, { label: color ? 'Assign clip color' : 'Reset clip color', scope: 'arrangement' });
+
+    const newTracks = state.project.tracks.map((track) => ({
+      ...track,
+      clips: track.clips.map((clip) => (
+        clipIdSet.has(clip.id)
+          ? {
+              ...clip,
+              ...(color ? { color } : { color: undefined }),
+            }
+          : clip
+      )),
+    }));
+
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        tracks: newTracks,
+      },
+    });
+  },
+
+  toggleClipMuted: (clipIds) => {
+    const state = get();
+    if (_isViewerMode()) return;
+    if (!state.project || clipIds.length === 0) return;
+
+    const clipIdSet = new Set(clipIds);
+    // Collect targeted clips to decide toggle direction
+    const targetClips = state.project.tracks
+      .flatMap((t) => t.clips)
+      .filter((c) => clipIdSet.has(c.id));
+    if (targetClips.length === 0) return;
+
+    // If any clip is active (not muted), mute all. If all muted, unmute all.
+    const anyActive = targetClips.some((c) => !c.muted);
+    const newMuted = anyActive;
+
+    _pushHistory(state.project, { label: newMuted ? 'Mute clips' : 'Unmute clips', scope: 'arrangement' });
+
+    const newTracks = state.project.tracks.map((track) => ({
+      ...track,
+      clips: track.clips.map((clip) =>
+        clipIdSet.has(clip.id) ? { ...clip, muted: newMuted } : clip,
+      ),
+    }));
+
     set({
       project: {
         ...state.project,
@@ -5901,68 +5998,22 @@ export const useProjectStore = create<ProjectState>()(
     if (!project) return;
 
     const engine = audioEngineHooks.getAudioEngine();
-    const totalDuration = project.totalDuration;
+    const exportableTracks = getStemExportTracks(project, { scope: 'all-audible' }).filter(trackHasExportableContent);
+    const stemExports = await exportTrackStems(
+      project,
+      exportableTracks,
+      {
+        format: 'wav',
+        sampleRate: 48000,
+        bitDepth: 16,
+        mp3Bitrate: 320,
+        oggQuality: 0.5,
+      },
+      engine,
+    );
 
-    for (const track of project.tracks) {
-      const clips: ExportClip[] = [];
-
-      if (track.trackType === 'pianoRoll') {
-        for (const clip of track.clips) {
-          const notes = clip.midiData?.notes ?? [];
-          if (notes.length === 0) continue;
-          let buffer: AudioBuffer | null = null;
-          if (track.synthPreset === 'sampler' && track.sampler?.audioKey) {
-            const samplerBlob = await loadAudioBlobByKey(track.sampler.audioKey);
-            if (samplerBlob) {
-              const sampleBuffer = await engine.decodeAudioData(samplerBlob);
-              buffer = await renderSamplerTrackOffline(
-                notes,
-                clip.startTime,
-                project.bpm,
-                sampleBuffer,
-                track.samplerConfig ?? createSamplerConfig(track.sampler.audioKey, {
-                  rootNote: track.sampler.rootNote,
-                  trimEnd: track.sampler.sampleDuration,
-                  loopEnd: track.sampler.sampleDuration,
-                }),
-                totalDuration,
-              );
-            }
-          } else {
-            buffer = await renderMidiTrackOffline(
-              notes, clip.startTime, project.bpm,
-              track.synthPreset ?? 'piano', totalDuration,
-            );
-          }
-          if (!buffer) continue;
-          clips.push({ startTime: 0, buffer, volume: track.volume, pan: track.pan ?? 0, effects: track.effects });
-        }
-      }
-
-      if (track.trackType === 'sequencer' && track.sequencerPattern) {
-        const buffer = await renderSequencerTrackOffline(
-          track.sequencerPattern, project.bpm, totalDuration, track.drumKit ?? '808',
-        );
-        clips.push({ startTime: 0, buffer, volume: track.volume, pan: track.pan ?? 0, effects: track.effects });
-      }
-
-      for (const clip of track.clips) {
-        if (clip.generationStatus === 'ready' && clip.isolatedAudioKey) {
-          const blob = await loadAudioBlobByKey(clip.isolatedAudioKey);
-          if (blob) {
-            const buffer = await engine.decodeAudioData(blob);
-            clips.push({ startTime: clip.startTime, buffer, volume: track.volume, pan: track.pan ?? 0, effects: track.effects });
-          }
-        }
-      }
-
-      if (clips.length === 0) continue;
-
-      const wavBlob = await exportStemToWav(clips, totalDuration);
-      downloadBlob(
-        wavBlob,
-        `${sanitizeFileNameSegment(project.name)}_${sanitizeFileNameSegment(track.displayName)}.wav`,
-      );
+    for (const stemExport of stemExports) {
+      downloadBlob(stemExport.blob, stemExport.fileName);
     }
   },
 

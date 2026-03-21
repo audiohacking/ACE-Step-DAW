@@ -65,6 +65,7 @@ export interface UIState {
   batchGenerateInitialRange: { startTime: number; duration: number } | null;
   showKeyboardShortcutsDialog: boolean;
   showShortcutEditorDialog: boolean;
+  showVirtualKeyboard: boolean;
   showCommandPalette: boolean;
   commandPaletteQuery: string;
   recentCommandIds: string[];
@@ -102,6 +103,9 @@ export interface UIState {
   sequencerEditorHeight: number;
   pianoRollHeight: number;
   effectChainHeight: number;
+  virtualKeyboardOctave: number;
+  virtualKeyboardVelocity: number;
+  virtualKeyboardPressedPitches: number[];
   showSmartControls: boolean;
   showLibrary: boolean;
   /** Which bottom editor is visible: null = none, 'smart' = smart controls, 'editor' = region editor */
@@ -112,6 +116,10 @@ export interface UIState {
 
   // Playhead focus — true when timeline area is focused (after click-to-seek)
   timelineFocused: boolean;
+
+  // Auto-scroll — follow playhead during playback
+  autoScrollEnabled: boolean;
+  userScrolledDuringPlayback: boolean;
 
   // Loop Browser
   loopBrowserOpen: boolean;
@@ -150,8 +158,12 @@ export interface UIState {
   // Add Layer Panel (floating, no backdrop)
   addLayerOpen: boolean;
 
+  // Model Library Panel
+  showModelLibrary: boolean;
+
   // Generation Side Panel
   showGenerationPanel: boolean;
+  showGenerationHistoryPanel: boolean;
 
   // AI Assistant
   showAIAssistant: boolean;
@@ -202,6 +214,8 @@ export interface UIState {
   setBatchGenerateInitialRange: (v: { startTime: number; duration: number } | null) => void;
   setShowKeyboardShortcutsDialog: (v: boolean) => void;
   setShowShortcutEditorDialog: (v: boolean) => void;
+  setShowVirtualKeyboard: (v: boolean) => void;
+  toggleVirtualKeyboard: () => void;
   openCommandPalette: (query?: string) => void;
   closeCommandPalette: () => void;
   setCommandPaletteQuery: (query: string) => void;
@@ -235,6 +249,13 @@ export interface UIState {
   setSequencerEditorHeight: (v: number) => void;
   setPianoRollHeight: (v: number) => void;
   setEffectChainHeight: (v: number) => void;
+  setVirtualKeyboardOctave: (v: number) => void;
+  adjustVirtualKeyboardOctave: (delta: number) => void;
+  setVirtualKeyboardVelocity: (v: number) => void;
+  adjustVirtualKeyboardVelocity: (delta: number) => void;
+  pressVirtualKeyboardPitch: (pitch: number) => void;
+  releaseVirtualKeyboardPitch: (pitch: number) => void;
+  clearVirtualKeyboardPressedPitches: () => void;
   setShowSmartControls: (v: boolean) => void;
   setShowLibrary: (v: boolean) => void;
   setActiveBottomPanel: (v: 'smart' | 'editor' | 'pianoRoll' | 'effects' | 'drumMachine' | null) => void;
@@ -244,6 +265,11 @@ export interface UIState {
 
   // Playhead focus
   setTimelineFocused: (focused: boolean) => void;
+
+  // Auto-scroll
+  setAutoScrollEnabled: (enabled: boolean) => void;
+  setUserScrolledDuringPlayback: (scrolled: boolean) => void;
+  toggleAutoScroll: () => void;
 
   // Loop Browser
   toggleLoopBrowser: () => void;
@@ -281,9 +307,15 @@ export interface UIState {
   // Add Layer Panel
   setAddLayerOpen: (v: boolean) => void;
 
+  // Model Library Panel
+  toggleModelLibrary: () => void;
+  setShowModelLibrary: (v: boolean) => void;
+
   // Generation Side Panel
   toggleGenerationPanel: () => void;
   setShowGenerationPanel: (v: boolean) => void;
+  toggleGenerationHistoryPanel: () => void;
+  setShowGenerationHistoryPanel: (v: boolean) => void;
 
   // Command Palette
   setShowCommandPalette: (v: boolean) => void;
@@ -318,6 +350,18 @@ export interface UIState {
 
 const ZOOM_LEVELS = [10, 25, 50, 100, 200, 500];
 const TUTORIAL_STEP_COUNT = 5;
+const MIN_VIRTUAL_KEYBOARD_OCTAVE = 1;
+const MAX_VIRTUAL_KEYBOARD_OCTAVE = 7;
+const MIN_VIRTUAL_KEYBOARD_VELOCITY = 16;
+const MAX_VIRTUAL_KEYBOARD_VELOCITY = 127;
+
+function clampVirtualKeyboardOctave(value: number) {
+  return Math.min(MAX_VIRTUAL_KEYBOARD_OCTAVE, Math.max(MIN_VIRTUAL_KEYBOARD_OCTAVE, Math.round(value)));
+}
+
+function clampVirtualKeyboardVelocity(value: number) {
+  return Math.min(MAX_VIRTUAL_KEYBOARD_VELOCITY, Math.max(MIN_VIRTUAL_KEYBOARD_VELOCITY, Math.round(value)));
+}
 
 function getComplexityDefaults(tier: 'simple' | 'standard' | 'advanced') {
   switch (tier) {
@@ -382,6 +426,7 @@ export const useUIStore = create<UIState>()(
   batchGenerateInitialRange: null,
   showKeyboardShortcutsDialog: false,
   showShortcutEditorDialog: false,
+  showVirtualKeyboard: false,
   showCommandPalette: false,
   commandPaletteQuery: '',
   recentCommandIds: [],
@@ -412,12 +457,18 @@ export const useUIStore = create<UIState>()(
   sequencerEditorHeight: 320,
   pianoRollHeight: 360,
   effectChainHeight: 320,
+  virtualKeyboardOctave: 4,
+  virtualKeyboardVelocity: 96,
+  virtualKeyboardPressedPitches: [],
   showSmartControls: false,
   showLibrary: false,
   activeBottomPanel: null,
 
   showTempoLane: false,
   timelineFocused: false,
+
+  autoScrollEnabled: true,
+  userScrolledDuringPlayback: false,
 
   loopBrowserOpen: false,
   loopBrowserCategory: 'All',
@@ -446,7 +497,10 @@ export const useUIStore = create<UIState>()(
 
   addLayerOpen: false,
 
+  showModelLibrary: false,
+
   showGenerationPanel: false,
+  showGenerationHistoryPanel: false,
 
   showAIAssistant: false,
   aiChatMessages: [],
@@ -546,6 +600,15 @@ export const useUIStore = create<UIState>()(
   setBatchGenerateInitialRange: (v) => set({ batchGenerateInitialRange: v }),
   setShowKeyboardShortcutsDialog: (v) => set({ showKeyboardShortcutsDialog: v }),
   setShowShortcutEditorDialog: (v) => set({ showShortcutEditorDialog: v }),
+  setShowVirtualKeyboard: (v) => set((state) => (
+    v
+      ? { showVirtualKeyboard: true }
+      : { showVirtualKeyboard: false, virtualKeyboardPressedPitches: [] }
+  )),
+  toggleVirtualKeyboard: () => set((state) => ({
+    showVirtualKeyboard: !state.showVirtualKeyboard,
+    virtualKeyboardPressedPitches: state.showVirtualKeyboard ? [] : state.virtualKeyboardPressedPitches,
+  })),
   openCommandPalette: (query = '') => set({ showCommandPalette: true, commandPaletteQuery: query }),
   closeCommandPalette: () => set({ showCommandPalette: false, commandPaletteQuery: '' }),
   setCommandPaletteQuery: (query) => set({ commandPaletteQuery: query }),
@@ -672,12 +735,33 @@ export const useUIStore = create<UIState>()(
   setSequencerEditorHeight: (v) => set({ sequencerEditorHeight: Math.min(600, Math.max(200, v)) }),
   setPianoRollHeight: (v) => set({ pianoRollHeight: Math.min(700, Math.max(220, v)) }),
   setEffectChainHeight: (v) => set({ effectChainHeight: Math.min(520, Math.max(180, v)) }),
+  setVirtualKeyboardOctave: (v) => set({ virtualKeyboardOctave: clampVirtualKeyboardOctave(v) }),
+  adjustVirtualKeyboardOctave: (delta) => set((state) => ({
+    virtualKeyboardOctave: clampVirtualKeyboardOctave(state.virtualKeyboardOctave + delta),
+  })),
+  setVirtualKeyboardVelocity: (v) => set({ virtualKeyboardVelocity: clampVirtualKeyboardVelocity(v) }),
+  adjustVirtualKeyboardVelocity: (delta) => set((state) => ({
+    virtualKeyboardVelocity: clampVirtualKeyboardVelocity(state.virtualKeyboardVelocity + delta),
+  })),
+  pressVirtualKeyboardPitch: (pitch) => set((state) => (
+    state.virtualKeyboardPressedPitches.includes(pitch)
+      ? {}
+      : { virtualKeyboardPressedPitches: [...state.virtualKeyboardPressedPitches, pitch].sort((a, b) => a - b) }
+  )),
+  releaseVirtualKeyboardPitch: (pitch) => set((state) => ({
+    virtualKeyboardPressedPitches: state.virtualKeyboardPressedPitches.filter((value) => value !== pitch),
+  })),
+  clearVirtualKeyboardPressedPitches: () => set({ virtualKeyboardPressedPitches: [] }),
   setShowSmartControls: (v) => set({ showSmartControls: v }),
   setShowLibrary: (v) => set({ showLibrary: v }),
   setActiveBottomPanel: (v) => set({ activeBottomPanel: v }),
 
   toggleTempoLane: () => set((s) => ({ showTempoLane: !s.showTempoLane })),
   setTimelineFocused: (focused) => set({ timelineFocused: focused }),
+
+  setAutoScrollEnabled: (enabled) => set({ autoScrollEnabled: enabled }),
+  setUserScrolledDuringPlayback: (scrolled) => set({ userScrolledDuringPlayback: scrolled }),
+  toggleAutoScroll: () => set((s) => ({ autoScrollEnabled: !s.autoScrollEnabled })),
 
   toggleLoopBrowser: () => set((s) => ({ loopBrowserOpen: !s.loopBrowserOpen })),
   setLoopBrowserCategory: (v) => set({ loopBrowserCategory: v }),
@@ -707,8 +791,13 @@ export const useUIStore = create<UIState>()(
 
   setAddLayerOpen: (v) => set({ addLayerOpen: v }),
 
+  toggleModelLibrary: () => set((s) => ({ showModelLibrary: !s.showModelLibrary })),
+  setShowModelLibrary: (v) => set({ showModelLibrary: v }),
+
   toggleGenerationPanel: () => set((s) => ({ showGenerationPanel: !s.showGenerationPanel })),
   setShowGenerationPanel: (v) => set({ showGenerationPanel: v }),
+  toggleGenerationHistoryPanel: () => set((s) => ({ showGenerationHistoryPanel: !s.showGenerationHistoryPanel })),
+  setShowGenerationHistoryPanel: (v) => set({ showGenerationHistoryPanel: v }),
 
   setShowCommandPalette: (v) => set({ showCommandPalette: v }),
   toggleCommandPalette: () => set((s) => ({ showCommandPalette: !s.showCommandPalette })),
@@ -849,6 +938,7 @@ export const useUIStore = create<UIState>()(
         showMixer: state.showMixer,
         showLibrary: state.showLibrary,
         loopBrowserOpen: state.loopBrowserOpen,
+        showVirtualKeyboard: state.showVirtualKeyboard,
         showSmartControls: state.showSmartControls,
         keyboardContext: state.keyboardContext,
         activePianoRollTool: state.activePianoRollTool,
@@ -860,6 +950,8 @@ export const useUIStore = create<UIState>()(
         sequencerEditorHeight: state.sequencerEditorHeight,
         pianoRollHeight: state.pianoRollHeight,
         effectChainHeight: state.effectChainHeight,
+        virtualKeyboardOctave: state.virtualKeyboardOctave,
+        virtualKeyboardVelocity: state.virtualKeyboardVelocity,
         assetsPanelWidth: state.assetsPanelWidth,
         trackListWidth: state.trackListWidth,
         // Zoom level
@@ -872,8 +964,11 @@ export const useUIStore = create<UIState>()(
         showSpectrumAnalyzer: state.showSpectrumAnalyzer,
         // Loop Browser preference
         loopBrowserCategory: state.loopBrowserCategory,
+        // Model Library panel
+        showModelLibrary: state.showModelLibrary,
         // Generation panel
         showGenerationPanel: state.showGenerationPanel,
+        showGenerationHistoryPanel: state.showGenerationHistoryPanel,
         // AI Assistant
         showAIAssistant: state.showAIAssistant,
         // Onboarding

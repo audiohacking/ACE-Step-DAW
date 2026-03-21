@@ -83,7 +83,7 @@ function shouldDeferToPianoRollTools(event: KeyboardEvent): boolean {
   const ui = useUIStore.getState();
   if (ui.keyboardContext.scope !== 'pianoRoll') return false;
   if (event.metaKey || event.ctrlKey || event.altKey) return false;
-  return ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'KeyB'].includes(event.code);
+  return ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'KeyV', 'KeyB', 'KeyX'].includes(event.code);
 }
 
 export function shouldDeferToDrumMachine(event: KeyboardEvent): boolean {
@@ -142,6 +142,12 @@ export function useKeyboardShortcuts() {
       if (mod && event.altKey && event.code === 'KeyZ' && !isInputFocused(event)) {
         event.preventDefault();
         ui.setShowUndoHistoryPanel(!ui.showUndoHistoryPanel);
+        return;
+      }
+
+      if (!mod && !event.shiftKey && !event.altKey && event.code === 'Slash' && !isInputFocused(event)) {
+        event.preventDefault();
+        ui.toggleVirtualKeyboard();
         return;
       }
 
@@ -305,6 +311,14 @@ export function useKeyboardShortcuts() {
       if (shouldDeferToPianoRollTools(event)) return;
       if (shouldDeferToDrumMachine(event)) return;
 
+      if (matches('clips.toggleMute')) {
+        event.preventDefault();
+        if (ui.selectedClipIds.size > 0) {
+          project.toggleClipMuted([...ui.selectedClipIds]);
+        }
+        return;
+      }
+
       if (matches('view.toggleSessionView')) {
         event.preventDefault();
         ui.toggleMainView();
@@ -359,6 +373,9 @@ export function useKeyboardShortcuts() {
       if (matches('panels.loopBrowser')) { event.preventDefault(); ui.toggleLoopBrowser(); return; }
       if (matches('panels.tempoLane')) { event.preventDefault(); ui.toggleTempoLane(); return; }
       if (matches('panels.generation')) { event.preventDefault(); ui.toggleGenerationPanel(); return; }
+      if (matches('panels.generationHistory')) { event.preventDefault(); ui.toggleGenerationHistoryPanel(); return; }
+      if (matches('panels.modelLibrary')) { event.preventDefault(); ui.toggleModelLibrary(); return; }
+      if (matches('view.autoScroll')) { event.preventDefault(); ui.toggleAutoScroll(); return; }
 
       if (matches('tracks.mute')) {
         event.preventDefault();
@@ -368,6 +385,11 @@ export function useKeyboardShortcuts() {
       if (matches('tracks.solo')) {
         event.preventDefault();
         void executeCoreKeyboardAction('tracks.solo', { play, pause, toggleRecord, toggleArmTrack });
+        return;
+      }
+      if (matches('tracks.bypassEffects')) {
+        event.preventDefault();
+        void executeCoreKeyboardAction('tracks.bypassEffects', { play, pause, toggleRecord, toggleArmTrack });
         return;
       }
 

@@ -3,16 +3,36 @@
 set -e
 cd "$(dirname "$0")/../.."
 REPO="ace-step/ACE-Step-DAW"
-SESSION_FILE="/tmp/pm-session-id"
-DECISION_LOG="/tmp/pm-decisions.log"
-LOG="/tmp/pm-activity.log"
+PM_DIR="$(cd "$(dirname "$0")/../.." && pwd)/.pm"
+mkdir -p "$PM_DIR"
+SESSION_FILE="$PM_DIR/session-id"
+DECISION_LOG="$PM_DIR/decisions.log"
+LOG="$PM_DIR/activity.log"
 
 log() { echo "[$(date)] [PM] $*" >> "$LOG"; }
 
-# ── Mutex: skip if previous tick still running ──
+# ── Mutex: skip if previous tick still running (macOS-compatible) ──
 LOCKFILE="/tmp/pm-tick.lock"
-exec 200>"$LOCKFILE"
-flock -n 200 || { echo "[$(date)] PM tick skipped — previous tick still running" >> "$LOG"; exit 0; }
+if command -v flock &>/dev/null; then
+  exec 200>"$LOCKFILE"
+  flock -n 200 || { log "PM tick skipped — previous tick still running"; exit 0; }
+else
+  # macOS fallback: use mkdir as atomic lock
+  if ! mkdir "$LOCKFILE.d" 2>/dev/null; then
+    # Check if stale (older than 10 min)
+    if [ -d "$LOCKFILE.d" ]; then
+      LOCK_AGE=$(( $(date +%s) - $(stat -f %m "$LOCKFILE.d" 2>/dev/null || echo 0) ))
+      if [ "$LOCK_AGE" -gt 600 ]; then
+        rm -rf "$LOCKFILE.d"
+        mkdir "$LOCKFILE.d" 2>/dev/null || { log "PM tick skipped — previous tick still running"; exit 0; }
+      else
+        log "PM tick skipped — previous tick still running"
+        exit 0
+      fi
+    fi
+  fi
+  trap 'rm -rf "$LOCKFILE.d"' EXIT
+fi
 
 # ── Gather FULL team status ──
 
@@ -95,16 +115,21 @@ $PREV_DECISIONS
 
 2. REBASE: For CONFLICTING PRs, checkout branch, rebase, push.
 
-3. STAFF: Dispatch dev agents for unworked issues via launch-dev.sh:
+3. RECOVER STALE: Check for dead agents with open PRs:
+   bash scripts/agents/registry.sh stale
+   For each stale agent, RE-LAUNCH with the same issue number:
+   bash scripts/agents/launch-dev.sh ISSUE_NUM codex
+   (launch-dev.sh auto-detects takeover: existing worktree + open PR = resume, not restart)
+
+4. STAFF: Dispatch dev agents for NEW unworked issues via launch-dev.sh:
    bash scripts/agents/launch-dev.sh ISSUE_NUM codex|claude
    CRITICAL RULES:
-   - Do NOT assign issues that have a worktree (check ACTIVE_WORKTREES)
    - Do NOT assign issues that have a running agent (check RUNNING AGENTS)
-   - Do NOT re-assign CI-failed or review-blocked PRs — the owning dev agent handles those
-   - Prefer Codex (cheaper). Only use Claude if Codex >= 10
+   - P0 issues → use Claude Code (deeper reasoning): launch-dev.sh ISSUE_NUM claude
+   - P1/P2 issues → use Codex (faster/cheaper): launch-dev.sh ISSUE_NUM codex
    - Always use launch-dev.sh, never raw codex exec for dev work
 
-4. BALANCE: If Claude Code >= 3, don't add more. If Codex < 10 and unworked issues exist, add.
+5. BALANCE: Claude Code max 3, Codex max 10. Fill BOTH pools in parallel — not sequentially.
 
 5. After all decisions, write a concise summary of EACH action you took.
    This will be saved as memory for your next tick."
@@ -122,24 +147,24 @@ fi
 if [ -f "$SESSION_FILE" ]; then
   SESSION_ID=$(cat "$SESSION_FILE")
   log "Resuming PM session $SESSION_ID"
-  codex exec resume "$SESSION_ID" "$STATUS_PAYLOAD" \
-    -o /tmp/pm-last-output.txt 2>&1 || true
+  codex exec resume --dangerously-bypass-approvals-and-sandbox "$SESSION_ID" "$STATUS_PAYLOAD" \
+    -o $PM_DIR/last-output.txt 2>&1 || true
 else
   SESSION_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
   echo "$SESSION_ID" > "$SESSION_FILE"
   log "Starting new PM session $SESSION_ID"
-  codex exec -C "$(pwd)" -s danger-full-access \
-    -o /tmp/pm-last-output.txt \
+  codex exec -C "$(pwd)" --dangerously-bypass-approvals-and-sandbox \
+    -o $PM_DIR/last-output.txt \
     "You are the Project Manager for ACE-Step DAW. You will be resumed every 5 minutes with fresh team status. Your session persists — you remember prior decisions. Be consistent. Avoid contradicting yourself. Check YOUR PREVIOUS DECISIONS to stay aligned.
 
 $STATUS_PAYLOAD" 2>&1 || true
 fi
 
 # ── Save decisions to external memory ──
-if [ -f /tmp/pm-last-output.txt ]; then
+if [ -f $PM_DIR/last-output.txt ]; then
   {
     echo "--- $(date '+%Y-%m-%d %H:%M') ---"
-    tail -20 /tmp/pm-last-output.txt
+    tail -20 $PM_DIR/last-output.txt
   } >> "$DECISION_LOG"
   # Trim to last 200 lines to prevent unbounded growth
   tail -200 "$DECISION_LOG" > "$DECISION_LOG.tmp" && mv "$DECISION_LOG.tmp" "$DECISION_LOG"

@@ -20,9 +20,11 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: 'clips.selectAll',       category: 'clips',     label: 'Select All Clips',            defaultCombo: { code: 'KeyA', mod: true }, contexts: ['timeline'] },
   { id: 'clips.edit',            category: 'clips',     label: 'Edit Selected Clip',          defaultCombo: { code: 'KeyE' }, contexts: ['timeline'] },
   { id: 'clips.generate',        category: 'clips',     label: 'Generate Selected Clip',      defaultCombo: { code: 'Enter', mod: true }, contexts: ['timeline'] },
+  { id: 'clips.toggleMute',      category: 'clips',     label: 'Toggle Clip Mute',            defaultCombo: { code: 'Digit0' }, contexts: ['timeline'] },
 
   { id: 'tracks.mute',           category: 'tracks',    label: 'Toggle Focused Track Mute',   defaultCombo: { code: 'KeyM' }, contexts: ['timeline', 'mixer', 'pianoRoll'] },
   { id: 'tracks.solo',           category: 'tracks',    label: 'Toggle Focused Track Solo',   defaultCombo: { code: 'KeyS', shift: true }, contexts: ['timeline', 'mixer', 'pianoRoll'] },
+  { id: 'tracks.bypassEffects',  category: 'tracks',    label: 'Toggle Focused Track FX Bypass', defaultCombo: { code: 'KeyP' }, contexts: ['timeline', 'mixer', 'pianoRoll'] },
   { id: 'tracks.createGroup',    category: 'tracks',    label: 'Create Group Track',          defaultCombo: { code: 'KeyG', mod: true, shift: true }, contexts: ['timeline', 'mixer'] },
   { id: 'tracks.toggleCollapse', category: 'tracks',    label: 'Toggle Group Collapse',       defaultCombo: { code: 'KeyG', shift: true }, contexts: ['timeline'] },
   { id: 'tracks.delete',         category: 'tracks',    label: 'Delete Selected Tracks',      defaultCombo: { code: 'Delete' }, contexts: ['timeline'] },
@@ -48,7 +50,10 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: 'panels.loopBrowser',    category: 'panels',    label: 'Toggle Loop Browser',         defaultCombo: { code: 'KeyO' }, contexts: ['global'] },
   { id: 'panels.tempoLane',      category: 'panels',    label: 'Toggle Tempo Lane',           defaultCombo: { code: 'KeyT' }, contexts: ['global'] },
   { id: 'panels.generation',     category: 'panels',    label: 'Toggle AI Generation Panel',  defaultCombo: { code: 'KeyG' }, contexts: ['global'] },
+  { id: 'panels.generationHistory', category: 'panels', label: 'Toggle Generation History Panel', defaultCombo: { code: 'KeyH' }, contexts: ['global'] },
+  { id: 'panels.modelLibrary',   category: 'panels',    label: 'Toggle Model Library',        defaultCombo: { code: 'KeyM', shift: true }, contexts: ['global'] },
   { id: 'panels.aiAssistant',    category: 'panels',    label: 'Toggle AI Assistant',         defaultCombo: { code: 'Slash', mod: true }, contexts: ['global'] },
+  { id: 'view.autoScroll',        category: 'view',      label: 'Toggle Auto-Scroll',          defaultCombo: { code: 'KeyF', shift: true }, contexts: ['global'] },
 
   { id: 'project.new',           category: 'project',   label: 'New Project',                 defaultCombo: { code: 'KeyN', mod: true }, contexts: ['global'] },
   { id: 'project.open',          category: 'project',   label: 'Open Project List',           defaultCombo: { code: 'KeyO', mod: true }, contexts: ['global'] },

@@ -25,3 +25,6 @@ scripts/metrics-latest.json
 test-screenshots/
 playwright-report/
 test-results/
+
+# PM agent persistent memory
+.pm/
