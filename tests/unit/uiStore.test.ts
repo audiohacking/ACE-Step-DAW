@@ -90,14 +90,26 @@ describe('uiStore', () => {
       expect(useUIStore.getState().mainView).toBe('arrangement');
     });
 
-    it('toggles the generation history panel', () => {
-      expect(useUIStore.getState().showGenerationHistoryPanel).toBe(false);
+    it('routes generation history into the unified generation panel', () => {
+      expect(useUIStore.getState().showGenerationPanel).toBe(false);
+      expect(useUIStore.getState().generationPanelView).toBe('textToMusic');
 
       useUIStore.getState().toggleGenerationHistoryPanel();
-      expect(useUIStore.getState().showGenerationHistoryPanel).toBe(true);
+      expect(useUIStore.getState().showGenerationPanel).toBe(true);
+      expect(useUIStore.getState().showGenerationHistoryPanel).toBe(false);
+      expect(useUIStore.getState().generationPanelView).toBe('history');
 
       useUIStore.getState().setShowGenerationHistoryPanel(false);
+      expect(useUIStore.getState().showGenerationPanel).toBe(false);
       expect(useUIStore.getState().showGenerationHistoryPanel).toBe(false);
+    });
+
+    it('opens the multi-track view when batch generation mode is requested', () => {
+      useUIStore.getState().setBatchGenerateMode('context');
+
+      expect(useUIStore.getState().showGenerationPanel).toBe(true);
+      expect(useUIStore.getState().generationPanelView).toBe('multiTrack');
+      expect(useUIStore.getState().batchGenerateMode).toBe('context');
     });
 
     it('tracks virtual keyboard visibility, octave, velocity, and pressed pitches', () => {

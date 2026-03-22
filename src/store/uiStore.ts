@@ -38,6 +38,7 @@ function createAssistantMessage(role: AIChatMessage['role'], content: string): A
 }
 
 export type PianoRollChordShape = (typeof CHORD_SHAPES)[number]['abbr'];
+export type GenerationPanelView = 'textToMusic' | 'multiTrack' | 'history';
 
 const DEFAULT_PIANO_ROLL_CHORD_SHAPE: PianoRollChordShape = 'maj';
 const VALID_PIANO_ROLL_CHORD_SHAPES = new Set<string>(CHORD_SHAPES.map((shape) => shape.abbr));
@@ -68,9 +69,9 @@ export interface UIState {
   showSettingsDialog: boolean;
   showProjectListDialog: boolean;
   bounceInPlaceTrackId: string | null;
-  /** Controls the BatchGenerateModal — lifted from GenerationPanel so keyboard shortcuts can open it. */
+  /** Remembers the active multi-track generation mode inside the unified Generate panel. */
   batchGenerateMode: 'silence' | 'context' | null;
-  /** Optional time range pre-filled into BatchGenerateModal when opened from a lane drag-select or context menu. */
+  /** Optional time range pre-filled into the multi-track view when opened from a lane drag-select or context menu. */
   batchGenerateInitialRange: { startTime: number; duration: number } | null;
   showKeyboardShortcutsDialog: boolean;
   showShortcutEditorDialog: boolean;
@@ -183,6 +184,7 @@ export interface UIState {
   // Generation Side Panel
   showGenerationPanel: boolean;
   showGenerationHistoryPanel: boolean;
+  generationPanelView: GenerationPanelView;
 
   // AI Assistant
   showAIAssistant: boolean;
@@ -336,6 +338,8 @@ export interface UIState {
   // Generation Side Panel
   toggleGenerationPanel: () => void;
   setShowGenerationPanel: (v: boolean) => void;
+  setGenerationPanelView: (view: GenerationPanelView) => void;
+  openGenerationPanelView: (view: GenerationPanelView) => void;
   toggleGenerationHistoryPanel: () => void;
   setShowGenerationHistoryPanel: (v: boolean) => void;
 
@@ -532,6 +536,7 @@ export const useUIStore = create<UIState>()(
 
   showGenerationPanel: false,
   showGenerationHistoryPanel: false,
+  generationPanelView: 'textToMusic',
 
   showAIAssistant: false,
   aiChatMessages: [],
@@ -631,7 +636,13 @@ export const useUIStore = create<UIState>()(
   closeBounceInPlaceDialog: () => set({ bounceInPlaceTrackId: null }),
   setBatchGenerateMode: (mode) => set(mode === null
     ? { batchGenerateMode: null, batchGenerateInitialRange: null }
-    : { batchGenerateMode: mode }),
+    : {
+        ...ALL_RIGHT_PANELS_CLOSED,
+        batchGenerateMode: mode,
+        showGenerationPanel: true,
+        showGenerationHistoryPanel: false,
+        generationPanelView: 'multiTrack',
+      }),
   setBatchGenerateInitialRange: (v) => set({ batchGenerateInitialRange: v }),
   setShowKeyboardShortcutsDialog: (v) => set({ showKeyboardShortcutsDialog: v }),
   setShowShortcutEditorDialog: (v) => set({ showShortcutEditorDialog: v }),
@@ -866,8 +877,35 @@ export const useUIStore = create<UIState>()(
 
   toggleGenerationPanel: () => set((s) => s.showGenerationPanel ? { showGenerationPanel: false } : { ...ALL_RIGHT_PANELS_CLOSED, showGenerationPanel: true }),
   setShowGenerationPanel: (v) => set(v ? { ...ALL_RIGHT_PANELS_CLOSED, showGenerationPanel: true } : { showGenerationPanel: false }),
-  toggleGenerationHistoryPanel: () => set((s) => s.showGenerationHistoryPanel ? { showGenerationHistoryPanel: false } : { ...ALL_RIGHT_PANELS_CLOSED, showGenerationHistoryPanel: true }),
-  setShowGenerationHistoryPanel: (v) => set(v ? { ...ALL_RIGHT_PANELS_CLOSED, showGenerationHistoryPanel: true } : { showGenerationHistoryPanel: false }),
+  setGenerationPanelView: (view) => set({ generationPanelView: view }),
+  openGenerationPanelView: (view) => set({
+    ...ALL_RIGHT_PANELS_CLOSED,
+    showGenerationPanel: true,
+    showGenerationHistoryPanel: false,
+    generationPanelView: view,
+  }),
+  toggleGenerationHistoryPanel: () => set((s) => (
+    s.showGenerationPanel && s.generationPanelView === 'history'
+      ? { showGenerationPanel: false, showGenerationHistoryPanel: false }
+      : {
+          ...ALL_RIGHT_PANELS_CLOSED,
+          showGenerationPanel: true,
+          showGenerationHistoryPanel: false,
+          generationPanelView: 'history',
+        }
+  )),
+  setShowGenerationHistoryPanel: (v) => set((s) => (
+    v
+      ? {
+          ...ALL_RIGHT_PANELS_CLOSED,
+          showGenerationPanel: true,
+          showGenerationHistoryPanel: false,
+          generationPanelView: 'history',
+        }
+      : (s.showGenerationPanel && s.generationPanelView === 'history')
+        ? { showGenerationPanel: false, showGenerationHistoryPanel: false }
+        : { showGenerationHistoryPanel: false }
+  )),
 
   setShowCommandPalette: (v) => set({ showCommandPalette: v }),
   toggleCommandPalette: () => set((s) => ({ showCommandPalette: !s.showCommandPalette })),
@@ -1001,6 +1039,7 @@ export const useUIStore = create<UIState>()(
         // Generation panel
         showGenerationPanel: state.showGenerationPanel,
         showGenerationHistoryPanel: state.showGenerationHistoryPanel,
+        generationPanelView: state.generationPanelView,
         // AI Assistant
         showAIAssistant: state.showAIAssistant,
         // Workspace

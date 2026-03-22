@@ -130,6 +130,18 @@ describe('Toolbar visual hierarchy and grouping (#544)', () => {
     expect(groups.length).toBeGreaterThanOrEqual(3); // At least: panel toggles, gen, transport-area, right panels
   });
 
+  it('uses a single Generate button that opens the unified panel', () => {
+    render(<Toolbar />);
+
+    const generateButton = screen.getByTestId('generate-button');
+    expect(generateButton).toBeInTheDocument();
+    expect(screen.queryByTestId('generate-dropdown-trigger')).not.toBeInTheDocument();
+
+    fireEvent.click(generateButton);
+    expect(useUIStore.getState().showGenerationPanel).toBe(true);
+    expect(useUIStore.getState().generationPanelView).toBe('textToMusic');
+  });
+
   it('provides tooltip titles on all right-side icon buttons', () => {
     render(<Toolbar />);
     // Mixer, Loop Browser, AI Assistant, Settings, Shortcuts should all have titles

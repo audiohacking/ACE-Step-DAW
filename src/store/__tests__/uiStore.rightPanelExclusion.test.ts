@@ -4,14 +4,13 @@ import { useUIStore } from '../uiStore';
 /**
  * Right-side panels are mutually exclusive: opening one closes all others.
  * Panels: showMixer, loopBrowserOpen, showGenerationPanel,
- *         showGenerationHistoryPanel, showModelLibrary, showAIAssistant
+ *         showModelLibrary, showAIAssistant
  */
 
 const RIGHT_PANEL_KEYS = [
   'showMixer',
   'loopBrowserOpen',
   'showGenerationPanel',
-  'showGenerationHistoryPanel',
   'showModelLibrary',
   'showAIAssistant',
 ] as const;
@@ -43,6 +42,7 @@ describe('right-side panel mutual exclusion', () => {
       loopBrowserOpen: false,
       showGenerationPanel: false,
       showGenerationHistoryPanel: false,
+      generationPanelView: 'textToMusic',
       showModelLibrary: false,
       showAIAssistant: false,
     });
@@ -95,11 +95,13 @@ describe('right-side panel mutual exclusion', () => {
   it('toggleGenerationHistoryPanel opens history and closes others', () => {
     useUIStore.setState({ showAIAssistant: true });
     useUIStore.getState().toggleGenerationHistoryPanel();
-    expect(onlyOpen('showGenerationHistoryPanel')).toBe(true);
+    expect(onlyOpen('showGenerationPanel')).toBe(true);
+    expect(useUIStore.getState().generationPanelView).toBe('history');
+    expect(useUIStore.getState().showGenerationHistoryPanel).toBe(false);
   });
 
   it('toggleGenerationHistoryPanel off does not open another panel', () => {
-    useUIStore.setState({ showGenerationHistoryPanel: true });
+    useUIStore.setState({ showGenerationPanel: true, generationPanelView: 'history' });
     useUIStore.getState().toggleGenerationHistoryPanel();
     expect(allPanelsClosed()).toBe(true);
   });
@@ -141,7 +143,9 @@ describe('right-side panel mutual exclusion', () => {
   it('setShowGenerationHistoryPanel(true) opens history and closes others', () => {
     useUIStore.setState({ showAIAssistant: true });
     useUIStore.getState().setShowGenerationHistoryPanel(true);
-    expect(onlyOpen('showGenerationHistoryPanel')).toBe(true);
+    expect(onlyOpen('showGenerationPanel')).toBe(true);
+    expect(useUIStore.getState().generationPanelView).toBe('history');
+    expect(useUIStore.getState().showGenerationHistoryPanel).toBe(false);
   });
 
   // --- setShowModelLibrary ---

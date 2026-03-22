@@ -168,9 +168,6 @@ export function useKeyboardShortcuts() {
         } else if (ui.editingClipId !== null) {
           event.preventDefault();
           ui.setEditingClip(null);
-        } else if (ui.batchGenerateMode !== null) {
-          event.preventDefault();
-          ui.setBatchGenerateMode(null);
         } else if (ui.showKeyboardShortcutsDialog) {
           event.preventDefault();
           ui.setShowKeyboardShortcutsDialog(false);
@@ -204,7 +201,6 @@ export function useKeyboardShortcuts() {
       const anyModalOpen =
         ui.showCommandPalette ||
         ui.editingClipId !== null ||
-        ui.batchGenerateMode !== null ||
         ui.bounceInPlaceTrackId !== null ||
         ui.showKeyboardShortcutsDialog ||
         ui.showShortcutEditorDialog ||

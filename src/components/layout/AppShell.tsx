@@ -4,7 +4,6 @@ import { Timeline } from '../timeline/Timeline';
 import { GenerationPanel } from '../generation/GenerationPanel';
 import { AddLayerPanel } from '../generation/AddLayerPanel';
 import { GenerationSidePanel } from '../generation/GenerationSidePanel';
-import { GenerationHistoryPanel } from '../generation/GenerationHistoryPanel';
 import { CoverModal } from '../generation/CoverModal';
 import { MusicEnhancerPanel } from '../generation/MusicEnhancerPanel';
 import { RepaintModal } from '../generation/RepaintModal';
@@ -118,7 +117,6 @@ function EditorShell() {
       {project && <MixerPanel />}
       {project && <GenerationPanel />}
       {project && <GenerationSidePanel />}
-      {project && <GenerationHistoryPanel />}
       {project && <ModelLibraryPanel />}
       {project && <VirtualKeyboard />}
       {project && <AddLayerPanel />}

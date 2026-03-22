@@ -171,6 +171,38 @@ function FileMenu({ disabled }: { disabled: boolean }) {
   );
 }
 
+function GenerateButton({ disabled }: { disabled: boolean }) {
+  const showGenerationPanel = useUIStore((s) => s.showGenerationPanel);
+  const setShowGenerationPanel = useUIStore((s) => s.setShowGenerationPanel);
+  const openGenerationPanelView = useUIStore((s) => s.openGenerationPanelView);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (showGenerationPanel) {
+          setShowGenerationPanel(false);
+          return;
+        }
+        openGenerationPanelView('textToMusic');
+      }}
+      disabled={disabled}
+      data-onboarding-target="genr-button"
+      data-testid="generate-button"
+      aria-label="Generate"
+      aria-pressed={showGenerationPanel}
+      className={`rounded-md border px-3 py-1 text-[11px] font-semibold tracking-[0.12em] uppercase transition-colors ${
+        showGenerationPanel
+          ? 'border-indigo-400/50 bg-indigo-500/20 text-indigo-100'
+          : 'border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/20'
+      } disabled:opacity-30`}
+      title="Generate panel"
+    >
+      Generate
+    </button>
+  );
+}
+
 export function Toolbar() {
   const project = useProjectStore((s) => s.project);
   const modelName = useProjectStore((s) => s.project?.generationDefaults.model ?? '');
@@ -181,7 +213,6 @@ export function Toolbar() {
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
   const mainView = useUIStore((s) => s.mainView);
   const setMainView = useUIStore((s) => s.setMainView);
-  const setBatchGenerateMode = useUIStore((s) => s.setBatchGenerateMode);
   const showMixer = useUIStore((s) => s.showMixer);
   const setShowMixer = useUIStore((s) => s.setShowMixer);
   const loopBrowserOpen = useUIStore((s) => s.loopBrowserOpen);
@@ -192,10 +223,6 @@ export function Toolbar() {
   const setShowSmartControls = useUIStore((s) => s.setShowSmartControls);
   const showAIAssistant = useUIStore((s) => s.showAIAssistant);
   const toggleAIAssistant = useUIStore((s) => s.toggleAIAssistant);
-  const showGenerationPanel = useUIStore((s) => s.showGenerationPanel);
-  const toggleGenerationPanel = useUIStore((s) => s.toggleGenerationPanel);
-  const showGenerationHistoryPanel = useUIStore((s) => s.showGenerationHistoryPanel);
-  const toggleGenerationHistoryPanel = useUIStore((s) => s.toggleGenerationHistoryPanel);
   const isViewerMode = useCollaborationStore((s) => s.isViewerMode);
   const { toggleRecord } = useRecording();
 
@@ -283,42 +310,7 @@ export function Toolbar() {
 
       {/* Generation actions */}
       <div className="flex items-center gap-0.5 bg-[#2a2a2a]/60 rounded-lg px-1.5 py-0.5" data-testid="toolbar-group">
-        <button
-          onClick={() => setBatchGenerateMode('silence')}
-          disabled={!project}
-          data-onboarding-target="genr-button"
-          aria-label="Open genr"
-          className="rounded-md border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold tracking-[0.18em] text-cyan-200 uppercase transition-colors hover:bg-cyan-400/20 disabled:opacity-30"
-          title="genr (Cmd+G)"
-        >
-          genr
-        </button>
-        <button
-          onClick={toggleGenerationPanel}
-          disabled={!project}
-          aria-pressed={showGenerationPanel}
-          className={`rounded-md px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors ${
-            showGenerationPanel
-              ? 'border border-indigo-400/50 bg-indigo-500/20 text-indigo-100'
-              : 'border border-[#4b4b4b] bg-[#242424] text-zinc-300 hover:bg-daw-surface-2'
-          } disabled:opacity-30`}
-          title="AI Generation Panel (G)"
-        >
-          AI
-        </button>
-        <button
-          onClick={toggleGenerationHistoryPanel}
-          disabled={!project}
-          aria-pressed={showGenerationHistoryPanel}
-          className={`rounded-md px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors ${
-            showGenerationHistoryPanel
-              ? 'border border-emerald-400/50 bg-emerald-500/20 text-emerald-100'
-              : 'border border-[#4b4b4b] bg-[#242424] text-zinc-300 hover:bg-daw-surface-2'
-          } disabled:opacity-30`}
-          title="Generation History Panel (H)"
-        >
-          Hist
-        </button>
+        <GenerateButton disabled={!project} />
       </div>
 
       <ToolbarSeparator />

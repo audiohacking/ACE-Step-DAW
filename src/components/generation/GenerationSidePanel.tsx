@@ -5,7 +5,6 @@ import {
   getGenerationValidationError,
   useGenerationStore,
   type VariationStatus,
-  type ModelOverride,
 } from '../../store/generationStore';
 import { useProjectStore } from '../../store/projectStore';
 import { useModelStore } from '../../store/modelStore';
@@ -16,6 +15,8 @@ import type { PresetCategory } from '../../constants/generationPresets';
 import { generateVariationSession } from '../../services/generationPipeline';
 import { PromptAutocompleteTextarea } from './PromptAutocompleteTextarea';
 import { computeEta, formatEtaDisplay } from '../../utils/generationProgress';
+import { MultiTrackGenerateSection } from './MultiTrackGenerateSection';
+import { GenerationHistorySection } from './GenerationHistorySection';
 
 const VARIATION_STATUS_LABELS: Record<VariationStatus, string> = {
   pending: 'Waiting',
@@ -38,7 +39,10 @@ const VARIATION_STATUS_COLORS: Record<VariationStatus, string> = {
 export function GenerationSidePanel() {
   const show = useUIStore((s) => s.showGenerationPanel);
   const setShow = useUIStore((s) => s.setShowGenerationPanel);
-  const toggleGenerationHistoryPanel = useUIStore((s) => s.toggleGenerationHistoryPanel);
+  const generationPanelView = useUIStore((s) => s.generationPanelView);
+  const setGenerationPanelView = useUIStore((s) => s.setGenerationPanelView);
+  const batchGenerateMode = useUIStore((s) => s.batchGenerateMode);
+  const setBatchGenerateMode = useUIStore((s) => s.setBatchGenerateMode);
   const selectClip = useUIStore((s) => s.selectClip);
   const project = useProjectStore((s) => s.project);
 
@@ -76,7 +80,7 @@ export function GenerationSidePanel() {
 
   const availableModels = useModelStore((s) => s.availableModels);
 
-  const [showHistory, setShowHistory] = useState(false);
+  const [showPromptHistory, setShowPromptHistory] = useState(false);
   const [presetCategory, setPresetCategory] = useState<PresetCategory | 'All'>('All');
   const [showLyrics, setShowLyrics] = useState(false);
   const [styleTagsInput, setStyleTagsInput] = useState('');
@@ -86,7 +90,6 @@ export function GenerationSidePanel() {
     () => project?.tracks.filter((track) => track.trackType === 'stems') ?? [],
     [project?.tracks],
   );
-  const activeJobs = jobs.filter((job) => job.status === 'queued' || job.status === 'generating' || job.status === 'processing');
   const projectBpm = project?.bpm;
   const projectKeyScale = project?.keyScale;
   const projectGuidanceScale = project?.generationDefaults.guidanceScale;
@@ -163,7 +166,7 @@ export function GenerationSidePanel() {
 
   const handleHistorySelect = useCallback((historyPrompt: string) => {
     setGenerationPrompt(historyPrompt);
-    setShowHistory(false);
+    setShowPromptHistory(false);
   }, [setGenerationPrompt]);
 
   const commitStyleTagsInput = useCallback(() => {
@@ -174,6 +177,34 @@ export function GenerationSidePanel() {
     setGenerationStyleTags(nextTags);
   }, [setGenerationStyleTags, styleTagsInput]);
 
+  const panelCopy = useMemo(() => {
+    switch (generationPanelView) {
+      case 'multiTrack':
+        return {
+          title: 'Generate',
+          description: 'Generate several tracks together with shared context, prompts, and seed control.',
+        };
+      case 'history':
+        return {
+          title: 'Generate',
+          description: 'Browse, preview, and reuse earlier AI generations from one place.',
+        };
+      default:
+        return {
+          title: 'Generate',
+          description: 'Create a full-song text-to-music idea without leaving the arrangement.',
+        };
+    }
+  }, [generationPanelView]);
+
+  const openMultiTrackView = useCallback(() => {
+    if (batchGenerateMode) {
+      setGenerationPanelView('multiTrack');
+      return;
+    }
+    setBatchGenerateMode('silence');
+  }, [batchGenerateMode, setBatchGenerateMode, setGenerationPanelView]);
+
   if (!show) return null;
 
   return (
@@ -181,33 +212,76 @@ export function GenerationSidePanel() {
       className="fixed right-0 top-10 bottom-6 flex w-88 flex-col border-l border-[#333] bg-[#1e1e1e] shadow-2xl"
       style={{ zIndex: Z.panel }}
       data-testid="generation-side-panel"
-      aria-label="AI generation panel"
+      aria-label="Generate panel"
     >
       <div className="flex items-center justify-between border-b border-[#333] px-3 py-2">
         <div>
-          <h2 className="text-sm font-semibold text-zinc-100">AI Generation</h2>
-          <p className="text-[11px] text-zinc-400">Prompt a new idea without leaving the arrangement.</p>
+          <h2 className="text-sm font-semibold text-zinc-100">{panelCopy.title}</h2>
+          <p className="text-[11px] text-zinc-400">{panelCopy.description}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <button
+          onClick={() => setShow(false)}
+          className="text-lg leading-none text-zinc-400 transition-colors hover:text-zinc-300"
+          aria-label="Close generation panel"
+        >
+          &times;
+        </button>
+      </div>
+
+      <div className="border-b border-[#333] px-3 py-2">
+        <div className="grid grid-cols-3 gap-1 rounded-lg border border-[#3a3a3a] bg-[#202020] p-1" data-testid="generation-panel-tabs">
           <button
             type="button"
-            onClick={toggleGenerationHistoryPanel}
-            className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200 transition-colors hover:bg-emerald-500/20"
+            onClick={() => setGenerationPanelView('textToMusic')}
+            className={`rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors ${
+              generationPanelView === 'textToMusic'
+                ? 'bg-indigo-600 text-white'
+                : 'text-zinc-400 hover:bg-[#2a2a2a] hover:text-zinc-200'
+            }`}
+            data-testid="generation-panel-tab-text-to-music"
+            aria-pressed={generationPanelView === 'textToMusic'}
           >
-            History
+            Full Song
           </button>
           <button
-            onClick={() => setShow(false)}
-            className="text-lg leading-none text-zinc-400 transition-colors hover:text-zinc-300"
-            aria-label="Close generation panel"
+            type="button"
+            onClick={openMultiTrackView}
+            className={`rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors ${
+              generationPanelView === 'multiTrack'
+                ? 'bg-indigo-600 text-white'
+                : 'text-zinc-400 hover:bg-[#2a2a2a] hover:text-zinc-200'
+            }`}
+            data-testid="generation-panel-tab-multi-track"
+            aria-pressed={generationPanelView === 'multiTrack'}
           >
-            &times;
+            Multi-Track
+          </button>
+          <button
+            type="button"
+            onClick={() => setGenerationPanelView('history')}
+            className={`rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors ${
+              generationPanelView === 'history'
+                ? 'bg-indigo-600 text-white'
+                : 'text-zinc-400 hover:bg-[#2a2a2a] hover:text-zinc-200'
+            }`}
+            data-testid="generation-panel-tab-history"
+            aria-pressed={generationPanelView === 'history'}
+          >
+            History
           </button>
         </div>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-3 py-3">
-        {statusMessage && (
+      {generationPanelView === 'multiTrack' ? (
+        <MultiTrackGenerateSection
+          mode={batchGenerateMode ?? 'silence'}
+          onModeChange={setBatchGenerateMode}
+        />
+      ) : generationPanelView === 'history' ? (
+        <GenerationHistorySection />
+      ) : (
+        <div className="flex-1 space-y-4 overflow-y-auto px-3 py-3">
+          {statusMessage && (
           <div
             className={`rounded-md border px-3 py-2 text-xs ${
               generationForm.requestError || variationError
@@ -251,11 +325,11 @@ export function GenerationSidePanel() {
             </label>
             {promptHistory.length > 0 && (
               <button
-                onClick={() => setShowHistory((value) => !value)}
+                onClick={() => setShowPromptHistory((value) => !value)}
                 className="text-[10px] text-indigo-400 transition-colors hover:text-indigo-300"
                 type="button"
               >
-                {showHistory ? 'Hide history' : 'Prompt history'}
+                {showPromptHistory ? 'Hide history' : 'Prompt history'}
               </button>
             )}
           </div>
@@ -267,7 +341,7 @@ export function GenerationSidePanel() {
             applySuggestion={applyPromptAutocompleteSuggestion}
           />
 
-          {showHistory && promptHistory.length > 0 && (
+          {showPromptHistory && promptHistory.length > 0 && (
             <div className="max-h-32 overflow-y-auto rounded border border-[#444] bg-[#2a2a2a]">
               {promptHistory.slice(0, 10).map((entry) => (
                 <button
@@ -831,6 +905,7 @@ export function GenerationSidePanel() {
           </section>
         )}
       </div>
+      )}
     </aside>
   );
 }
