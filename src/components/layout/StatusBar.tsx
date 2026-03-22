@@ -62,63 +62,6 @@ export function StatusBar() {
 
   return (
     <>
-      <div className="fixed bottom-10 right-4 z-[110] flex items-center gap-2 rounded-[22px] border border-white/5 bg-[#151515]/84 px-2 py-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.18)] backdrop-blur-sm">
-        <button
-          type="button"
-          onClick={() => setShowKeyboardShortcutsDialog(true)}
-          className={`flex h-9 w-9 items-center justify-center rounded-[13px] border transition-colors ${
-            showKeyboardShortcutsDialog
-              ? 'border-zinc-400/25 bg-white/[0.06] text-zinc-100'
-              : 'border-white/6 bg-white/[0.025] text-zinc-500 hover:border-white/12 hover:bg-white/[0.05] hover:text-zinc-200'
-          }`}
-          title="Keyboard shortcuts"
-          data-testid="status-shortcuts-trigger"
-          aria-label="Keyboard shortcuts"
-        >
-          <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="1.25" y="2.25" width="11.5" height="8.5" rx="2" />
-            <path d="M3.5 5.25h.01M5.75 5.25h.01M8 5.25h.01M10.25 5.25h.01M3.5 7.75h4.5M9.75 7.75h.01" />
-          </svg>
-        </button>
-
-        <div className="flex items-center gap-1.5 rounded-[15px] border border-white/5 bg-white/[0.025] px-2.5 py-1.5" data-testid="status-zoom-controls">
-          <button
-            type="button"
-            onClick={zoomOut}
-            className="flex h-5 w-5 items-center justify-center rounded-full text-sm text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-200"
-            title="Zoom out"
-            aria-label="Zoom out"
-          >
-            −
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={TIMELINE_ZOOM_LEVELS.length - 1}
-            step={1}
-            value={zoomIndex}
-            onChange={(event) => {
-              const level = TIMELINE_ZOOM_LEVELS[Number(event.target.value)];
-              if (level) {
-                setPixelsPerSecond(level);
-              }
-            }}
-            className="w-20 accent-zinc-500 opacity-80 transition-opacity hover:opacity-100"
-            aria-label="Timeline zoom"
-            data-testid="status-zoom-slider"
-          />
-          <button
-            type="button"
-            onClick={zoomIn}
-            className="flex h-5 w-5 items-center justify-center rounded-full text-sm text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-200"
-            title="Zoom in"
-            aria-label="Zoom in"
-          >
-            +
-          </button>
-        </div>
-      </div>
-
       <div className="flex items-center h-6 px-3 gap-3 bg-gradient-to-b from-[#2a2a2a] to-[#232323] border-t border-[#1a1a1a] text-[10px] text-zinc-400">
         <div
           className="flex items-center"
@@ -136,6 +79,62 @@ export function StatusBar() {
           </span>
         )}
         <span className="flex-1" />
+        <div className="flex items-center gap-1.5 text-zinc-500">
+          <button
+            type="button"
+            onClick={() => setShowKeyboardShortcutsDialog(true)}
+            className={`flex h-[18px] w-[18px] items-center justify-center rounded border transition-colors ${
+              showKeyboardShortcutsDialog
+                ? 'border-white/12 bg-white/[0.06] text-zinc-100'
+                : 'border-transparent bg-transparent text-zinc-500 hover:border-white/8 hover:bg-white/[0.04] hover:text-zinc-200'
+            }`}
+            title="Keyboard shortcuts"
+            data-testid="status-shortcuts-trigger"
+            aria-label="Keyboard shortcuts"
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="1.25" y="2.25" width="11.5" height="8.5" rx="2" />
+              <path d="M3.5 5.25h.01M5.75 5.25h.01M8 5.25h.01M10.25 5.25h.01M3.5 7.75h4.5M9.75 7.75h.01" />
+            </svg>
+          </button>
+
+          <div className="flex items-center gap-1 rounded-md border border-white/6 bg-black/10 px-1.5 py-0.5" data-testid="status-zoom-controls">
+            <button
+              type="button"
+              onClick={zoomOut}
+              className="flex h-4 w-4 items-center justify-center rounded text-[11px] text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-200"
+              title="Zoom out"
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={TIMELINE_ZOOM_LEVELS.length - 1}
+              step={1}
+              value={zoomIndex}
+              onChange={(event) => {
+                const level = TIMELINE_ZOOM_LEVELS[Number(event.target.value)];
+                if (level) {
+                  setPixelsPerSecond(level);
+                }
+              }}
+              className="w-[72px] accent-zinc-500 opacity-70 transition-opacity hover:opacity-100"
+              aria-label="Timeline zoom"
+              data-testid="status-zoom-slider"
+            />
+            <button
+              type="button"
+              onClick={zoomIn}
+              className="flex h-4 w-4 items-center justify-center rounded text-[11px] text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-200"
+              title="Zoom in"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+          </div>
+        </div>
       </div>
     </>
   );

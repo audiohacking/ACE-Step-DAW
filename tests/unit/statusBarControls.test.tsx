@@ -31,8 +31,8 @@ describe('StatusBar controls', () => {
   it('updates timeline zoom from the bottom-right slider', () => {
     render(<StatusBar />);
 
-    fireEvent.change(screen.getByTestId('status-zoom-slider'), { target: { value: '14' } });
+    fireEvent.change(screen.getByTestId('status-zoom-slider'), { target: { value: '12' } });
 
-    expect(useUIStore.getState().pixelsPerSecond).toBe(TIMELINE_ZOOM_LEVELS[14]);
+    expect(useUIStore.getState().pixelsPerSecond).toBe(TIMELINE_ZOOM_LEVELS[12]);
   });
 });

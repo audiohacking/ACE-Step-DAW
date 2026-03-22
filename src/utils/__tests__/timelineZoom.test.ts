@@ -67,10 +67,10 @@ describe('timelineZoom', () => {
   });
 
   it('steps through discrete zoom levels', () => {
-    expect(getNextTimelineZoomLevel(50, 'in')).toBe(60);
-    expect(getNextTimelineZoomLevel(50, 'out')).toBe(43);
-    expect(getNextTimelineZoomLevel(86, 'in')).toBe(100);
-    expect(getNextTimelineZoomLevel(86, 'out')).toBe(72);
+    expect(getNextTimelineZoomLevel(50, 'in')).toBe(64);
+    expect(getNextTimelineZoomLevel(50, 'out')).toBe(42);
+    expect(getNextTimelineZoomLevel(96, 'in')).toBe(118);
+    expect(getNextTimelineZoomLevel(96, 'out')).toBe(78);
     expect(getNextTimelineZoomLevel(500, 'in')).toBe(500);
   });
 });
