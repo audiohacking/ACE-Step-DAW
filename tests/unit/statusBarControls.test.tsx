@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { StatusBar } from '../../src/components/layout/StatusBar';
+import { useModelStore } from '../../src/store/modelStore';
 import { useProjectStore } from '../../src/store/projectStore';
 import { useUIStore } from '../../src/store/uiStore';
 import { useGenerationStore } from '../../src/store/generationStore';
@@ -17,6 +18,17 @@ describe('StatusBar controls', () => {
     useProjectStore.setState(useProjectStore.getInitialState(), true);
     useUIStore.setState(useUIStore.getInitialState(), true);
     useGenerationStore.setState(useGenerationStore.getInitialState(), true);
+    useModelStore.setState({
+      availableModels: [],
+      availableLmModels: [],
+      activeModelId: null,
+      activeLmModelId: null,
+      pinnedModelIds: [],
+      modelLoadingState: 'idle',
+      connected: false,
+      lastRefreshedAt: 0,
+      stats: null,
+    });
     useProjectStore.getState().createProject({ name: 'Status Bar Test' });
   });
 
@@ -64,5 +76,13 @@ describe('StatusBar controls', () => {
 
     expect(screen.getByTestId('status-bar-job-row')).toHaveTextContent('Generating: Drums');
     expect(screen.getByTestId('status-bar-meta-row')).toBeInTheDocument();
+  });
+
+  it('falls back to the active loaded model when the project model is empty', () => {
+    useModelStore.setState({ activeModelId: 'acestep-v15-base-lego' });
+
+    render(<StatusBar />);
+
+    expect(screen.getByTestId('status-model-name')).toHaveTextContent('acestep-v15-base-lego');
   });
 });

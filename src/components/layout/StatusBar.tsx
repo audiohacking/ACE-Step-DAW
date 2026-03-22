@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { healthCheck } from '../../services/aceStepApi';
 import { useGenerationStore } from '../../store/generationStore';
+import { useModelStore } from '../../store/modelStore';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { TIMELINE_ZOOM_LEVELS } from '../../utils/timelineZoom';
@@ -27,7 +28,8 @@ export function StatusBar() {
     .filter((j) => j.status === 'generating' || j.status === 'queued' || j.status === 'processing')
     .sort((a, b) => (a.lastUpdatedAt ?? 0) - (b.lastUpdatedAt ?? 0));
   const primaryJob = activeJobs[activeJobs.length - 1] ?? null;
-  const model = useProjectStore((s) => s.project?.generationDefaults.model);
+  const projectModel = useProjectStore((s) => s.project?.generationDefaults.model ?? '');
+  const activeModelId = useModelStore((s) => s.activeModelId);
 
   useEffect(() => {
     let active = true;
@@ -55,6 +57,7 @@ export function StatusBar() {
   const jobCount = activeJobs.length;
   const jobLabel = jobCount === 1 ? '1 job' : `${jobCount} jobs`;
   const hasActiveJobs = activeJobs.length > 0;
+  const resolvedModelName = projectModel.trim() || activeModelId?.trim() || 'No model';
   const zoomIndex = TIMELINE_ZOOM_LEVELS.reduce((nearestIndex, level, index) => {
     const nearestDistance = Math.abs(TIMELINE_ZOOM_LEVELS[nearestIndex] - pixelsPerSecond);
     const currentDistance = Math.abs(level - pixelsPerSecond);
@@ -87,7 +90,7 @@ export function StatusBar() {
           >
             <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
           </div>
-          {model && <span className="truncate text-zinc-400" data-testid="status-model-name">{model}</span>}
+          <span className="truncate text-zinc-400" data-testid="status-model-name">{resolvedModelName}</span>
           <span className="flex-1" />
           <div className="flex items-center gap-1.5 text-zinc-500">
             <button
