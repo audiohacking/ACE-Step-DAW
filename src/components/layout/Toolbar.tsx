@@ -497,9 +497,11 @@ export function Toolbar() {
 
       {/* Settings + Shortcuts */}
       <div className="flex items-center gap-0.5">
-        <button
+        <Button
+          variant="ghost"
+          size="md"
+          icon
           onClick={() => openCommandPalette()}
-          className="flex items-center gap-2 rounded px-2 py-1 text-[11px] text-zinc-300 transition-colors hover:bg-daw-surface-2 hover:text-white"
           title="Command Palette (Cmd/Ctrl+K)"
           aria-label="Open command palette"
           data-onboarding-target="command-palette-button"
@@ -508,11 +510,7 @@ export function Toolbar() {
             <circle cx="6" cy="6" r="3.75" />
             <path d="M8.8 8.8L12 12" strokeLinecap="round" />
           </svg>
-          <span>Command</span>
-          <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-400">
-            Cmd+K
-          </span>
-        </button>
+        </Button>
         <Button
           variant="ghost"
           size="md"
