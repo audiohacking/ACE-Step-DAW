@@ -35,6 +35,7 @@ import { SharedProjectPage } from '../sharing/SharedProjectPage';
 import { VirtualKeyboard } from '../midi/VirtualKeyboard';
 import { ToastContainer } from '../ui/Toast';
 import { UndoHistoryPanel } from './UndoHistoryPanel';
+import { StatusBar } from './StatusBar';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
@@ -108,6 +109,8 @@ function EditorShell() {
         {mainView === 'arrangement' ? <Timeline /> : <SessionView />}
         {project && <LoopBrowser />}
       </div>
+
+      <StatusBar />
 
       {project && <SmartControlsPanel />}
       {project && <SequencerEditor />}

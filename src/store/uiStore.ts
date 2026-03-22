@@ -38,7 +38,7 @@ function createAssistantMessage(role: AIChatMessage['role'], content: string): A
 }
 
 export type PianoRollChordShape = (typeof CHORD_SHAPES)[number]['abbr'];
-export type GenerationPanelView = 'textToMusic' | 'multiTrack' | 'history';
+export type GenerationPanelView = 'textToMusic' | 'multiTrack' | 'history' | 'settings';
 
 const DEFAULT_PIANO_ROLL_CHORD_SHAPE: PianoRollChordShape = 'maj';
 const VALID_PIANO_ROLL_CHORD_SHAPES = new Set<string>(CHORD_SHAPES.map((shape) => shape.abbr));
@@ -1090,7 +1090,7 @@ function buildCommandPaletteContext(state: UIState) {
       toggleMetronome: transportStore.toggleMetronome,
       setShowNewProjectDialog: state.setShowNewProjectDialog,
       setShowProjectListDialog: state.setShowProjectListDialog,
-      setShowSettingsDialog: state.setShowSettingsDialog,
+      openGenerationSettings: () => state.openGenerationPanelView('settings'),
       setShowExportDialog: state.setShowExportDialog,
       setShowKeyboardShortcutsDialog: state.setShowKeyboardShortcutsDialog,
       setShowLibrary: state.setShowLibrary,
