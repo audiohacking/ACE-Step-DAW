@@ -337,11 +337,13 @@ function AceStudioLink() {
   );
 }
 
-function FileMenu({ disabled }: { disabled: boolean }) {
+function ProjectMenu({ disabled }: { disabled: boolean }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const setShowProjectListDialog = useUIStore((s) => s.setShowProjectListDialog);
+  const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
   const setShowExportDialog = useUIStore((s) => s.setShowExportDialog);
   const showUndoHistoryPanel = useUIStore((s) => s.showUndoHistoryPanel);
   const setShowUndoHistoryPanel = useUIStore((s) => s.setShowUndoHistoryPanel);
@@ -382,18 +384,19 @@ function FileMenu({ disabled }: { disabled: boolean }) {
     };
   }, [open]);
 
+  const menuItemClass = "w-full text-left px-3 py-1.5 text-[11px] text-zinc-300 transition-colors hover:bg-daw-hover-subtle hover:text-white";
+
   return (
     <div className="relative">
       <button
         ref={triggerRef}
         onClick={() => setOpen(!open)}
-        disabled={disabled}
-        data-testid="file-menu-trigger"
-        className="flex items-center gap-1 rounded px-2 py-1 text-[11px] text-zinc-400 transition-colors hover:bg-daw-hover-subtle hover:text-white disabled:opacity-30"
-        title="File actions"
+        data-testid="project-menu-trigger"
+        className="flex items-center justify-center rounded px-1.5 py-1 text-zinc-400 transition-colors hover:bg-daw-hover-subtle hover:text-white"
+        title="Project menu"
       >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3">
-          <path d="M2 3h8M2 6h8M2 9h8" strokeLinecap="round" />
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3">
+          <path d="M1.5 4.5L7 1.5l5.5 3M1.5 7l5.5 3 5.5-3M1.5 9.5l5.5 3 5.5-3" />
         </svg>
       </button>
       {open && createPortal(
@@ -401,36 +404,54 @@ function FileMenu({ disabled }: { disabled: boolean }) {
           ref={menuRef}
           className="fixed z-[100] w-48 rounded-lg border border-daw-border bg-daw-surface-2 py-1 shadow-2xl"
           style={{ top: menuPosition.top, left: menuPosition.left }}
-          data-testid="file-menu-dropdown"
+          data-testid="project-menu-dropdown"
         >
           <button
+            onClick={() => { setShowProjectListDialog(true); setOpen(false); }}
+            className={menuItemClass}
+          >
+            Projects
+          </button>
+          <button
+            onClick={() => { setShowNewProjectDialog(true); setOpen(false); }}
+            className={menuItemClass}
+          >
+            New Project
+          </button>
+          <div className="my-1 h-px w-full bg-daw-border/80" />
+          <button
             onClick={() => { setShowExportDialog(true); setOpen(false); }}
-            className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-300 transition-colors hover:bg-daw-hover-subtle hover:text-white"
+            className={menuItemClass}
+            disabled={disabled}
           >
             Export Audio
           </button>
           <button
             onClick={() => { useProjectStore.getState().exportProjectMidi(); setOpen(false); }}
-            className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-300 transition-colors hover:bg-daw-hover-subtle hover:text-white"
+            className={menuItemClass}
+            disabled={disabled}
           >
             Export MIDI
           </button>
           <button
             onClick={() => { openFilePicker(); setOpen(false); }}
-            className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-300 transition-colors hover:bg-daw-hover-subtle hover:text-white"
+            className={menuItemClass}
+            disabled={disabled}
           >
             Import Audio/MIDI
           </button>
           <div className="my-1 h-px w-full bg-daw-border/80" />
           <button
             onClick={() => { setShowUndoHistoryPanel(!showUndoHistoryPanel); setOpen(false); }}
-            className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-300 transition-colors hover:bg-daw-hover-subtle hover:text-white"
+            className={menuItemClass}
+            disabled={disabled}
           >
             Undo History
           </button>
           <button
             onClick={() => { setShowShareDialog(true); setOpen(false); }}
-            className="w-full text-left px-3 py-1.5 text-[11px] text-zinc-300 transition-colors hover:bg-daw-hover-subtle hover:text-white"
+            className={menuItemClass}
+            disabled={disabled}
           >
             Share Project
           </button>
@@ -443,17 +464,11 @@ function FileMenu({ disabled }: { disabled: boolean }) {
 
 export function Toolbar() {
   const project = useProjectStore((s) => s.project);
-  const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
-  const setShowProjectListDialog = useUIStore((s) => s.setShowProjectListDialog);
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
   const mainView = useUIStore((s) => s.mainView);
   const setMainView = useUIStore((s) => s.setMainView);
-  const showMixer = useUIStore((s) => s.showMixer);
-  const setShowMixer = useUIStore((s) => s.setShowMixer);
   const showSmartControls = useUIStore((s) => s.showSmartControls);
   const setShowSmartControls = useUIStore((s) => s.setShowSmartControls);
-  const showAIAssistant = useUIStore((s) => s.showAIAssistant);
-  const toggleAIAssistant = useUIStore((s) => s.toggleAIAssistant);
   const isViewerMode = useCollaborationStore((s) => s.isViewerMode);
   const { toggleRecord } = useRecording();
 
@@ -465,9 +480,6 @@ export function Toolbar() {
   const toggleLoopRecording = useTransportStore((s) => s.toggleLoopRecording);
   const metronomeEnabled = useTransportStore((s) => s.metronomeEnabled);
   const toggleMetronome = useTransportStore((s) => s.toggleMetronome);
-  const autoScrollEnabled = useUIStore((s) => s.autoScrollEnabled);
-  const toggleAutoScroll = useUIStore((s) => s.toggleAutoScroll);
-
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__commandPaletteRuntime = {
       play,
@@ -485,7 +497,36 @@ export function Toolbar() {
       className="flex h-11 items-center gap-1 border-b border-daw-border-strong bg-daw-surface-3 px-2 shrink-0 select-none overflow-x-auto"
       style={{ scrollbarWidth: 'none' }}
     >
-      {/* Left: Panel toggle buttons */}
+      {/* Project menu (unified: Projects, New, File actions) */}
+      <ProjectMenu disabled={!project} />
+
+      <ToolbarSeparator />
+
+      {/* Arrangement / Session view toggle */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        <ControlBarButton
+          active={mainView === 'arrangement'}
+          onClick={() => setMainView('arrangement')}
+          title="Arrangement View (Tab)"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <path d="M2 4h10M2 7h10M2 10h10" />
+          </svg>
+        </ControlBarButton>
+        <ControlBarButton
+          active={mainView === 'session'}
+          onClick={() => setMainView('session')}
+          title="Session View (Tab)"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <path d="M4 2v10M7 2v10M10 2v10" />
+          </svg>
+        </ControlBarButton>
+      </div>
+
+      <ToolbarSeparator />
+
+      {/* Smart Controls toggle */}
       <div className="flex items-center gap-0.5 shrink-0" data-testid="toolbar-group">
         <ControlBarButton
           active={showSmartControls}
@@ -502,52 +543,12 @@ export function Toolbar() {
         </ControlBarButton>
       </div>
 
-      <ToolbarSeparator />
+      <div className="flex-1" />
 
-      <div className="flex items-center gap-0.5 shrink-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          active={mainView === 'arrangement'}
-          onClick={() => setMainView('arrangement')}
-          title="Arrangement View (Tab)"
-          aria-label="Switch to Arrangement View"
-        >
-          Arrangement
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          active={mainView === 'session'}
-          onClick={() => setMainView('session')}
-          title="Session View (Tab)"
-          aria-label="Switch to Session View"
-        >
-          Session
-        </Button>
-      </div>
-
-      <ToolbarSeparator />
-
+      {/* Project settings (BPM, time sig, key, measures) */}
       <ProjectSettingsStrip disabled={!project} />
 
       <ToolbarSeparator />
-
-      {/* Project actions + File menu */}
-      <div className="flex items-center gap-0.5 shrink-0" data-testid="toolbar-group">
-        <Button variant="ghost" size="sm" onClick={() => setShowProjectListDialog(true)} title="Projects">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" className="inline -mt-px mr-1">
-            <path d="M1.5 4.5L7 1.5l5.5 3M1.5 7l5.5 3 5.5-3M1.5 9.5l5.5 3 5.5-3" />
-          </svg>
-          Projects
-        </Button>
-        <Button variant="ghost" size="sm" onClick={() => setShowNewProjectDialog(true)} title="New Project">
-          New
-        </Button>
-        <FileMenu disabled={!project} />
-      </div>
-
-      <div className="flex-1" />
 
       {/* Center: Transport controls */}
       <div
@@ -639,58 +640,9 @@ export function Toolbar() {
             <path d="M7 5l4-2" />
           </svg>
         </ControlBarButton>
-        <ControlBarButton
-          active={autoScrollEnabled}
-          onClick={toggleAutoScroll}
-          title="Auto-Scroll / Follow Playhead (Shift+F)"
-          disabled={!project}
-          dataTarget="auto-scroll-button"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 1v12" />
-            <path d="M7 1l-2.5 3" />
-            <path d="M7 1l2.5 3" />
-            <path d="M1 5h4" />
-            <path d="M9 5h4" />
-          </svg>
-        </ControlBarButton>
       </div>
 
       <div className="flex-1" />
-
-      {/* Right: Panel toggles */}
-      <div className="flex items-center gap-0.5 shrink-0" data-testid="toolbar-group">
-        <ControlBarButton
-          active={showMixer}
-          onClick={() => setShowMixer(!showMixer)}
-          title="Mixer (X)"
-          disabled={!project}
-          dataTarget="mixer-button"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4">
-            <line x1="3" y1="2" x2="3" y2="12" />
-            <line x1="7" y1="2" x2="7" y2="12" />
-            <line x1="11" y1="2" x2="11" y2="12" />
-            <circle cx="3" cy="8" r="1.5" fill="currentColor" />
-            <circle cx="7" cy="5" r="1.5" fill="currentColor" />
-            <circle cx="11" cy="9" r="1.5" fill="currentColor" />
-          </svg>
-        </ControlBarButton>
-        <ControlBarButton
-          active={showAIAssistant}
-          onClick={toggleAIAssistant}
-          title="AI Assistant (Cmd+/)"
-          dataTarget="assistant-button"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <circle cx="7" cy="7" r="5.5" />
-            <path d="M5 6.5h4M5 8.5h2.5" strokeLinecap="round" />
-            <circle cx="7" cy="4.5" r="0.8" fill="currentColor" />
-          </svg>
-        </ControlBarButton>
-      </div>
-
-      <ToolbarSeparator />
 
       {/* Command Palette + ACE Studio */}
       <div className="flex items-center gap-1 shrink-0">
