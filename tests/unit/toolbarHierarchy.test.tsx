@@ -144,14 +144,29 @@ describe('Toolbar visual hierarchy and grouping (#544)', () => {
 
   it('provides tooltip titles on all right-side icon buttons', () => {
     render(<Toolbar />);
-    // Mixer, Loop Browser, AI Assistant, Settings, Shortcuts should all have titles
+    // Mixer, Loop Browser, AI Assistant should have titles directly visible
     expect(screen.getByTitle('Mixer (X)')).toBeInTheDocument();
     expect(screen.getByTitle('Loop Browser (O)')).toBeInTheDocument();
     expect(screen.getByTitle('AI Assistant (Cmd+/)')).toBeInTheDocument();
-    expect(screen.getByTitle('Settings')).toBeInTheDocument();
-    expect(screen.getByTitle('Keyboard Shortcuts (?)')).toBeInTheDocument();
     expect(screen.getByTitle('Zoom Out')).toBeInTheDocument();
     expect(screen.getByTitle('Zoom In')).toBeInTheDocument();
+    // Settings and Keyboard Shortcuts are now inside the overflow menu
+    expect(screen.getByTitle('More actions')).toBeInTheDocument();
+  });
+
+  it('shows Settings and Keyboard Shortcuts inside the overflow menu', () => {
+    render(<Toolbar />);
+    // Settings and Shortcuts should NOT be visible by default
+    expect(screen.queryByText('Settings')).not.toBeInTheDocument();
+    expect(screen.queryByText('Keyboard Shortcuts')).not.toBeInTheDocument();
+
+    // Open the overflow menu
+    const overflowTrigger = screen.getByTestId('overflow-menu-trigger');
+    fireEvent.click(overflowTrigger);
+
+    // They should now be visible inside the dropdown
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument();
   });
 
   it('shows the loaded model badge and opens the library panel when clicked', () => {

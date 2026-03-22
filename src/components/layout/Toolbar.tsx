@@ -95,6 +95,65 @@ function ToolbarSeparator() {
   return <div className="w-px h-5 bg-[#444]/50" data-testid="toolbar-separator" />;
 }
 
+function OverflowMenu() {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const setShowSettingsDialog = useUIStore((s) => s.setShowSettingsDialog);
+  const setShowKeyboardShortcutsDialog = useUIStore((s) => s.setShowKeyboardShortcutsDialog);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <Button
+        variant="ghost"
+        size="md"
+        icon
+        onClick={() => setOpen(!open)}
+        title="More actions"
+        aria-label="More actions"
+        active={open}
+        data-testid="overflow-menu-trigger"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+          <circle cx="3" cy="7" r="1.3" />
+          <circle cx="7" cy="7" r="1.3" />
+          <circle cx="11" cy="7" r="1.3" />
+        </svg>
+      </Button>
+      {open && (
+        <div
+          className="absolute bottom-full right-0 mb-1 w-48 bg-[#2a2a2a] border border-[#444] rounded-lg shadow-xl z-50 py-1"
+          data-testid="overflow-menu-dropdown"
+        >
+          <button
+            onClick={() => { setShowSettingsDialog(true); setOpen(false); }}
+            className="w-full text-left flex items-center justify-between px-3 py-1.5 text-[11px] text-zinc-300 hover:text-white hover:bg-daw-surface-2 transition-colors"
+          >
+            <span>Settings</span>
+          </button>
+          <button
+            onClick={() => { setShowKeyboardShortcutsDialog(true); setOpen(false); }}
+            className="w-full text-left flex items-center justify-between px-3 py-1.5 text-[11px] text-zinc-300 hover:text-white hover:bg-daw-surface-2 transition-colors"
+          >
+            <span>Keyboard Shortcuts</span>
+            <span className="text-[10px] text-zinc-500">?</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FileMenu({ disabled }: { disabled: boolean }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -207,9 +266,7 @@ export function Toolbar() {
   const project = useProjectStore((s) => s.project);
   const modelName = useProjectStore((s) => s.project?.generationDefaults.model ?? '');
   const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
-  const setShowSettingsDialog = useUIStore((s) => s.setShowSettingsDialog);
   const setShowProjectListDialog = useUIStore((s) => s.setShowProjectListDialog);
-  const setShowKeyboardShortcutsDialog = useUIStore((s) => s.setShowKeyboardShortcutsDialog);
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
   const mainView = useUIStore((s) => s.mainView);
   const setMainView = useUIStore((s) => s.setMainView);
@@ -487,7 +544,7 @@ export function Toolbar() {
 
       <ToolbarSeparator />
 
-      {/* Settings + Shortcuts */}
+      {/* Command Palette + Overflow */}
       <div className="flex items-center gap-0.5">
         <button
           onClick={() => openCommandPalette()}
@@ -505,28 +562,7 @@ export function Toolbar() {
             Cmd+K
           </span>
         </button>
-        <Button
-          variant="ghost"
-          size="md"
-          icon
-          onClick={() => setShowSettingsDialog(true)}
-          title="Settings"
-          aria-label="Settings"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3">
-            <circle cx="7" cy="7" r="2" />
-            <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.8 2.8l1 1M10.2 10.2l1 1M11.2 2.8l-1 1M3.8 10.2l-1 1" />
-          </svg>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          icon
-          onClick={() => setShowKeyboardShortcutsDialog(true)}
-          title="Keyboard Shortcuts (?)"
-        >
-          ?
-        </Button>
+        <OverflowMenu />
       </div>
 
       {/* Viewer mode badge */}
