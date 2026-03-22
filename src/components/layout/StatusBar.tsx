@@ -62,14 +62,14 @@ export function StatusBar() {
 
   return (
     <>
-      <div className="fixed bottom-10 right-4 z-[110] flex items-center gap-2 rounded-[22px] border border-white/8 bg-[#161616]/96 px-2.5 py-2 shadow-[0_14px_30px_rgba(0,0,0,0.34)] backdrop-blur-sm">
+      <div className="fixed bottom-10 right-4 z-[110] flex items-center gap-2 rounded-[22px] border border-white/5 bg-[#151515]/84 px-2 py-1.5 shadow-[0_8px_18px_rgba(0,0,0,0.18)] backdrop-blur-sm">
         <button
           type="button"
           onClick={() => setShowKeyboardShortcutsDialog(true)}
-          className={`flex h-10 w-10 items-center justify-center rounded-[14px] border transition-colors ${
+          className={`flex h-9 w-9 items-center justify-center rounded-[13px] border transition-colors ${
             showKeyboardShortcutsDialog
-              ? 'border-cyan-400/50 bg-cyan-400/15 text-cyan-100'
-              : 'border-white/8 bg-white/[0.04] text-zinc-300 hover:border-[#5a5a5a] hover:bg-[#232323]'
+              ? 'border-zinc-400/25 bg-white/[0.06] text-zinc-100'
+              : 'border-white/6 bg-white/[0.025] text-zinc-500 hover:border-white/12 hover:bg-white/[0.05] hover:text-zinc-200'
           }`}
           title="Keyboard shortcuts"
           data-testid="status-shortcuts-trigger"
@@ -81,11 +81,11 @@ export function StatusBar() {
           </svg>
         </button>
 
-        <div className="flex items-center gap-2 rounded-[16px] border border-white/8 bg-white/[0.04] px-3 py-2" data-testid="status-zoom-controls">
+        <div className="flex items-center gap-1.5 rounded-[15px] border border-white/5 bg-white/[0.025] px-2.5 py-1.5" data-testid="status-zoom-controls">
           <button
             type="button"
             onClick={zoomOut}
-            className="flex h-6 w-6 items-center justify-center rounded-full text-sm text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
+            className="flex h-5 w-5 items-center justify-center rounded-full text-sm text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-200"
             title="Zoom out"
             aria-label="Zoom out"
           >
@@ -103,14 +103,14 @@ export function StatusBar() {
                 setPixelsPerSecond(level);
               }
             }}
-            className="w-24 accent-cyan-400"
+            className="w-20 accent-zinc-500 opacity-80 transition-opacity hover:opacity-100"
             aria-label="Timeline zoom"
             data-testid="status-zoom-slider"
           />
           <button
             type="button"
             onClick={zoomIn}
-            className="flex h-6 w-6 items-center justify-center rounded-full text-sm text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
+            className="flex h-5 w-5 items-center justify-center rounded-full text-sm text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-200"
             title="Zoom in"
             aria-label="Zoom in"
           >

@@ -242,16 +242,17 @@ export function GenerationSidePanel() {
                 ? 'border-cyan-300/35 bg-[#243145] text-cyan-50 shadow-[0_10px_22px_rgba(58,88,192,0.2)]'
                 : 'border-white/8 bg-white/[0.04] text-zinc-300 hover:border-[#5a5a5a] hover:bg-[#232323]'
             }`}
-            aria-label={loopBrowserOpen ? 'Hide Library' : 'Open Library'}
-            title={loopBrowserOpen ? 'Hide Library' : 'Open Library'}
+            aria-label={loopBrowserOpen ? 'Hide Creative Library' : 'Open Creative Library'}
+            title={loopBrowserOpen ? 'Hide Creative Library' : 'Open Creative Library'}
             data-testid="generation-dock-app-library"
           >
             <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#111]/96 px-2 py-0.5 text-[10px] text-zinc-200 opacity-0 shadow-lg transition-all duration-150 group-hover:-translate-y-0.5 group-hover:opacity-100">
-              Library
+              Creative Library
             </span>
-            <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="6" cy="6" r="4" />
-              <path d="M9 9l3.5 3.5" />
+            <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="9" cy="9" r="5.25" />
+              <path d="M3.75 9h10.5" />
+              <path d="M9 3.75c1.85 1.32 2.85 3.08 2.85 5.25 0 2.16-1 3.93-2.85 5.25-1.85-1.32-2.85-3.09-2.85-5.25 0-2.17 1-3.93 2.85-5.25Z" />
             </svg>
           </button>
 
@@ -276,9 +277,10 @@ export function GenerationSidePanel() {
             <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#111]/96 px-2 py-0.5 text-[10px] text-zinc-200 opacity-0 shadow-lg transition-all duration-150 group-hover:-translate-y-0.5 group-hover:opacity-100">
               Inspire Me
             </span>
-            <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="9" cy="9" r="1.6" fill="currentColor" stroke="none" />
-              <path d="M9 2.1v2.2M9 13.7v2.2M2.1 9h2.2M13.7 9h2.2M4.1 4.1l1.6 1.6M12.3 12.3l1.6 1.6M13.9 4.1l-1.6 1.6M5.7 12.3l-1.6 1.6" />
+            <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 3.1a3.55 3.55 0 0 1 2.12 6.4c-.61.46-1.02 1.12-1.16 1.82H8.04c-.14-.7-.55-1.36-1.16-1.82A3.55 3.55 0 0 1 9 3.1Z" />
+              <path d="M7.35 12.5h3.3M7.75 14.15h2.5" />
+              <path d="M9.3 6 8.35 7.9h1.05L8.7 9.55" />
             </svg>
           </button>
         </div>
