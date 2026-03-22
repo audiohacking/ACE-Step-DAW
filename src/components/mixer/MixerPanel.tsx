@@ -97,12 +97,12 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
             {track.displayName}
           </span>
 
-          <div className="flex gap-2 mt-0.5">
+          <div className="flex gap-1.5 mt-0.5">
             <button
               onClick={() => track.isGroup ? setGroupMuted(track.id, !track.muted) : updateTrack(track.id, { muted: !track.muted })}
               aria-label={`Mute ${track.displayName}`}
-              className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
-                track.muted ? 'bg-amber-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
+              className={`text-[10px] font-bold w-[18px] h-[18px] flex items-center justify-center rounded-sm transition-colors ${
+                track.muted ? 'bg-amber-500 text-black' : 'bg-[#444] text-zinc-500 hover:bg-[#484848]'
               }`}
             >
               M
@@ -110,8 +110,8 @@ function ChannelStrip({ track, faderHeight, returnTracks }: ChannelStripProps) {
             <button
               onClick={() => track.isGroup ? setGroupSoloed(track.id, !track.soloed) : updateTrack(track.id, { soloed: !track.soloed })}
               aria-label={`Solo ${track.displayName}`}
-              className={`text-xs font-bold px-2.5 py-1 rounded transition-colors ${
-                track.soloed ? 'bg-emerald-500 text-black' : 'bg-[#444] text-zinc-400 hover:bg-[#484848]'
+              className={`text-[10px] font-bold w-[18px] h-[18px] flex items-center justify-center rounded-sm transition-colors ${
+                track.soloed ? 'bg-emerald-500 text-black' : 'bg-[#444] text-zinc-500 hover:bg-[#484848]'
               }`}
             >
               S
