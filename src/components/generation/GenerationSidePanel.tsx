@@ -42,6 +42,8 @@ export function GenerationSidePanel() {
   const setShow = useUIStore((s) => s.setShowGenerationPanel);
   const openGenerationPanelView = useUIStore((s) => s.openGenerationPanelView);
   const generationPanelView = useUIStore((s) => s.generationPanelView);
+  const loopBrowserOpen = useUIStore((s) => s.loopBrowserOpen);
+  const toggleLoopBrowser = useUIStore((s) => s.toggleLoopBrowser);
   const setGenerationPanelView = useUIStore((s) => s.setGenerationPanelView);
   const batchGenerateMode = useUIStore((s) => s.batchGenerateMode);
   const setBatchGenerateMode = useUIStore((s) => s.setBatchGenerateMode);
@@ -227,43 +229,59 @@ export function GenerationSidePanel() {
   return (
     <>
       <div
-        className="fixed bottom-16 left-1/2 z-[120] -translate-x-1/2"
+        className="fixed bottom-10 left-1/2 z-[120] -translate-x-1/2"
         style={{ zIndex: Z.panel + 1 }}
         data-testid="generation-dock"
       >
-        <button
-          type="button"
-          onClick={() => {
-            if (show) {
-              setShow(false);
-              return;
-            }
-            openGenerationPanelView(generationPanelView);
-          }}
-          className={`group flex items-center gap-2 rounded-[18px] border px-3 py-2 transition-all duration-200 ${
-            show
-              ? 'border-cyan-300/35 bg-[#243145] text-cyan-50 shadow-[0_10px_22px_rgba(58,88,192,0.24)]'
-              : 'border-white/8 bg-[#1c1c1c]/96 text-zinc-300 shadow-[0_12px_26px_rgba(0,0,0,0.32)] hover:border-[#5a5a5a] hover:bg-[#232323]'
-          }`}
-          aria-label={show ? 'Hide Generate panel' : 'Open Generate panel'}
-          title={show ? 'Hide Inspire Me panel' : 'Open Inspire Me panel'}
-          data-testid="generation-dock-app-generate"
-        >
-          <span
-            className={`flex h-8 w-8 items-center justify-center rounded-[11px] border ${
-              show
-                ? 'border-cyan-300/25 bg-cyan-300/8'
-                : 'border-white/8 bg-white/[0.04]'
+        <div className="flex items-center gap-2 rounded-[22px] border border-white/8 bg-[#161616]/96 px-2 py-2 shadow-[0_14px_30px_rgba(0,0,0,0.34)] backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={toggleLoopBrowser}
+            className={`group relative flex h-10 w-10 items-center justify-center rounded-[14px] border transition-all duration-200 ${
+              loopBrowserOpen
+                ? 'border-cyan-300/35 bg-[#243145] text-cyan-50 shadow-[0_10px_22px_rgba(58,88,192,0.2)]'
+                : 'border-white/8 bg-white/[0.04] text-zinc-300 hover:border-[#5a5a5a] hover:bg-[#232323]'
             }`}
-            aria-hidden="true"
+            aria-label={loopBrowserOpen ? 'Hide Library' : 'Open Library'}
+            title={loopBrowserOpen ? 'Hide Library' : 'Open Library'}
+            data-testid="generation-dock-app-library"
           >
-            <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+            <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#111]/96 px-2 py-0.5 text-[10px] text-zinc-200 opacity-0 shadow-lg transition-all duration-150 group-hover:-translate-y-0.5 group-hover:opacity-100">
+              Library
+            </span>
+            <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="6" cy="6" r="4" />
+              <path d="M9 9l3.5 3.5" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (show) {
+                setShow(false);
+                return;
+              }
+              openGenerationPanelView(generationPanelView);
+            }}
+            className={`group relative flex h-10 w-10 items-center justify-center rounded-[14px] border transition-all duration-200 ${
+              show
+                ? 'border-cyan-300/35 bg-[#243145] text-cyan-50 shadow-[0_10px_22px_rgba(58,88,192,0.24)]'
+                : 'border-white/8 bg-white/[0.04] text-zinc-300 hover:border-[#5a5a5a] hover:bg-[#232323]'
+            }`}
+            aria-label={show ? 'Hide Generate panel' : 'Open Generate panel'}
+            title={show ? 'Hide Inspire Me panel' : 'Open Inspire Me panel'}
+            data-testid="generation-dock-app-generate"
+          >
+            <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-[#111]/96 px-2 py-0.5 text-[10px] text-zinc-200 opacity-0 shadow-lg transition-all duration-150 group-hover:-translate-y-0.5 group-hover:opacity-100">
+              Inspire Me
+            </span>
+            <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="9" cy="9" r="1.6" fill="currentColor" stroke="none" />
               <path d="M9 2.1v2.2M9 13.7v2.2M2.1 9h2.2M13.7 9h2.2M4.1 4.1l1.6 1.6M12.3 12.3l1.6 1.6M13.9 4.1l-1.6 1.6M5.7 12.3l-1.6 1.6" />
             </svg>
-          </span>
-          <span className="text-[12px] font-medium tracking-[0.02em]">Inspire Me</span>
-        </button>
+          </button>
+        </div>
       </div>
 
       {renderPanel && (

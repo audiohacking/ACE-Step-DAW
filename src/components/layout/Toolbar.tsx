@@ -11,7 +11,6 @@ import { DEFAULT_MEASURES } from '../../constants/defaults';
 import { KEY_SCALES, TIME_SIGNATURES } from '../../constants/tracks';
 import { formatTime, formatBarsBeats } from '../../utils/time';
 import { Button } from '../ui/Button';
-import { ModelStatusBadge } from './ModelStatusBadge';
 
 const KEY_ROOT_LABELS: Record<string, string> = {
   C: 'C',
@@ -375,7 +374,6 @@ function FileMenu({ disabled }: { disabled: boolean }) {
 
 export function Toolbar() {
   const project = useProjectStore((s) => s.project);
-  const modelName = useProjectStore((s) => s.project?.generationDefaults.model ?? '');
   const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
   const setShowProjectListDialog = useUIStore((s) => s.setShowProjectListDialog);
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
@@ -383,9 +381,6 @@ export function Toolbar() {
   const setMainView = useUIStore((s) => s.setMainView);
   const showMixer = useUIStore((s) => s.showMixer);
   const setShowMixer = useUIStore((s) => s.setShowMixer);
-  const loopBrowserOpen = useUIStore((s) => s.loopBrowserOpen);
-  const toggleLoopBrowser = useUIStore((s) => s.toggleLoopBrowser);
-  const setShowLibrary = useUIStore((s) => s.setShowLibrary);
   const showSmartControls = useUIStore((s) => s.showSmartControls);
   const setShowSmartControls = useUIStore((s) => s.setShowSmartControls);
   const showAIAssistant = useUIStore((s) => s.showAIAssistant);
@@ -474,7 +469,6 @@ export function Toolbar() {
           New
         </Button>
         <FileMenu disabled={!project} />
-        <ModelStatusBadge modelName={modelName} onClick={() => setShowLibrary(true)} />
       </div>
 
       <div className="flex-1" />
@@ -607,18 +601,6 @@ export function Toolbar() {
           </svg>
         </ControlBarButton>
         <ControlBarButton
-          active={loopBrowserOpen}
-          onClick={toggleLoopBrowser}
-          title="Loop Browser (O)"
-          disabled={!project}
-          dataTarget="loop-browser-button"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4">
-            <circle cx="6" cy="6" r="4" />
-            <path d="M9 9l3.5 3.5" strokeLinecap="round" />
-          </svg>
-        </ControlBarButton>
-        <ControlBarButton
           active={showAIAssistant}
           onClick={toggleAIAssistant}
           title="AI Assistant (Cmd+/)"
@@ -636,11 +618,9 @@ export function Toolbar() {
 
       {/* Command Palette + ACE Studio */}
       <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="md"
-          icon
+        <button
           onClick={() => openCommandPalette()}
+          className="flex items-center gap-1.5 rounded px-2 py-1 text-[11px] text-zinc-300 transition-colors hover:bg-daw-surface-2 hover:text-white"
           title="Command Palette (Cmd/Ctrl+K)"
           aria-label="Open command palette"
           data-onboarding-target="command-palette-button"
@@ -649,7 +629,10 @@ export function Toolbar() {
             <circle cx="6" cy="6" r="3.75" />
             <path d="M8.8 8.8L12 12" strokeLinecap="round" />
           </svg>
-        </Button>
+          <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-400">
+            Cmd+K
+          </span>
+        </button>
         <AceStudioLink />
       </div>
 

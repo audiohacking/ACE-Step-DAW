@@ -61,47 +61,31 @@ export function StatusBar() {
   }, 0);
 
   return (
-    <div className="flex items-center h-6 px-3 gap-3 bg-gradient-to-b from-[#2a2a2a] to-[#232323] border-t border-[#1a1a1a] text-[10px] text-zinc-400">
-      <div
-        className="flex items-center"
-        title={connected ? 'Backend connected' : 'Backend offline'}
-      >
-        <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
-      </div>
-      {model && <span className="text-zinc-400">{model}</span>}
-      {activeJobs.length > 0 && (
-        <span className="text-daw-accent truncate">
-          Generating: {primaryJob?.trackName ?? 'unknown'}
-          {primaryJob?.stage ? ` \u2022 ${primaryJob.stage}` : ''}
-          {primaryJob?.progressPercent != null ? ` ${Math.round(primaryJob.progressPercent)}%` : ''}
-          {' '}({jobLabel})
-        </span>
-      )}
-      <span className="flex-1" />
-      <div className="flex items-center gap-2.5">
+    <>
+      <div className="fixed bottom-10 right-4 z-[110] flex items-center gap-2 rounded-[22px] border border-white/8 bg-[#161616]/96 px-2.5 py-2 shadow-[0_14px_30px_rgba(0,0,0,0.34)] backdrop-blur-sm">
         <button
           type="button"
           onClick={() => setShowKeyboardShortcutsDialog(true)}
-          className={`flex h-7 w-7 items-center justify-center rounded-full border transition-colors ${
+          className={`flex h-10 w-10 items-center justify-center rounded-[14px] border transition-colors ${
             showKeyboardShortcutsDialog
               ? 'border-cyan-400/50 bg-cyan-400/15 text-cyan-100'
-              : 'border-[#444] text-zinc-400 hover:border-[#555] hover:text-zinc-200'
+              : 'border-white/8 bg-white/[0.04] text-zinc-300 hover:border-[#5a5a5a] hover:bg-[#232323]'
           }`}
           title="Keyboard shortcuts"
           data-testid="status-shortcuts-trigger"
           aria-label="Keyboard shortcuts"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="1.25" y="2.25" width="11.5" height="8.5" rx="2" />
             <path d="M3.5 5.25h.01M5.75 5.25h.01M8 5.25h.01M10.25 5.25h.01M3.5 7.75h4.5M9.75 7.75h.01" />
           </svg>
         </button>
 
-        <div className="flex items-center gap-1.5 rounded-full border border-[#393939] bg-black/15 px-2 py-0.5" data-testid="status-zoom-controls">
+        <div className="flex items-center gap-2 rounded-[16px] border border-white/8 bg-white/[0.04] px-3 py-2" data-testid="status-zoom-controls">
           <button
             type="button"
             onClick={zoomOut}
-            className="text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+            className="flex h-6 w-6 items-center justify-center rounded-full text-sm text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
             title="Zoom out"
             aria-label="Zoom out"
           >
@@ -119,14 +103,14 @@ export function StatusBar() {
                 setPixelsPerSecond(level);
               }
             }}
-            className="w-16 accent-cyan-400"
+            className="w-24 accent-cyan-400"
             aria-label="Timeline zoom"
             data-testid="status-zoom-slider"
           />
           <button
             type="button"
             onClick={zoomIn}
-            className="text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+            className="flex h-6 w-6 items-center justify-center rounded-full text-sm text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
             title="Zoom in"
             aria-label="Zoom in"
           >
@@ -134,6 +118,25 @@ export function StatusBar() {
           </button>
         </div>
       </div>
-    </div>
+
+      <div className="flex items-center h-6 px-3 gap-3 bg-gradient-to-b from-[#2a2a2a] to-[#232323] border-t border-[#1a1a1a] text-[10px] text-zinc-400">
+        <div
+          className="flex items-center"
+          title={connected ? 'Backend connected' : 'Backend offline'}
+        >
+          <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
+        </div>
+        {model && <span className="truncate text-zinc-400">{model}</span>}
+        {activeJobs.length > 0 && (
+          <span className="text-daw-accent truncate">
+            Generating: {primaryJob?.trackName ?? 'unknown'}
+            {primaryJob?.stage ? ` \u2022 ${primaryJob.stage}` : ''}
+            {primaryJob?.progressPercent != null ? ` ${Math.round(primaryJob.progressPercent)}%` : ''}
+            {' '}({jobLabel})
+          </span>
+        )}
+        <span className="flex-1" />
+      </div>
+    </>
   );
 }

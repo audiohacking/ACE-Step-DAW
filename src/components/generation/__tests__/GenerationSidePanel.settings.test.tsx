@@ -73,4 +73,12 @@ describe('GenerationSidePanel settings entrypoints', () => {
     fireEvent.click(screen.getByTestId('generation-dock-app-generate'));
     expect(useUIStore.getState().showGenerationPanel).toBe(true);
   });
+
+  it('opens the loop library from the bottom dock library button', () => {
+    render(<GenerationSidePanel />);
+
+    fireEvent.click(screen.getByTestId('generation-dock-app-library'));
+
+    expect(useUIStore.getState().loopBrowserOpen).toBe(true);
+  });
 });
