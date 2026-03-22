@@ -60,24 +60,26 @@ describe('uiStore', () => {
   });
 
   describe('panel toggles', () => {
-    it('updates mixer, loop browser, and library panel visibility', () => {
+    it('updates mixer, loop browser, and library panel visibility (mutually exclusive)', () => {
+      // Opening mixer
       useUIStore.getState().setShowMixer(true);
+      expect(useUIStore.getState().showMixer).toBe(true);
+
+      // Opening loop browser closes mixer (mutual exclusion)
       useUIStore.getState().toggleLoopBrowser();
+      expect(useUIStore.getState().loopBrowserOpen).toBe(true);
+      expect(useUIStore.getState().showMixer).toBe(false);
+
+      // showLibrary is not a right-side panel, so it stays independent
       useUIStore.getState().setShowLibrary(true);
+      expect(useUIStore.getState().showLibrary).toBe(true);
 
-      let state = useUIStore.getState();
-      expect(state.showMixer).toBe(true);
-      expect(state.loopBrowserOpen).toBe(true);
-      expect(state.showLibrary).toBe(true);
-
-      useUIStore.getState().setShowMixer(false);
+      // Closing loop browser
       useUIStore.getState().toggleLoopBrowser();
-      useUIStore.getState().setShowLibrary(false);
+      expect(useUIStore.getState().loopBrowserOpen).toBe(false);
 
-      state = useUIStore.getState();
-      expect(state.showMixer).toBe(false);
-      expect(state.loopBrowserOpen).toBe(false);
-      expect(state.showLibrary).toBe(false);
+      useUIStore.getState().setShowLibrary(false);
+      expect(useUIStore.getState().showLibrary).toBe(false);
     });
 
     it('toggles the primary arrangement/session view', () => {
