@@ -169,8 +169,13 @@ describe('Toolbar visual hierarchy and grouping (#544)', () => {
   it('moves project defaults into a dedicated top-toolbar strip', () => {
     render(<Toolbar />);
 
-    const projectStrip = screen.getByTestId('toolbar-project-settings');
-    expect(projectStrip).toBeInTheDocument();
+    const timingStrip = screen.getByTestId('toolbar-project-timing');
+    const harmonyStrip = screen.getByTestId('toolbar-project-harmony');
+    const transportBar = screen.getByTestId('transport-bar');
+    expect(timingStrip).toBeInTheDocument();
+    expect(harmonyStrip).toBeInTheDocument();
+    expect(timingStrip.compareDocumentPosition(transportBar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(transportBar.compareDocumentPosition(harmonyStrip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByLabelText('Project BPM')).toHaveValue('120');
     expect(screen.getByLabelText('Time signature numerator')).toHaveValue('4');
     expect(screen.getByLabelText('Project key root')).toHaveValue('C');
@@ -224,6 +229,12 @@ describe('Toolbar visual hierarchy and grouping (#544)', () => {
     render(<Toolbar />);
 
     expect(screen.getByTitle('Auto Scroll').className).not.toContain('hover:bg-white/8');
+  });
+
+  it('does not add a hover highlight to the loop button', () => {
+    render(<Toolbar />);
+
+    expect(screen.getByTitle('Loop (C)').className).not.toContain('hover:bg-white/8');
   });
 
   it('renders metronome pulse dots based on the time signature denominator', () => {

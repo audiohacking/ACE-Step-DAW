@@ -125,7 +125,7 @@ function ChevronDown({ className = '' }: { className?: string }) {
   );
 }
 
-function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
+function ProjectTimingStrip({ disabled }: { disabled: boolean }) {
   const project = useProjectStore((s) => s.project);
   const updateProject = useProjectStore((s) => s.updateProject);
   const [bpmInput, setBpmInput] = useState('120');
@@ -138,8 +138,6 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
     setTsNumeratorInput(String(project.timeSignature ?? 4));
     setTsDenominatorInput(String(project.timeSignatureDenominator ?? 4));
   }, [project?.bpm, project?.timeSignature, project?.timeSignatureDenominator, project]);
-
-  const keyScale = splitKeyScale(project?.keyScale);
 
   const commitBpm = () => {
     const parsed = Number.parseInt(bpmInput, 10);
@@ -176,15 +174,10 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
     if (event.key === 'Enter') event.currentTarget.blur();
   };
 
-  const updateKeyScale = (nextRoot: string, nextMode: string) => {
-    if (!project) return;
-    updateProject({ keyScale: `${nextRoot} ${nextMode}` });
-  };
-
   return (
     <div
       className="flex items-center gap-0.5 px-0.5"
-      data-testid="toolbar-project-settings"
+      data-testid="toolbar-project-timing"
     >
       <div className={boxedReadoutClass} title="Project tempo (beats per minute)">
         <input
@@ -239,42 +232,58 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
       </div>
 
       <ToolbarSeparator />
+    </div>
+  );
+}
 
-      <div className="flex items-center gap-0.5">
-        <div className={`${flatReadoutClass} pr-5`} title="Project key root note">
-          <select
-            value={keyScale.root}
-            onChange={(event) => updateKeyScale(event.target.value, keyScale.mode)}
-            disabled={disabled}
-            aria-label="Project key root"
-            title="Project key root"
-            className={`${selectClass} w-[1.2rem]`}
-          >
-            {KEY_ROOTS.map((root) => (
-              <option key={root} value={root}>
-                {KEY_ROOT_LABELS[root] ?? root}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-zinc-300" />
-        </div>
-        <div className={`${flatReadoutClass} pr-5`} title="Project scale mode selector">
-          <select
-            value={keyScale.mode}
-            onChange={(event) => updateKeyScale(keyScale.root, event.target.value)}
-            disabled={disabled}
-            aria-label="Project scale mode"
-            title="Project scale mode"
-            className={`${selectClass} w-[2.8rem]`}
-          >
-            {SCALE_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {SCALE_MODE_LABELS[mode] ?? `${mode[0].toUpperCase()}${mode.slice(1)}`}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-zinc-300" />
-        </div>
+function HarmonySettingsStrip({ disabled }: { disabled: boolean }) {
+  const project = useProjectStore((s) => s.project);
+  const updateProject = useProjectStore((s) => s.updateProject);
+  const keyScale = splitKeyScale(project?.keyScale);
+
+  const updateKeyScale = (nextRoot: string, nextMode: string) => {
+    if (!project) return;
+    updateProject({ keyScale: `${nextRoot} ${nextMode}` });
+  };
+
+  return (
+    <div
+      className="flex items-center gap-0.5 px-0.5"
+      data-testid="toolbar-project-harmony"
+    >
+      <div className={`${flatReadoutClass} pr-5`} title="Project key root note">
+        <select
+          value={keyScale.root}
+          onChange={(event) => updateKeyScale(event.target.value, keyScale.mode)}
+          disabled={disabled}
+          aria-label="Project key root"
+          title="Project key root"
+          className={`${selectClass} w-[1.2rem]`}
+        >
+          {KEY_ROOTS.map((root) => (
+            <option key={root} value={root}>
+              {KEY_ROOT_LABELS[root] ?? root}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-zinc-300" />
+      </div>
+      <div className={`${flatReadoutClass} pr-5`} title="Project scale mode selector">
+        <select
+          value={keyScale.mode}
+          onChange={(event) => updateKeyScale(keyScale.root, event.target.value)}
+          disabled={disabled}
+          aria-label="Project scale mode"
+          title="Project scale mode"
+          className={`${selectClass} w-[2.8rem]`}
+        >
+          {SCALE_MODES.map((mode) => (
+            <option key={mode} value={mode}>
+              {SCALE_MODE_LABELS[mode] ?? `${mode[0].toUpperCase()}${mode.slice(1)}`}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-zinc-300" />
       </div>
     </div>
   );
@@ -666,8 +675,8 @@ export function Toolbar() {
 
       <div className="flex-1" />
 
-      {/* Project settings (BPM, time sig, key, measures) */}
-      <ProjectSettingsStrip disabled={!project} />
+      {/* Project timing settings */}
+      <ProjectTimingStrip disabled={!project} />
 
       <ToolbarSeparator />
 
@@ -721,7 +730,12 @@ export function Toolbar() {
         >
           <MetronomePulseIcon />
         </button>
-        <ControlBarButton active={loopEnabled} onClick={toggleLoop} title="Loop (C)">
+        <ControlBarButton
+          active={loopEnabled}
+          onClick={toggleLoop}
+          title="Loop (C)"
+          disableHoverHighlight
+        >
           <svg width="19" height="19" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 1l2 2-2 2" />
             <path d="M4 13l-2-2 2-2" />
@@ -750,6 +764,10 @@ export function Toolbar() {
       <LCDDisplay />
 
       <div className="flex-1" />
+
+      <HarmonySettingsStrip disabled={!project} />
+
+      <ToolbarSeparator />
 
       {/* Command Palette + ACE Studio */}
       <div className="flex items-center gap-1 shrink-0">
