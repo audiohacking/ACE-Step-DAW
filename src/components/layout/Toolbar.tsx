@@ -7,24 +7,24 @@ import { useCollaborationStore } from '../../store/collaborationStore';
 import { useAudioImport } from '../../hooks/useAudioImport';
 import { useTransport } from '../../hooks/useTransport';
 import { useRecording } from '../../hooks/useRecording';
-import { getMidiCaptureService } from '../../services/midiCaptureService';
 import { DEFAULT_MEASURES } from '../../constants/defaults';
 import { KEY_SCALES } from '../../constants/tracks';
 import { formatTime, formatBarsBeats } from '../../utils/time';
+import { clampTimelinePixelsPerSecond } from '../../utils/timelineZoom';
 import { Button } from '../ui/Button';
 
 const KEY_ROOT_LABELS: Record<string, string> = {
   C: 'C',
-  'C#': 'C#/Db',
+  'C#': 'C#',
   D: 'D',
-  'D#': 'D#/Eb',
+  'D#': 'D#',
   E: 'E',
   F: 'F',
-  'F#': 'F#/Gb',
+  'F#': 'F#',
   G: 'G',
-  'G#': 'G#/Ab',
+  'G#': 'G#',
   A: 'A',
-  'A#': 'A#/Bb',
+  'A#': 'A#',
   B: 'B',
 };
 
@@ -57,13 +57,11 @@ function splitKeyScale(keyScale?: string) {
   };
 }
 
-const numericDisplayInputClass = 'h-9 bg-transparent px-0 text-center font-mono text-[18px] leading-none tracking-[0.02em] text-white focus:text-white focus:outline-none disabled:opacity-50';
-const textDisplayInputClass = 'h-9 bg-transparent px-0 text-center font-mono text-[17px] leading-none tracking-[0.02em] text-white focus:text-white focus:outline-none disabled:opacity-50';
-const selectClass = 'h-9 appearance-none bg-transparent px-0 text-[17px] leading-none tracking-[0.02em] text-white focus:text-white focus:outline-none disabled:opacity-50';
-const boxedReadoutClass = 'flex h-9 items-center rounded-[14px] border border-white/10 bg-white/[0.05] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:bg-white/[0.08]';
-const flatReadoutClass = 'relative flex h-9 items-center rounded-md px-2 transition-colors hover:bg-white/6';
-
-const VALID_DENOMINATORS = [2, 4, 8, 16];
+const numericDisplayInputClass = 'h-8 bg-transparent px-0 text-center font-mono text-[18px] leading-none tracking-[0.01em] text-white focus:text-white focus:outline-none disabled:opacity-50';
+const textDisplayInputClass = 'h-8 bg-transparent px-0 text-center font-mono text-[17px] leading-none tracking-[0.01em] text-white focus:text-white focus:outline-none disabled:opacity-50';
+const selectClass = 'h-8 appearance-none bg-transparent px-0 font-mono text-[17px] leading-none tracking-[0.01em] text-white focus:text-white focus:outline-none disabled:opacity-50';
+const boxedReadoutClass = 'flex h-8 items-center rounded-[13px] border border-white/10 bg-white/[0.05] px-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:bg-white/[0.08]';
+const flatReadoutClass = 'relative flex h-8 items-center rounded-md px-1.5 transition-colors hover:bg-white/6';
 
 function ChevronDown({ className = '' }: { className?: string }) {
   return (
@@ -87,6 +85,8 @@ function ChevronDown({ className = '' }: { className?: string }) {
 function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
   const project = useProjectStore((s) => s.project);
   const updateProject = useProjectStore((s) => s.updateProject);
+  const pixelsPerSecond = useUIStore((s) => s.pixelsPerSecond);
+  const setPixelsPerSecond = useUIStore((s) => s.setPixelsPerSecond);
   const [bpmInput, setBpmInput] = useState('120');
   const [measuresInput, setMeasuresInput] = useState(String(DEFAULT_MEASURES));
   const [tsNumeratorInput, setTsNumeratorInput] = useState('4');
@@ -107,6 +107,9 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
     const nextBpm = Number.isNaN(parsed) ? (project?.bpm ?? 120) : Math.min(300, Math.max(40, parsed));
     setBpmInput(String(nextBpm));
     if (project && nextBpm !== project.bpm) {
+      if (project.bpm > 0) {
+        setPixelsPerSecond(clampTimelinePixelsPerSecond((pixelsPerSecond * nextBpm) / project.bpm));
+      }
       updateProject({ bpm: nextBpm });
     }
   };
@@ -115,7 +118,7 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
     const parsed = Number.parseInt(measuresInput, 10);
     const nextMeasures = Number.isNaN(parsed)
       ? (project?.measures ?? DEFAULT_MEASURES)
-      : Math.min(512, Math.max(4, parsed));
+      : Math.min(512, Math.max(1, parsed));
     setMeasuresInput(String(nextMeasures));
     if (project && nextMeasures !== project.measures) {
       updateProject({ measures: nextMeasures });
@@ -126,7 +129,7 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
     const parsed = Number.parseInt(tsNumeratorInput, 10);
     const nextTs = Number.isNaN(parsed)
       ? (project?.timeSignature ?? 4)
-      : Math.min(12, Math.max(1, parsed));
+      : Math.max(1, parsed);
     setTsNumeratorInput(String(nextTs));
     if (project && nextTs !== project.timeSignature) {
       updateProject({ timeSignature: nextTs });
@@ -135,12 +138,12 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
 
   const commitTimeSignatureDenominator = () => {
     const parsed = Number.parseInt(tsDenominatorInput, 10);
-    const nextDenom = Number.isNaN(parsed) || !VALID_DENOMINATORS.includes(parsed)
+    const nextDenom = Number.isNaN(parsed) || parsed < 1
       ? (project?.timeSignatureDenominator ?? 4)
       : parsed;
     setTsDenominatorInput(String(nextDenom));
     if (project && nextDenom !== (project.timeSignatureDenominator ?? 4)) {
-      updateProject({ timeSignatureDenominator: nextDenom } as never);
+      updateProject({ timeSignatureDenominator: nextDenom });
     }
   };
 
@@ -155,7 +158,7 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
 
   return (
     <div
-      className="flex items-center gap-1.5 px-1"
+      className="flex items-center gap-0.5 px-0.5"
       data-testid="toolbar-project-settings"
     >
       <div className={boxedReadoutClass}>
@@ -172,13 +175,13 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
           disabled={disabled}
           aria-label="Project BPM"
           title="Project BPM"
-          className={`${numericDisplayInputClass} w-[4.2rem]`}
+          className={`${numericDisplayInputClass} w-[3.7rem]`}
         />
       </div>
 
       <ToolbarSeparator />
 
-      <div className={`${boxedReadoutClass} gap-2`}>
+      <div className={`${boxedReadoutClass} gap-1.5 px-2`}>
         <input
           type="text"
           inputMode="numeric"
@@ -192,9 +195,9 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
           disabled={disabled}
           aria-label="Time signature numerator"
           title="Time signature numerator"
-          className={`${numericDisplayInputClass} w-[1.6rem]`}
+          className={`${numericDisplayInputClass} w-[1.45rem]`}
         />
-        <span className="text-[18px] leading-none text-zinc-500">/</span>
+        <span className="text-[17px] leading-none text-zinc-500">/</span>
         <input
           type="text"
           inputMode="numeric"
@@ -203,26 +206,24 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
           onChange={(event) => setTsDenominatorInput(event.target.value)}
           onBlur={commitTimeSignatureDenominator}
           onKeyDown={blurOnEnter}
-          min={2}
-          max={16}
           disabled={disabled}
           aria-label="Time signature denominator"
           title="Time signature denominator"
-          className={`${numericDisplayInputClass} w-[1.6rem]`}
+          className={`${numericDisplayInputClass} w-[1.45rem]`}
         />
       </div>
 
       <ToolbarSeparator />
 
-      <div className="flex items-center gap-1">
-        <div className={`${flatReadoutClass} pr-6`}>
+      <div className="flex items-center gap-0.5">
+        <div className={`${flatReadoutClass} pr-5`}>
           <select
             value={keyScale.root}
             onChange={(event) => updateKeyScale(event.target.value, keyScale.mode)}
             disabled={disabled}
             aria-label="Project key root"
             title="Project key root"
-            className={`${selectClass} w-[1.55rem]`}
+            className={`${selectClass} w-[1.2rem]`}
           >
             {KEY_ROOTS.map((root) => (
               <option key={root} value={root}>
@@ -230,16 +231,16 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-300" />
+          <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-zinc-300" />
         </div>
-        <div className={`${flatReadoutClass} pr-6`}>
+        <div className={`${flatReadoutClass} pr-5`}>
           <select
             value={keyScale.mode}
             onChange={(event) => updateKeyScale(keyScale.root, event.target.value)}
             disabled={disabled}
             aria-label="Project scale mode"
             title="Project scale mode"
-            className={`${selectClass} w-[3.6rem]`}
+            className={`${selectClass} w-[2.8rem]`}
           >
             {SCALE_MODES.map((mode) => (
               <option key={mode} value={mode}>
@@ -247,7 +248,7 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-300" />
+          <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-zinc-300" />
         </div>
       </div>
 
@@ -255,17 +256,17 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
 
       <div className={flatReadoutClass}>
         <input
-          type="number"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
           value={measuresInput}
           onChange={(event) => setMeasuresInput(event.target.value)}
           onBlur={commitMeasures}
           onKeyDown={blurOnEnter}
-          min={4}
-          max={512}
           disabled={disabled}
           aria-label="Project measures"
           title="Project measures"
-          className={`${textDisplayInputClass} w-[2.6rem]`}
+          className={`${textDisplayInputClass} w-[2.1rem]`}
         />
       </div>
     </div>
@@ -282,7 +283,7 @@ function LCDDisplay() {
   const loopCycleCount = useTransportStore((s) => s.loopCycleCount);
   const project = useProjectStore((s) => s.project);
   const barsBeats = project
-    ? formatBarsBeats(currentTime, project.bpm, project.timeSignature)
+    ? formatBarsBeats(currentTime, project.bpm, project.timeSignature, project.tempoMap, project.timeSignatureMap, project.timeSignatureDenominator ?? 4)
     : '1.1.00';
 
   // During count-in: show negative beat count in cyan (Ableton convention)
@@ -292,7 +293,7 @@ function LCDDisplay() {
   const showLoopCycleBadge = isRecording && loopRecordingEnabled && loopCycleCount > 0;
 
   return (
-    <div className="flex min-w-[255px] shrink-0 items-end justify-center gap-4 px-3 py-1 font-mono tabular-nums">
+    <div className="flex min-w-[220px] shrink-0 items-end justify-center gap-3 px-2 py-1 font-mono tabular-nums">
       <span className={`text-[20px] leading-none tracking-[0.14em] ${barsBeatsColor}`}>{displayBarsBeats}</span>
       <span className="pb-[2px] text-[14px] leading-none text-zinc-500">{formatTime(currentTime)}</span>
       {countInActive && (
@@ -506,6 +507,8 @@ export function Toolbar() {
   const setShowSmartControls = useUIStore((s) => s.setShowSmartControls);
   const showArrangementMarkers = useUIStore((s) => s.showArrangementMarkers);
   const toggleArrangementMarkers = useUIStore((s) => s.toggleArrangementMarkers);
+  const autoScrollEnabled = useUIStore((s) => s.autoScrollEnabled);
+  const toggleAutoScroll = useUIStore((s) => s.toggleAutoScroll);
   const isViewerMode = useCollaborationStore((s) => s.isViewerMode);
   const { toggleRecord } = useRecording();
 
@@ -513,8 +516,6 @@ export function Toolbar() {
   const loopEnabled = useTransportStore((s) => s.loopEnabled);
   const isRecording = useTransportStore((s) => s.isRecording);
   const toggleLoop = useTransportStore((s) => s.toggleLoop);
-  const loopRecordingEnabled = useTransportStore((s) => s.loopRecordingEnabled);
-  const toggleLoopRecording = useTransportStore((s) => s.toggleLoopRecording);
   const metronomeEnabled = useTransportStore((s) => s.metronomeEnabled);
   const toggleMetronome = useTransportStore((s) => s.toggleMetronome);
   useEffect(() => {
@@ -658,7 +659,7 @@ export function Toolbar() {
             <circle cx="14" cy="14" r="3" />
           </svg>
         </button>
-        <ControlBarButton active={loopEnabled} onClick={toggleLoop} title="Cycle (C)">
+        <ControlBarButton active={loopEnabled} onClick={toggleLoop} title="Loop (C)">
           <svg width="19" height="19" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 1l2 2-2 2" />
             <path d="M4 13l-2-2 2-2" />
@@ -666,33 +667,11 @@ export function Toolbar() {
             <path d="M2 11h7a3 3 0 0 0 0-6" />
           </svg>
         </ControlBarButton>
-        <ControlBarButton active={loopRecordingEnabled} onClick={toggleLoopRecording} title="Overdub / Loop Recording (Shift+L)">
+        <ControlBarButton active={autoScrollEnabled} onClick={toggleAutoScroll} title="Auto Scroll">
           <svg width="19" height="19" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 1l2 2-2 2" />
-            <path d="M4 13l-2-2 2-2" />
-            <path d="M12 3H5a3 3 0 0 0 0 6" />
-            <path d="M2 11h7a3 3 0 0 0 0-6" />
-            <circle cx="7" cy="7" r="2" fill="currentColor" stroke="none" />
-          </svg>
-        </ControlBarButton>
-        <ControlBarButton
-          onClick={() => {
-            const armedTrackIds = useTransportStore.getState().armedTrackIds;
-            const targetTrackId = armedTrackIds[0];
-            if (targetTrackId) {
-              const captureService = getMidiCaptureService();
-              const currentTime = useTransportStore.getState().currentTime;
-              useProjectStore.getState().captureMidi(targetTrackId, currentTime, captureService);
-            }
-          }}
-          title="Capture MIDI (F)"
-          disabled={!project}
-        >
-          <svg width="19" height="19" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1.5 7h7.5" />
-            <path d="M7 4l4 3-4 3" />
-            <circle cx="12.25" cy="7" r="0.65" fill="currentColor" stroke="none" />
-            <circle cx="9.95" cy="7" r="0.65" fill="currentColor" stroke="none" />
+            <path d="M2 7h7.5" />
+            <path d="M7 4l3.5 3L7 10" />
+            <path d="M12 2v10" />
           </svg>
         </ControlBarButton>
       </div>

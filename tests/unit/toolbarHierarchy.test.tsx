@@ -175,7 +175,28 @@ describe('Toolbar visual hierarchy and grouping (#544)', () => {
     expect(screen.getByLabelText('Time signature numerator')).toHaveValue('4');
     expect(screen.getByLabelText('Project key root')).toHaveValue('C');
     expect(screen.getByLabelText('Project scale mode')).toHaveValue('major');
-    expect(screen.getByLabelText('Project measures')).toHaveValue(64);
+    expect(screen.getByLabelText('Project measures')).toHaveValue('64');
+  });
+
+  it('keeps timeline zoom stable when BPM changes from the toolbar', () => {
+    useUIStore.setState({ pixelsPerSecond: 100 });
+    render(<Toolbar />);
+
+    const bpmInput = screen.getByLabelText('Project BPM');
+    fireEvent.change(bpmInput, { target: { value: '60' } });
+    fireEvent.blur(bpmInput);
+
+    expect(useProjectStore.getState().project?.bpm).toBe(60);
+    expect(useUIStore.getState().pixelsPerSecond).toBe(50);
+  });
+
+  it('keeps only loop and auto-scroll controls to the right of metronome', () => {
+    render(<Toolbar />);
+
+    expect(screen.getByTitle('Loop (C)')).toBeInTheDocument();
+    expect(screen.getByTitle('Auto Scroll')).toBeInTheDocument();
+    expect(screen.queryByTitle('Overdub / Loop Recording (Shift+L)')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Capture MIDI (F)')).not.toBeInTheDocument();
   });
 
   it('updates project key settings from the top-toolbar strip', () => {

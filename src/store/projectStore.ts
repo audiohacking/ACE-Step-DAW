@@ -121,8 +121,8 @@ function _isViewerMode(): boolean {
   return useCollaborationStore.getState().isViewerMode;
 }
 
-function getBarDurationSec(bpm: number, timeSig: number): number {
-  return (60 / bpm) * timeSig;
+function getBarDurationSec(bpm: number, timeSig: number, timeSigDenominator: number = 4): number {
+  return (60 / bpm) * timeSig * (4 / Math.max(1, timeSigDenominator));
 }
 
 function sanitizeFileNameSegment(value: string) {
@@ -848,6 +848,7 @@ function computeTotalDuration(
   measures?: number,
   bpm?: number,
   timeSig?: number,
+  timeSigDenominator?: number,
   tempoMap?: TempoEvent[],
   timeSignatureMap?: TimeSignatureEvent[],
 ): number {
@@ -860,13 +861,14 @@ function computeTotalDuration(
   }
   const effectiveBpm = bpm ?? DEFAULT_BPM;
   const effectiveTimeSig = timeSig ?? DEFAULT_TIME_SIGNATURE;
+  const effectiveTimeSigDenominator = timeSigDenominator ?? 4;
   const effectiveMeasures = measures ?? DEFAULT_MEASURES;
   let measuredDuration: number;
   if ((tempoMap && tempoMap.length > 0) || (timeSignatureMap && timeSignatureMap.length > 0)) {
-    const totalBeats = getBeatAtBar(effectiveMeasures + 1, timeSignatureMap, effectiveTimeSig);
+    const totalBeats = getBeatAtBar(effectiveMeasures + 1, timeSignatureMap, effectiveTimeSig, effectiveTimeSigDenominator);
     measuredDuration = beatToTime(totalBeats, tempoMap, effectiveBpm);
   } else {
-    const barDur = getBarDurationSec(effectiveBpm, effectiveTimeSig);
+    const barDur = getBarDurationSec(effectiveBpm, effectiveTimeSig, effectiveTimeSigDenominator);
     measuredDuration = effectiveMeasures * barDur;
   }
   return Math.max(measuredDuration, maxEnd + TIMELINE_PADDING);
@@ -1815,7 +1817,8 @@ export const useProjectStore = create<ProjectState>()(
       bpm,
       keyScale: params?.keyScale ?? DEFAULT_KEY_SCALE,
       timeSignature: timeSig,
-      totalDuration: measures * getBarDurationSec(bpm, timeSig),
+      timeSignatureDenominator: 4,
+      totalDuration: measures * getBarDurationSec(bpm, timeSig, 4),
       measures,
       tracks: [],
       trackPresets: [],
@@ -1834,13 +1837,16 @@ export const useProjectStore = create<ProjectState>()(
     if (!state.project) return;
     _pushHistory(state.project, { scope: 'arrangement', label: 'Update project settings' });
     const merged = { ...state.project, ...updates, updatedAt: Date.now() };
-    // Recompute totalDuration when measures/bpm/timeSignature change
-    if ('measures' in updates || 'bpm' in updates || 'timeSignature' in updates) {
+    // Recompute totalDuration when project timing settings change.
+    if ('measures' in updates || 'bpm' in updates || 'timeSignature' in updates || 'timeSignatureDenominator' in updates) {
       merged.totalDuration = computeTotalDuration(
         merged.tracks,
         merged.measures,
         merged.bpm,
         merged.timeSignature,
+        merged.timeSignatureDenominator,
+        merged.tempoMap,
+        merged.timeSignatureMap,
       );
     }
     set({ project: merged });
@@ -2296,6 +2302,7 @@ export const useProjectStore = create<ProjectState>()(
           latest.project.measures,
           latest.project.bpm,
           latest.project.timeSignature,
+          latest.project.timeSignatureDenominator,
           latest.project.tempoMap,
           latest.project.timeSignatureMap,
         ),
@@ -2327,7 +2334,7 @@ export const useProjectStore = create<ProjectState>()(
     const nextProject = ensureProjectSession({
       ...state.project,
       updatedAt: Date.now(),
-      totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+      totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
       tracks: newTracks,
     });
     set({
@@ -2381,7 +2388,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator),
         tracks: newTracks,
       },
     });
@@ -2449,7 +2456,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator),
         tracks: newTracks,
       },
     });
@@ -2519,7 +2526,7 @@ export const useProjectStore = create<ProjectState>()(
       project: ensureProjectSession({
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
       }),
     });
@@ -2541,7 +2548,7 @@ export const useProjectStore = create<ProjectState>()(
       project: ensureProjectSession({
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
       }),
     });
@@ -2574,7 +2581,7 @@ export const useProjectStore = create<ProjectState>()(
     const baseProject = ensureProjectSession({
       ...state.project,
       updatedAt: Date.now(),
-      totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+      totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
       tracks: newTracks,
     });
     const session = ensureSessionSlotsForTrack(baseProject.session!, newId);
@@ -2895,7 +2902,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
         session,
       },
@@ -2904,7 +2911,7 @@ export const useProjectStore = create<ProjectState>()(
     return clip;
   },
 
-  ensureMidiClip: (trackId, startTime = 0, duration = getBarDurationSec(get().project?.bpm ?? DEFAULT_BPM, get().project?.timeSignature ?? DEFAULT_TIME_SIGNATURE)) => {
+  ensureMidiClip: (trackId, startTime = 0, duration = getBarDurationSec(get().project?.bpm ?? DEFAULT_BPM, get().project?.timeSignature ?? DEFAULT_TIME_SIGNATURE, get().project?.timeSignatureDenominator ?? 4)) => {
     const state = get();
     if (!state.project) throw new Error('No project');
 
@@ -2940,7 +2947,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
       },
     });
@@ -2974,7 +2981,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
       },
     });
@@ -3009,7 +3016,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
       },
     });
@@ -3032,7 +3039,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
         session: {
           ...session,
@@ -3081,7 +3088,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
         session: ensureProjectSession({
           ...state.project,
@@ -3351,6 +3358,7 @@ export const useProjectStore = create<ProjectState>()(
           state.project.measures,
           state.project.bpm,
           state.project.timeSignature,
+          state.project.timeSignatureDenominator,
           state.project.tempoMap,
           state.project.timeSignatureMap,
         ),
@@ -3415,7 +3423,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
       },
     });
@@ -3634,7 +3642,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(nextTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(nextTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: nextTracks,
       },
     });
@@ -3846,7 +3854,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
       },
     });
@@ -3896,7 +3904,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
         session: ensureProjectSession({
           ...state.project,
@@ -3923,7 +3931,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...state.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         tracks: newTracks,
       },
     });
@@ -4258,7 +4266,7 @@ export const useProjectStore = create<ProjectState>()(
         ...state.project,
         updatedAt: Date.now(),
         tracks: newTracks,
-        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.tempoMap, state.project.timeSignatureMap),
+        totalDuration: computeTotalDuration(newTracks, state.project.measures, state.project.bpm, state.project.timeSignature, state.project.timeSignatureDenominator, state.project.tempoMap, state.project.timeSignatureMap),
         session: {
           ...baseProject.session!,
           isRecordingToArrangement: false,
@@ -5902,7 +5910,7 @@ export const useProjectStore = create<ProjectState>()(
       map.sort((a: TempoEvent, b: TempoEvent) => a.beat - b.beat);
     }
     const updated = { ...state.project, updatedAt: Date.now(), tempoMap: map };
-    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.tempoMap, updated.timeSignatureMap);
+    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.timeSignatureDenominator, updated.tempoMap, updated.timeSignatureMap);
     set({ project: updated });
   },
 
@@ -5912,7 +5920,7 @@ export const useProjectStore = create<ProjectState>()(
     _pushHistory(state.project);
     const map = (state.project.tempoMap ?? []).filter((e: TempoEvent) => e.beat !== beat);
     const updated = { ...state.project, updatedAt: Date.now(), tempoMap: map };
-    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.tempoMap, updated.timeSignatureMap);
+    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.timeSignatureDenominator, updated.tempoMap, updated.timeSignatureMap);
     set({ project: updated });
   },
 
@@ -5925,7 +5933,7 @@ export const useProjectStore = create<ProjectState>()(
     );
     if ('beat' in updates) map.sort((a: TempoEvent, b: TempoEvent) => a.beat - b.beat);
     const updated = { ...state.project, updatedAt: Date.now(), tempoMap: map };
-    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.tempoMap, updated.timeSignatureMap);
+    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.timeSignatureDenominator, updated.tempoMap, updated.timeSignatureMap);
     set({ project: updated });
   },
 
@@ -5934,7 +5942,7 @@ export const useProjectStore = create<ProjectState>()(
     if (!state.project) return;
     _pushHistory(state.project);
     const updated = { ...state.project, updatedAt: Date.now(), tempoMap: [] };
-    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.tempoMap, updated.timeSignatureMap);
+    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.timeSignatureDenominator, updated.tempoMap, updated.timeSignatureMap);
     set({ project: updated });
   },
 
@@ -5953,7 +5961,7 @@ export const useProjectStore = create<ProjectState>()(
       map.sort((a: TimeSignatureEvent, b: TimeSignatureEvent) => a.bar - b.bar);
     }
     const updated = { ...state.project, updatedAt: Date.now(), timeSignatureMap: map };
-    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.tempoMap, updated.timeSignatureMap);
+    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.timeSignatureDenominator, updated.tempoMap, updated.timeSignatureMap);
     set({ project: updated });
   },
 
@@ -5963,7 +5971,7 @@ export const useProjectStore = create<ProjectState>()(
     _pushHistory(state.project);
     const map = (state.project.timeSignatureMap ?? []).filter((e: TimeSignatureEvent) => e.bar !== bar);
     const updated = { ...state.project, updatedAt: Date.now(), timeSignatureMap: map };
-    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.tempoMap, updated.timeSignatureMap);
+    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.timeSignatureDenominator, updated.tempoMap, updated.timeSignatureMap);
     set({ project: updated });
   },
 
@@ -5976,7 +5984,7 @@ export const useProjectStore = create<ProjectState>()(
     );
     if ('bar' in updates) map.sort((a: TimeSignatureEvent, b: TimeSignatureEvent) => a.bar - b.bar);
     const updated = { ...state.project, updatedAt: Date.now(), timeSignatureMap: map };
-    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.tempoMap, updated.timeSignatureMap);
+    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.timeSignatureDenominator, updated.tempoMap, updated.timeSignatureMap);
     set({ project: updated });
   },
 
@@ -5985,7 +5993,7 @@ export const useProjectStore = create<ProjectState>()(
     if (!state.project) return;
     _pushHistory(state.project);
     const updated = { ...state.project, updatedAt: Date.now(), timeSignatureMap: [] };
-    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.tempoMap, updated.timeSignatureMap);
+    updated.totalDuration = computeTotalDuration(updated.tracks, updated.measures, updated.bpm, updated.timeSignature, updated.timeSignatureDenominator, updated.tempoMap, updated.timeSignatureMap);
     set({ project: updated });
   },
 
@@ -6317,7 +6325,7 @@ export const useProjectStore = create<ProjectState>()(
       project: {
         ...latest.project,
         updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(updatedTracks, latest.project.measures, latest.project.bpm, latest.project.timeSignature),
+        totalDuration: computeTotalDuration(updatedTracks, latest.project.measures, latest.project.bpm, latest.project.timeSignature, latest.project.timeSignatureDenominator),
         tracks: updatedTracks,
         assets: [...(latest.project.assets ?? []), ...newAssets],
       },
@@ -6420,6 +6428,7 @@ export const useProjectStore = create<ProjectState>()(
       bpm: state.project.bpm,
       keyScale: state.project.keyScale,
       timeSignature: state.project.timeSignature,
+      timeSignatureDenominator: state.project.timeSignatureDenominator ?? 4,
       measures: state.project.measures ?? DEFAULT_MEASURES,
       tracks: templateTracks,
       generationDefaults: structuredClone(state.project.generationDefaults),
@@ -6431,6 +6440,7 @@ export const useProjectStore = create<ProjectState>()(
   createProjectFromTemplate: (template, projectName) => {
     const bpm = template.bpm;
     const timeSig = template.timeSignature;
+    const timeSigDenominator = template.timeSignatureDenominator ?? 4;
     const measures = template.measures;
 
     const tracks: Track[] = template.tracks.map((tt, idx) => ({
@@ -6461,7 +6471,8 @@ export const useProjectStore = create<ProjectState>()(
       bpm,
       keyScale: template.keyScale,
       timeSignature: timeSig,
-      totalDuration: measures * getBarDurationSec(bpm, timeSig),
+      timeSignatureDenominator: timeSigDenominator,
+      totalDuration: measures * getBarDurationSec(bpm, timeSig, timeSigDenominator),
       measures,
       tracks,
       trackPresets: [],
@@ -6733,6 +6744,7 @@ export const useProjectStore = create<ProjectState>()(
           state.project.measures,
           bpm,
           timeSig,
+          state.project.timeSignatureDenominator,
           state.project.tempoMap,
           state.project.timeSignatureMap,
         ),

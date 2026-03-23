@@ -4,10 +4,11 @@ import { useUIStore } from '../../store/uiStore';
 import { useTransportStore } from '../../store/transportStore';
 import { useTransport } from '../../hooks/useTransport';
 import { getBarDuration, getBeatDuration } from '../../utils/time';
-import { beatToTime, getBeatAtBar, getTimeSignatureAtBar } from '../../utils/tempoMap';
+import { beatToTime, getBeatAtBar, getTimeSignatureAtBar, getTimeSignatureBeatLength } from '../../utils/tempoMap';
 import { getScrubPreviewRate } from '../../utils/scrubMath';
 import { TIMELINE_RULER_HEIGHT } from './timelineLayout';
 import { getTimelineVisualDuration } from '../../utils/timelineZoom';
+import { DEFAULT_MEASURES } from '../../constants/defaults';
 
 const LOOP_MIN_DURATION = 0.01;
 const LOOP_HANDLE_WIDTH = 10;
@@ -139,26 +140,35 @@ export function TimeRuler() {
 
   const markers = useMemo(() => {
     if (!project) return [];
-    const { tempoMap, timeSignatureMap, bpm, timeSignature, totalDuration } = project;
+    const {
+      tempoMap,
+      timeSignatureMap,
+      bpm,
+      timeSignature,
+      timeSignatureDenominator = 4,
+      totalDuration,
+      measures = DEFAULT_MEASURES,
+    } = project;
     const visualDuration = getTimelineVisualDuration(totalDuration, pixelsPerSecond, timelineViewportWidth);
+    const visibleDuration = Math.min(visualDuration, totalDuration);
     const hasTempoMap = tempoMap && tempoMap.length > 0;
     const hasTsMap = timeSignatureMap && timeSignatureMap.length > 0;
-    const beatDur = getBeatDuration(bpm);
+    const beatDur = getBeatDuration(bpm) * getTimeSignatureBeatLength(timeSignatureDenominator);
     const beatPx = beatDur * pixelsPerSecond;
     // Show beat subdivisions when zoomed in enough
     const showBeats = beatPx >= 20;
 
     if (!hasTempoMap && !hasTsMap) {
-      const barDur = getBarDuration(bpm, timeSignature);
-      const totalBars = Math.ceil(visualDuration / barDur);
+      const barDur = getBarDuration(bpm, timeSignature, timeSignatureDenominator);
       const result: { label: string; x: number; isBar: boolean; tsLabel?: string }[] = [];
-      for (let bar = 1; bar <= totalBars; bar++) {
+      for (let bar = 1; bar <= measures; bar++) {
         const barTime = (bar - 1) * barDur;
+        if (barTime > visibleDuration) break;
         result.push({ label: String(bar), x: barTime * pixelsPerSecond, isBar: true });
         if (showBeats) {
           for (let beat = 2; beat <= timeSignature; beat++) {
             const beatTime = barTime + (beat - 1) * beatDur;
-            if (beatTime > visualDuration) break;
+            if (beatTime > visibleDuration) break;
             result.push({ label: `${bar}.${beat}`, x: beatTime * pixelsPerSecond, isBar: false });
           }
         }
@@ -168,14 +178,14 @@ export function TimeRuler() {
 
     const result: { label: string; x: number; isBar: boolean; tsLabel?: string }[] = [];
     let prevTs = '';
-    for (let bar = 1; bar <= 999; bar++) {
-      const barBeat = getBeatAtBar(bar, timeSignatureMap, timeSignature);
+    for (let bar = 1; bar <= measures; bar++) {
+      const barBeat = getBeatAtBar(bar, timeSignatureMap, timeSignature, timeSignatureDenominator);
       const time = beatToTime(barBeat, tempoMap, bpm);
-      if (time > visualDuration) break;
+      if (time > visibleDuration) break;
 
       let tsLabel: string | undefined;
       if (hasTsMap) {
-        const ts = getTimeSignatureAtBar(timeSignatureMap, bar, timeSignature, 4);
+        const ts = getTimeSignatureAtBar(timeSignatureMap, bar, timeSignature, timeSignatureDenominator);
         const label = `${ts.numerator}/${ts.denominator}`;
         if (label !== prevTs) {
           tsLabel = label;
@@ -185,11 +195,12 @@ export function TimeRuler() {
       result.push({ label: String(bar), x: time * pixelsPerSecond, isBar: true, tsLabel });
       if (showBeats) {
         const ts = hasTsMap
-          ? getTimeSignatureAtBar(timeSignatureMap, bar, timeSignature, 4)
-          : { numerator: timeSignature, denominator: 4 };
+          ? getTimeSignatureAtBar(timeSignatureMap, bar, timeSignature, timeSignatureDenominator)
+          : { numerator: timeSignature, denominator: timeSignatureDenominator };
+        const beatLength = getTimeSignatureBeatLength(ts.denominator);
         for (let beat = 2; beat <= ts.numerator; beat++) {
-          const beatTime = beatToTime(barBeat + (beat - 1), tempoMap, bpm);
-          if (beatTime > visualDuration) break;
+          const beatTime = beatToTime(barBeat + ((beat - 1) * beatLength), tempoMap, bpm);
+          if (beatTime > visibleDuration) break;
           result.push({ label: `${bar}.${beat}`, x: beatTime * pixelsPerSecond, isBar: false });
         }
       }
