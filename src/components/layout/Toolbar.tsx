@@ -604,8 +604,9 @@ export function Toolbar() {
       <ToolbarSeparator />
 
       {/* Center: Transport controls */}
+      <div className="shrink-0" data-testid="toolbar-group">
       <div
-        className="flex items-center gap-0.5 shrink-0"
+        className="flex items-center gap-0.5"
         data-testid="transport-bar"
         data-onboarding-target="transport"
       >
@@ -640,35 +641,23 @@ export function Toolbar() {
         <ControlBarButton onClick={() => void toggleRecord()} title="Record (R)" active={isRecording}>
           <div className={`h-4 w-4 rounded-full bg-red-500 ${isRecording ? 'animate-pulse' : 'opacity-70'}`} />
         </ControlBarButton>
-        <ControlBarButton
-          onClick={() => {
-            const armedTrackIds = useTransportStore.getState().armedTrackIds;
-            const targetTrackId = armedTrackIds[0];
-            if (targetTrackId) {
-              const captureService = getMidiCaptureService();
-              const currentTime = useTransportStore.getState().currentTime;
-              useProjectStore.getState().captureMidi(targetTrackId, currentTime, captureService);
-            }
-          }}
-          title="Capture MIDI (F)"
-          disabled={!project}
+        <button
+          onClick={toggleMetronome}
+          title="Metronome (K)"
+          aria-label="Metronome"
+          className={`flex h-9 w-9 items-center justify-center rounded-xl transition-[color,background-color,transform] duration-150 active:scale-95 ${
+            metronomeEnabled
+              ? 'bg-[#8276f6] text-white'
+              : 'bg-white/8 text-white hover:bg-white/12 hover:text-white'
+          }`}
         >
-          <svg width="19" height="19" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="7" cy="7" r="5" />
-            <polyline points="5,6 7,9 9,5" />
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <circle cx="6" cy="6" r="3" />
+            <circle cx="14" cy="6" r="3" />
+            <circle cx="6" cy="14" r="3" />
+            <circle cx="14" cy="14" r="3" />
           </svg>
-        </ControlBarButton>
-      </div>
-
-      <ToolbarSeparator />
-
-      {/* LCD Display */}
-      <LCDDisplay />
-
-      <ToolbarSeparator />
-
-      {/* Cycle + Metronome */}
-      <div className="flex items-center gap-0.5 shrink-0" data-testid="toolbar-group">
+        </button>
         <ControlBarButton active={loopEnabled} onClick={toggleLoop} title="Cycle (C)">
           <svg width="19" height="19" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 1l2 2-2 2" />
@@ -686,14 +675,33 @@ export function Toolbar() {
             <circle cx="7" cy="7" r="2" fill="currentColor" stroke="none" />
           </svg>
         </ControlBarButton>
-        <ControlBarButton active={metronomeEnabled} onClick={toggleMetronome} title="Metronome (K)">
+        <ControlBarButton
+          onClick={() => {
+            const armedTrackIds = useTransportStore.getState().armedTrackIds;
+            const targetTrackId = armedTrackIds[0];
+            if (targetTrackId) {
+              const captureService = getMidiCaptureService();
+              const currentTime = useTransportStore.getState().currentTime;
+              useProjectStore.getState().captureMidi(targetTrackId, currentTime, captureService);
+            }
+          }}
+          title="Capture MIDI (F)"
+          disabled={!project}
+        >
           <svg width="19" height="19" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 13L7 1l3 12" />
-            <path d="M3 13h8" />
-            <path d="M7 5l4-2" />
+            <path d="M1.5 7h7.5" />
+            <path d="M7 4l4 3-4 3" />
+            <circle cx="12.25" cy="7" r="0.65" fill="currentColor" stroke="none" />
+            <circle cx="9.95" cy="7" r="0.65" fill="currentColor" stroke="none" />
           </svg>
         </ControlBarButton>
       </div>
+      </div>
+
+      <ToolbarSeparator />
+
+      {/* LCD Display */}
+      <LCDDisplay />
 
       <div className="flex-1" />
 
