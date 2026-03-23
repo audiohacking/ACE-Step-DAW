@@ -126,7 +126,7 @@ describe('Toolbar visual hierarchy and grouping (#544)', () => {
     expect(separators.length).toBeGreaterThan(0);
     separators.forEach((sep) => {
       expect(sep.className).toMatch(/w-px/);
-      expect(sep.className).toMatch(/h-5/);
+      expect(sep.className).toMatch(/h-7/);
     });
   });
 
@@ -140,6 +140,23 @@ describe('Toolbar visual hierarchy and grouping (#544)', () => {
   it('makes the toolbar horizontally scrollable for small viewports', () => {
     const { container } = render(<Toolbar />);
     expect(container.firstChild).toHaveClass('overflow-x-auto');
+  });
+
+  it('uses the refreshed toolbar surface and denser control sizing', () => {
+    render(<Toolbar />);
+
+    const toolbar = screen.getByTestId('main-toolbar');
+    const arrangementButton = screen.getByLabelText('Arrangement View');
+    const playButton = screen.getByTitle('Play (Space)');
+
+    expect(toolbar.className).toContain('bg-[#1f2226]');
+    expect(toolbar.className).toContain('h-14');
+    expect(arrangementButton.className).toContain('h-9');
+    expect(arrangementButton.className).toContain('w-9');
+    expect(arrangementButton.className).toContain('text-white');
+    expect(playButton.className).toContain('h-10');
+    expect(playButton.className).toContain('w-12');
+    expect(playButton.className).toContain('bg-white/8');
   });
 
   it('removes the top toolbar Generate button in favor of the side dock entry', () => {
