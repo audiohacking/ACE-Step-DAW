@@ -9,7 +9,6 @@ import { useTransport } from '../../hooks/useTransport';
 import { useRecording } from '../../hooks/useRecording';
 import { KEY_SCALES } from '../../constants/tracks';
 import { formatTime, formatBarsBeats } from '../../utils/time';
-import { clampTimelinePixelsPerSecond } from '../../utils/timelineZoom';
 import { getBarAtBeat, getBeatAtBar, timeToBeat } from '../../utils/tempoMap';
 import { Button } from '../ui/Button';
 
@@ -39,6 +38,39 @@ const SCALE_MODES = Array.from(
 const SCALE_MODE_LABELS: Record<string, string> = {
   major: 'Maj',
   minor: 'Min',
+};
+
+const METRONOME_PULSE_POSITIONS: Record<number, Array<{ left: number; top: number }>> = {
+  2: [
+    { left: 26, top: 50 },
+    { left: 74, top: 50 },
+  ],
+  3: [
+    { left: 50, top: 20 },
+    { left: 77, top: 72 },
+    { left: 23, top: 72 },
+  ],
+  4: [
+    { left: 24, top: 24 },
+    { left: 76, top: 24 },
+    { left: 76, top: 76 },
+    { left: 24, top: 76 },
+  ],
+  5: [
+    { left: 50, top: 16 },
+    { left: 79, top: 35 },
+    { left: 69, top: 78 },
+    { left: 31, top: 78 },
+    { left: 21, top: 35 },
+  ],
+  6: [
+    { left: 50, top: 14 },
+    { left: 78, top: 30 },
+    { left: 78, top: 70 },
+    { left: 50, top: 86 },
+    { left: 22, top: 70 },
+    { left: 22, top: 30 },
+  ],
 };
 
 function splitKeyScale(keyScale?: string) {
@@ -84,9 +116,6 @@ function ChevronDown({ className = '' }: { className?: string }) {
 function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
   const project = useProjectStore((s) => s.project);
   const updateProject = useProjectStore((s) => s.updateProject);
-  const pixelsPerSecond = useUIStore((s) => s.pixelsPerSecond);
-  const setPixelsPerSecond = useUIStore((s) => s.setPixelsPerSecond);
-  const zoomTimelineToProject = useUIStore((s) => s.zoomTimelineToProject);
   const [bpmInput, setBpmInput] = useState('120');
   const [tsNumeratorInput, setTsNumeratorInput] = useState('4');
   const [tsDenominatorInput, setTsDenominatorInput] = useState('4');
@@ -105,9 +134,6 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
     const nextBpm = Number.isNaN(parsed) ? (project?.bpm ?? 120) : Math.min(300, Math.max(40, parsed));
     setBpmInput(String(nextBpm));
     if (project && nextBpm !== project.bpm) {
-      if (project.bpm > 0) {
-        setPixelsPerSecond(clampTimelinePixelsPerSecond((pixelsPerSecond * nextBpm) / project.bpm));
-      }
       updateProject({ bpm: nextBpm });
     }
   };
@@ -120,7 +146,6 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
     setTsNumeratorInput(String(nextTs));
     if (project && nextTs !== project.timeSignature) {
       updateProject({ timeSignature: nextTs });
-      zoomTimelineToProject();
     }
   };
 
@@ -132,7 +157,6 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
     setTsDenominatorInput(String(nextDenom));
     if (project && nextDenom !== (project.timeSignatureDenominator ?? 4)) {
       updateProject({ timeSignatureDenominator: nextDenom });
-      zoomTimelineToProject();
     }
   };
 
@@ -150,7 +174,7 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
       className="flex items-center gap-0.5 px-0.5"
       data-testid="toolbar-project-settings"
     >
-      <div className={boxedReadoutClass}>
+      <div className={boxedReadoutClass} title="Project tempo (beats per minute)">
         <input
           type="text"
           inputMode="numeric"
@@ -170,7 +194,7 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
 
       <ToolbarSeparator />
 
-      <div className={`${boxedReadoutClass} gap-1.5 px-2`}>
+      <div className={`${boxedReadoutClass} gap-1.5 px-2`} title="Project time signature">
         <input
           type="text"
           inputMode="numeric"
@@ -205,7 +229,7 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
       <ToolbarSeparator />
 
       <div className="flex items-center gap-0.5">
-        <div className={`${flatReadoutClass} pr-5`}>
+        <div className={`${flatReadoutClass} pr-5`} title="Project key root note">
           <select
             value={keyScale.root}
             onChange={(event) => updateKeyScale(event.target.value, keyScale.mode)}
@@ -222,7 +246,7 @@ function ProjectSettingsStrip({ disabled }: { disabled: boolean }) {
           </select>
           <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-zinc-300" />
         </div>
-        <div className={`${flatReadoutClass} pr-5`}>
+        <div className={`${flatReadoutClass} pr-5`} title="Project scale mode selector">
           <select
             value={keyScale.mode}
             onChange={(event) => updateKeyScale(keyScale.root, event.target.value)}
@@ -265,8 +289,18 @@ function LCDDisplay() {
 
   return (
     <div className="flex min-w-[220px] shrink-0 items-end justify-center gap-3 px-2 py-1 font-mono tabular-nums">
-      <span className={`text-[20px] leading-none tracking-[0.14em] ${barsBeatsColor}`}>{displayBarsBeats}</span>
-      <span className="pb-[2px] text-[14px] leading-none text-zinc-500">{formatTime(currentTime)}</span>
+      <span
+        className={`text-[20px] leading-none tracking-[0.14em] ${barsBeatsColor}`}
+        title="Transport position (bars.beats.ticks)"
+      >
+        {displayBarsBeats}
+      </span>
+      <span
+        className="pb-[2px] text-[14px] leading-none text-zinc-500"
+        title="Transport elapsed time"
+      >
+        {formatTime(currentTime)}
+      </span>
       {countInActive && (
         <span className="text-[11px] text-red-400 animate-pulse">REC</span>
       )}
@@ -291,8 +325,8 @@ function MetronomePulseIcon() {
   const currentTime = useTransportStore((s) => s.currentTime);
   const isPlaying = useTransportStore((s) => s.isPlaying);
 
-  const denominator = Math.max(1, Math.min(8, project?.timeSignatureDenominator ?? 4));
-  const columns = denominator <= 4 ? 2 : 4;
+  const pulseCount = Math.max(2, Math.min(6, project?.timeSignatureDenominator ?? 4));
+  const pulsePositions = METRONOME_PULSE_POSITIONS[pulseCount];
 
   let activeIndex = 0;
   if (project) {
@@ -303,25 +337,30 @@ function MetronomePulseIcon() {
     const nextBarBeat = getBeatAtBar(bar + 1, project.timeSignatureMap, project.timeSignature, fallbackDenominator);
     const barLength = Math.max(0.0001, nextBarBeat - barStartBeat);
     const progress = Math.max(0, Math.min(0.9999, (totalBeats - barStartBeat) / barLength));
-    activeIndex = Math.min(denominator - 1, Math.floor(progress * denominator));
+    activeIndex = Math.min(pulseCount - 1, Math.floor(progress * pulseCount));
   }
 
   return (
     <div
-      className="grid h-5 w-5 gap-[3px]"
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      className="relative h-5 w-5"
       aria-hidden="true"
       data-testid="metronome-pulse-icon"
     >
-      {Array.from({ length: denominator }).map((_, index) => {
+      {pulsePositions.map((position, index) => {
         const isFilled = isPlaying ? index <= activeIndex : index === 0;
         return (
           <span
             key={index}
             data-testid="metronome-pulse-dot"
-            className={`block h-[7px] w-[7px] rounded-full transition-colors duration-100 ${
+            data-step-index={index}
+            className={`absolute block h-[7px] w-[7px] rounded-full transition-colors duration-100 ${
               isFilled ? 'bg-white' : 'bg-white/30'
             }`}
+            style={{
+              left: `${position.left}%`,
+              top: `${position.top}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
           />
         );
       })}
