@@ -100,7 +100,7 @@ export function WaveformPreview({
   );
 }
 
-function renderStereoPeaks(peaks: number[], logicalCount: number, color: string) {
+export function renderStereoPeaks(peaks: number[], logicalCount: number, color: string) {
   // Build SVG path for combined L+R envelope centered at y=50
   const upperPoints: string[] = [];
   const lowerPoints: string[] = [];
@@ -123,7 +123,7 @@ function renderStereoPeaks(peaks: number[], logicalCount: number, color: string)
   return <path d={path} fill={color} opacity={0.6} data-testid="waveform-path" />;
 }
 
-function renderSimplePeaks(peaks: number[], color: string) {
+export function renderSimplePeaks(peaks: number[], color: string) {
   // Simple amplitude bars centered vertically
   const count = peaks.length;
   const upperPoints: string[] = [];

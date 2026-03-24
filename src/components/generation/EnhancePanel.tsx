@@ -8,6 +8,7 @@ import { modelSupportsTaskType } from '../../services/aceStepApi';
 import { DualRangeSlider } from '../ui/DualRangeSlider';
 import { Z } from '../../utils/zIndex';
 import { WaveformPreview } from './WaveformPreview';
+import { WaveformRangeSelector } from './WaveformRangeSelector';
 import { useEnhancePlayback } from '../../hooks/useEnhancePlayback';
 import { computeWaveformPeaks } from '../../utils/waveformPeaks';
 import type { RepaintMode } from '../../types/api';
@@ -681,58 +682,36 @@ export function EnhancePanel() {
           {/* === REPAINT MODE CONTROLS === */}
           {mode === 'repaint' && clip && (
             <>
-              {/* Repaint range slider */}
-              <div className="bg-[#222]/60 rounded px-3 pt-2 pb-3 border border-[#3a3a3a]">
+              {/* Repaint range — waveform selector */}
+              <div className="bg-[#222]/60 rounded px-3 pt-2 pb-2 border border-[#3a3a3a]">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-medium text-zinc-300">Repaint range</span>
                   <span className="text-[10px] font-mono text-rose-300">
                     {fmt(selStart)} — {fmt(selEnd)}
                   </span>
                 </div>
-                <DualRangeSlider
-                  min={clipStart}
-                  max={clipEnd}
-                  startValue={selStart}
-                  endValue={selEnd}
-                  onChange={handleRangeChange}
-                  minSpan={0.1}
-                  step={0.01}
+                <WaveformRangeSelector
+                  peaks={sourcePeaks}
+                  duration={clip.duration}
+                  rangeStart={clip.duration > 0 ? (selStart - clipStart) / clip.duration : 0}
+                  rangeEnd={clip.duration > 0 ? (selEnd - clipStart) / clip.duration : 1}
+                  onRangeChange={(s, e) => {
+                    handleRangeChange(
+                      clipStart + s * clip.duration,
+                      clipStart + e * clip.duration,
+                    );
+                  }}
+                  bpm={project?.bpm}
+                  snapToGrid={true}
                 />
-                {/* Mini timeline diagram */}
-                <div className="relative mt-3" style={{ height: '28px' }}>
-                  <div
-                    className="absolute inset-x-0 bg-[#333] rounded"
-                    style={{ top: '12px', height: '4px' }}
-                  />
-                  {/* Clip region */}
-                  <div
-                    className="absolute bg-zinc-600/40 border border-zinc-500/40 rounded"
-                    style={{
-                      left: `${(clipStart / totalDur) * 100}%`,
-                      width: `${((clipEnd - clipStart) / totalDur) * 100}%`,
-                      top: '6px',
-                      height: '16px',
-                    }}
-                  />
-                  {/* Repaint region */}
-                  <div
-                    className="absolute bg-rose-600/50 border border-rose-500/70 rounded"
-                    style={{
-                      left: `${(selStart / totalDur) * 100}%`,
-                      width: `${((selEnd - selStart) / totalDur) * 100}%`,
-                      top: '6px',
-                      height: '16px',
-                    }}
-                  />
-                </div>
                 <div className="flex gap-4 mt-1">
                   <span className="flex items-center gap-1 text-[8px] text-zinc-400">
-                    <span className="inline-block w-3 h-2 rounded-sm bg-zinc-600/50 border border-zinc-500/50" />
-                    Clip
+                    <span className="inline-block w-3 h-2 rounded-sm bg-black/55 border border-zinc-600/50" />
+                    Keep
                   </span>
                   <span className="flex items-center gap-1 text-[8px] text-rose-400">
-                    <span className="inline-block w-3 h-2 rounded-sm bg-rose-600/50 border border-rose-500/60" />
-                    Repaint region
+                    <span className="inline-block w-3 h-2 rounded-sm bg-rose-600/20 border border-rose-500/60" />
+                    Regenerate
                   </span>
                 </div>
               </div>
