@@ -4,6 +4,7 @@ import { EnhancePanel } from '../EnhancePanel';
 import { useProjectStore } from '../../../store/projectStore';
 import { useUIStore } from '../../../store/uiStore';
 import { useGenerationStore } from '../../../store/generationStore';
+import { ENHANCE_PRESETS } from '../../../constants/enhancePresets';
 
 vi.mock('../../../services/generationPipeline', () => ({
   generateCoverClip: vi.fn().mockResolvedValue(undefined),
@@ -16,6 +17,21 @@ vi.mock('../../../services/projectStorage', () => ({
 
 vi.mock('../../../services/aceStepApi', () => ({
   modelSupportsTaskType: vi.fn(() => true),
+}));
+
+const mockPlayback = {
+  playingId: null as string | null,
+  progress: 0,
+  duration: 0,
+  play: vi.fn(),
+  togglePlay: vi.fn(),
+  seek: vi.fn(),
+  stopPlayback: vi.fn(),
+  loadBuffer: vi.fn(),
+};
+
+vi.mock('../../../hooks/useEnhancePlayback', () => ({
+  useEnhancePlayback: () => mockPlayback,
 }));
 
 function setupProjectWithClip() {
@@ -171,6 +187,159 @@ describe('EnhancePanel', () => {
     render(<EnhancePanel />);
     expect(screen.getByTestId('enhance-results')).toBeInTheDocument();
     expect(screen.getByText('Enhanced results will appear here')).toBeInTheDocument();
+  });
+
+  it('renders real source waveform instead of fake bars', () => {
+    const { track, clip } = setupProjectWithClip();
+    // Give the clip waveform peaks
+    clip.waveformPeaks = new Array(240).fill(0).map((_, i) => Math.sin(i * 0.1) * 0.5);
+    useUIStore.setState({
+      enhancerOpen: true,
+      enhancerTarget: {
+        clipId: clip.id,
+        trackId: track.id,
+        range: null,
+        mode: 'cover',
+      },
+    });
+    render(<EnhancePanel />);
+    expect(screen.getByTestId('source-waveform')).toBeInTheDocument();
+  });
+
+  it('source play button calls togglePlay', () => {
+    const { track, clip } = setupProjectWithClip();
+    useUIStore.setState({
+      enhancerOpen: true,
+      enhancerTarget: {
+        clipId: clip.id,
+        trackId: track.id,
+        range: null,
+        mode: 'cover',
+      },
+    });
+    render(<EnhancePanel />);
+    fireEvent.click(screen.getByTestId('source-play-btn'));
+    expect(mockPlayback.togglePlay).toHaveBeenCalledWith('source', 'some-audio-key');
+  });
+
+  it('does not show A/B toggle when no results exist', () => {
+    const { track, clip } = setupProjectWithClip();
+    useUIStore.setState({
+      enhancerOpen: true,
+      enhancerTarget: {
+        clipId: clip.id,
+        trackId: track.id,
+        range: null,
+        mode: 'cover',
+      },
+    });
+    render(<EnhancePanel />);
+    expect(screen.queryByTestId('ab-toggle-btn')).not.toBeInTheDocument();
+  });
+
+  it('shows source duration', () => {
+    const { track, clip } = setupProjectWithClip();
+    clip.duration = 65; // 1:05
+    useUIStore.setState({
+      enhancerOpen: true,
+      enhancerTarget: {
+        clipId: clip.id,
+        trackId: track.id,
+        range: null,
+        mode: 'cover',
+      },
+    });
+    render(<EnhancePanel />);
+    expect(screen.getByText('1:05')).toBeInTheDocument();
+  });
+});
+
+describe('EnhancePanel Quick Styles presets', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useGenerationStore.setState({ isGenerating: false });
+  });
+
+  function renderCoverPanel() {
+    const { track, clip } = setupProjectWithClip();
+    useUIStore.setState({
+      enhancerOpen: true,
+      enhancerTarget: {
+        clipId: clip.id,
+        trackId: track.id,
+        range: null,
+        mode: 'cover',
+      },
+    });
+    return render(<EnhancePanel />);
+  }
+
+  it('shows Quick Styles toggle button in cover mode', () => {
+    renderCoverPanel();
+    expect(screen.getByTestId('quick-styles-toggle')).toBeInTheDocument();
+  });
+
+  it('preset grid is collapsed by default', () => {
+    renderCoverPanel();
+    expect(screen.queryByTestId('quick-styles-grid')).not.toBeInTheDocument();
+  });
+
+  it('expands preset grid when clicking toggle', () => {
+    renderCoverPanel();
+    fireEvent.click(screen.getByTestId('quick-styles-toggle'));
+    expect(screen.getByTestId('quick-styles-grid')).toBeInTheDocument();
+  });
+
+  it('shows all preset buttons plus Surprise Me when expanded', () => {
+    renderCoverPanel();
+    fireEvent.click(screen.getByTestId('quick-styles-toggle'));
+    for (const preset of ENHANCE_PRESETS) {
+      expect(screen.getByTestId(`preset-${preset.id}`)).toBeInTheDocument();
+    }
+    expect(screen.getByTestId('preset-surprise-me')).toBeInTheDocument();
+  });
+
+  it('clicking a preset fills the styles textarea', () => {
+    renderCoverPanel();
+    fireEvent.click(screen.getByTestId('quick-styles-toggle'));
+    const jazzPreset = ENHANCE_PRESETS.find((p) => p.id === 'jazz')!;
+    fireEvent.click(screen.getByTestId('preset-jazz'));
+    const stylesInput = screen.getByTestId('enhance-styles-input') as HTMLTextAreaElement;
+    expect(stylesInput.value).toBe(jazzPreset.caption);
+  });
+
+  it('clicking a preset updates the consistency toggle', () => {
+    renderCoverPanel();
+    fireEvent.click(screen.getByTestId('quick-styles-toggle'));
+    // Click orchestral which has high consistency
+    fireEvent.click(screen.getByTestId('preset-orchestral'));
+    const consistencyToggle = screen.getByTestId('enhance-consistency-toggle');
+    // The "high" button should be active
+    const highButton = consistencyToggle.querySelectorAll('button')[2];
+    expect(highButton.className).toContain('bg-teal-600');
+  });
+
+  it('Surprise Me button fills caption with a random preset', () => {
+    renderCoverPanel();
+    fireEvent.click(screen.getByTestId('quick-styles-toggle'));
+    fireEvent.click(screen.getByTestId('preset-surprise-me'));
+    const stylesInput = screen.getByTestId('enhance-styles-input') as HTMLTextAreaElement;
+    expect(stylesInput.value.length).toBeGreaterThan(0);
+  });
+
+  it('does not show Quick Styles in repaint mode', () => {
+    const { track, clip } = setupProjectWithClip();
+    useUIStore.setState({
+      enhancerOpen: true,
+      enhancerTarget: {
+        clipId: clip.id,
+        trackId: track.id,
+        range: { start: 2, end: 5 },
+        mode: 'repaint',
+      },
+    });
+    render(<EnhancePanel />);
+    expect(screen.queryByTestId('quick-styles-toggle')).not.toBeInTheDocument();
   });
 });
 
