@@ -7,6 +7,9 @@ interface ClipContextMenuProps {
   y: number;
   onClose: () => void;
 
+  /* Enhance (top-level) */
+  onEnhance?: () => void;
+
   /* AI Tools */
   onInspireMe: () => void;
   onAddLayer: () => void;
@@ -43,6 +46,7 @@ export function ClipContextMenu({
   x,
   y,
   onClose,
+  onEnhance,
   onInspireMe,
   onAddLayer,
   onMusicEnhancer,
@@ -69,6 +73,11 @@ export function ClipContextMenu({
 
   return (
     <ContextMenuWrapper x={x} y={y} onClose={onClose} minWidth={190}>
+      {/* Top-level Enhance entry */}
+      {onEnhance && (
+        <ContextMenuItem label="Enhance..." onClick={onEnhance} color="#6ee7b7" shortcut="⇧E" />
+      )}
+
       {/* AI Tools submenu */}
       <AIToolsSubmenu
         onInspireMe={onInspireMe}

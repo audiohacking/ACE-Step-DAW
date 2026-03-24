@@ -118,7 +118,6 @@ describe('ClipContextMenu AI Tools submenu', () => {
     renderMenu({
       clipAIContext: {
         onRegenerate: vi.fn(),
-        onEnhance: vi.fn(),
         onAnalyze: vi.fn(),
         hasPrompt: true,
         isReady: true,
@@ -128,7 +127,6 @@ describe('ClipContextMenu AI Tools submenu', () => {
     fireEvent.mouseEnter(trigger);
     act(() => { vi.advanceTimersByTime(100); });
     expect(screen.getByText('Regenerate')).toBeTruthy();
-    expect(screen.getByText('Enhance...')).toBeTruthy();
     expect(screen.getByText('Analyze Audio...')).toBeTruthy();
   });
 });

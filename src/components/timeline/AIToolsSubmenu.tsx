@@ -8,7 +8,6 @@ import {
 
 export interface ClipAIContext {
   onRegenerate?: () => void;
-  onEnhance?: () => void;
   onSeparateStems?: () => void;
   onGenerateAccompaniment?: () => void;
   onAnalyze?: () => void;
@@ -181,9 +180,6 @@ export function AIToolsSubmenu({
                       onClick={clipContext.onRegenerate}
                       disabled={!clipContext.hasPrompt}
                     />
-                  )}
-                  {clipContext.onEnhance && (
-                    <ContextMenuItem label="Enhance..." onClick={clipContext.onEnhance} color="#6ee7b7" />
                   )}
                   {clipContext.onSeparateStems && (
                     <ContextMenuItem label="Separate Stems..." onClick={clipContext.onSeparateStems} color="#7dd3fc" />

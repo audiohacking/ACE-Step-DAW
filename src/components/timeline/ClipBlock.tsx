@@ -1209,20 +1209,21 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
         const isVocalTrack = track.trackName === 'vocals' || track.trackName === 'backing_vocals';
         const hasWarpMarkers = !!(clip.warpMarkers && clip.warpMarkers.length > 0);
 
+        const handleEnhance = (!isMidiClip && isReady) ? () => {
+          closeCtxMenu();
+          let range: { start: number; end: number } | null = null;
+          if (selectWindow) {
+            const rs = Math.max(selectWindow.startTime, clip.startTime);
+            const re = Math.min(selectWindow.endTime, clip.startTime + clip.duration);
+            if (re > rs) range = { start: rs, end: re };
+          }
+          openEnhancer(clip.id, track.id, range);
+        } : undefined;
+
         const clipAIContext = (!isMidiClip && isReady) ? {
           onRegenerate: () => { closeCtxMenu(); regenerateClip(clip.id); },
           hasPrompt: !!clip.prompt,
           isReady,
-          onEnhance: () => {
-            closeCtxMenu();
-            let range: { start: number; end: number } | null = null;
-            if (selectWindow) {
-              const rs = Math.max(selectWindow.startTime, clip.startTime);
-              const re = Math.min(selectWindow.endTime, clip.startTime + clip.duration);
-              if (re > rs) range = { start: rs, end: re };
-            }
-            openEnhancer(clip.id, track.id, range);
-          },
           ...(hasAudio ? { onSeparateStems: () => { closeCtxMenu(); setStemSeparationModal(clip.id); } } : {}),
           ...(isVocalTrack ? { onGenerateAccompaniment: () => { closeCtxMenu(); setVocal2BGMModal(clip.id); } } : {}),
           onAnalyze: () => { closeCtxMenu(); setAnalysisPanel(clip.id); },
@@ -1243,6 +1244,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
             x={ctxMenu.x}
             y={ctxMenu.y}
             onClose={closeCtxMenu}
+            onEnhance={handleEnhance}
             onInspireMe={() => { closeCtxMenu(); useUIStore.getState().setShowGenerationPanel(true); }}
             onAddLayer={() => { closeCtxMenu(); useUIStore.getState().setAddLayerOpen(true); }}
             onMusicEnhancer={() => { closeCtxMenu(); openEnhancer(clip.id, track.id); }}

@@ -1220,6 +1220,7 @@ function buildCommandPaletteContext(state: UIState) {
       removeClip: projectStore.removeClip,
       setEditingClip: state.setEditingClip,
       deselectAll: state.deselectAll,
+      openEnhancer: state.openEnhancer,
     },
   };
 }
