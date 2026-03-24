@@ -487,6 +487,7 @@ function ProjectMenu({ disabled }: { disabled: boolean }) {
         data-testid="project-menu-trigger"
         className="flex h-9 w-9 items-center justify-center rounded-lg text-white transition-colors hover:bg-white/8 hover:text-white"
         title="Project menu"
+        aria-label="Project menu"
       >
         <svg width="20" height="20" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.45">
           <path d="M1.5 4.5L7 1.5l5.5 3M1.5 7l5.5 3 5.5-3M1.5 9.5l5.5 3 5.5-3" />
@@ -690,6 +691,7 @@ export function Toolbar() {
               : 'bg-transparent text-white/90 hover:bg-transparent hover:text-white'
           }`}
           title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
         >
           {isPlaying ? (
             <svg width="21" height="23" viewBox="0 0 12 14" fill="currentColor">
