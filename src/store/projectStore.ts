@@ -718,6 +718,8 @@ export interface ProjectState {
   freezeStrudelToMidi: (trackId: string, bars?: number) => Promise<Track | null>;
   /** Freeze strudel percussion into a sequencer track and visible timeline clip. */
   freezeStrudelToDrumMachine: (trackId: string, bars?: number, stepsPerBar?: number) => Promise<Track | null>;
+  /** Scaffold 4 coordinated strudel tracks from a genre template. */
+  scaffoldStrudelArrangement: (genre: string) => Promise<string[]>;
   /** Convert a MIDI clip to Strudel code without mutating the source clip. */
   convertMidiClipToStrudel: (clipId: string, options?: Partial<StrudelFromMidiOptions>) => Promise<StrudelFromMidiResult | null>;
   /** Convert all MIDI clips on a track to Strudel code without mutating the source track. */
@@ -5270,6 +5272,57 @@ export const useProjectStore = create<ProjectState>()(
     });
     set({ project: nextProject });
     return newTrack;
+  },
+
+  scaffoldStrudelArrangement: async (genre) => {
+    const state = get();
+    if (_isViewerMode()) return [];
+    if (!state.project) return [];
+
+    const { getArrangementTemplate } = await import('../services/strudelArrangement');
+    const template = getArrangementTemplate(genre);
+
+    _pushHistory(state.project, { scope: 'arrangement', label: `Scaffold strudel arrangement (${template.genre})` });
+
+    const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+    const genreLabel = capitalize(template.genre);
+
+    const roles: Array<{ role: string; code: string }> = [
+      { role: 'Drums', code: template.drums },
+      { role: 'Bass', code: template.bass },
+      { role: 'Chords', code: template.chords },
+      { role: 'Melody', code: template.melody },
+    ];
+
+    const trackIds: string[] = [];
+    let currentTracks = [...state.project.tracks];
+
+    for (const { role, code } of roles) {
+      const newTrack = createTrackFromTemplate(currentTracks, 'custom', 'strudel', {
+        displayName: `${genreLabel} ${role}`,
+        strudelCode: code,
+      });
+      currentTracks = [...currentTracks, newTrack];
+      trackIds.push(newTrack.id);
+    }
+
+    const bpm = state.project.bpm ?? 120;
+    const nextProject = ensureProjectSession({
+      ...state.project,
+      updatedAt: Date.now(),
+      totalDuration: computeTotalDuration(
+        currentTracks,
+        state.project.measures,
+        bpm,
+        state.project.timeSignature,
+        state.project.timeSignatureDenominator,
+        state.project.tempoMap,
+        state.project.timeSignatureMap,
+      ),
+      tracks: currentTracks,
+    });
+    set({ project: nextProject });
+    return trackIds;
   },
 
   convertMidiClipToStrudel: async (clipId, partialOptions) => {

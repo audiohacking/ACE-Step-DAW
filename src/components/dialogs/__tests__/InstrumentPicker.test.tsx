@@ -47,6 +47,8 @@ describe('InstrumentPicker', () => {
   it('does not show Strudel in the track type picker', () => {
     render(<InstrumentPicker />);
 
+    // Strudel was removed from the Add Track picker in Phase 2.
+    // Users access Strudel via the dedicated dock panel toggle instead.
     expect(screen.queryByText('Strudel')).not.toBeInTheDocument();
   });
 
