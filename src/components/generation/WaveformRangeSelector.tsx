@@ -164,8 +164,9 @@ export function WaveformRangeSelector({
   const isStereo = peaks.length >= PEAK_STRIDE && peaks.length % PEAK_STRIDE === 0;
   const logicalCount = isStereo ? peaks.length / PEAK_STRIDE : peaks.length;
 
-  const startPct = rangeStart * 100;
-  const endPct = rangeEnd * 100;
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
+  const startPct = Number.isFinite(rangeStart) ? rangeStart * 100 : 0;
+  const endPct = Number.isFinite(rangeEnd) ? rangeEnd * 100 : 100;
 
   return (
     <div className="select-none">
@@ -265,13 +266,13 @@ export function WaveformRangeSelector({
           className="absolute text-[9px] font-mono text-rose-300"
           style={{ left: `${Math.max(0, startPct)}%`, transform: 'translateX(-50%)' }}
         >
-          {fmt(rangeStart * duration)}
+          {fmt(rangeStart * safeDuration)}
         </span>
         <span
           className="absolute text-[9px] font-mono text-rose-300"
           style={{ left: `${Math.min(100, endPct)}%`, transform: 'translateX(-50%)' }}
         >
-          {fmt(rangeEnd * duration)}
+          {fmt(rangeEnd * safeDuration)}
         </span>
       </div>
     </div>

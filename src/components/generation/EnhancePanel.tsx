@@ -24,7 +24,8 @@ const CONSISTENCY_VALUES: Record<ConsistencyLevel, number> = {
 };
 
 function fmt(s: number) {
-  return `${s.toFixed(2)}s`;
+  const val = Number.isFinite(s) ? s : 0;
+  return `${val.toFixed(2)}s`;
 }
 
 function formatDuration(seconds: number): string {
@@ -118,8 +119,8 @@ export function EnhancePanel() {
       setCreateNew(true);
 
       // Repaint fields
-      const clipStart = clip.startTime;
-      const clipEnd = clip.startTime + clip.duration;
+      const clipStart = clip.startTime ?? 0;
+      const clipEnd = (clip.startTime ?? 0) + (clip.duration ?? 0);
       const rangeStart = enhancerTarget.range?.start ?? clipStart;
       const rangeEnd = enhancerTarget.range?.end ?? clipEnd;
       setSelStart(rangeStart);
@@ -692,7 +693,7 @@ export function EnhancePanel() {
                 </div>
                 <WaveformRangeSelector
                   peaks={sourcePeaks}
-                  duration={clip.duration}
+                  duration={clip.duration || 0}
                   rangeStart={clip.duration > 0 ? (selStart - clipStart) / clip.duration : 0}
                   rangeEnd={clip.duration > 0 ? (selEnd - clipStart) / clip.duration : 1}
                   onRangeChange={(s, e) => {
