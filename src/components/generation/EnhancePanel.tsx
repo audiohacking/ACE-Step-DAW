@@ -11,6 +11,7 @@ import { WaveformPreview } from './WaveformPreview';
 import { useEnhancePlayback } from '../../hooks/useEnhancePlayback';
 import { computeWaveformPeaks } from '../../utils/waveformPeaks';
 import type { RepaintMode } from '../../types/api';
+import { ENHANCE_PRESETS, surpriseMe } from '../../constants/enhancePresets';
 
 const ENHANCER_BASE_BOTTOM = 60;
 
@@ -94,6 +95,9 @@ export function EnhancePanel() {
 
   // Mini player selected index
   const [miniPlayerIdx, setMiniPlayerIdx] = useState(0);
+
+  // Quick Styles section
+  const [quickStylesOpen, setQuickStylesOpen] = useState(false);
 
   // Playback
   const playback = useEnhancePlayback();
@@ -572,6 +576,54 @@ export function EnhancePanel() {
                   rows={3}
                   className="w-full bg-[#161618] border border-[#333] rounded-lg px-3 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-teal-500/60 font-mono"
                 />
+              </div>
+
+              {/* Quick Styles presets */}
+              <div>
+                <button
+                  data-testid="quick-styles-toggle"
+                  onClick={() => setQuickStylesOpen((v) => !v)}
+                  className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-1 hover:text-zinc-300 transition-colors"
+                >
+                  <svg
+                    className={`w-3 h-3 transition-transform ${quickStylesOpen ? 'rotate-90' : ''}`}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Quick Styles
+                </button>
+                {quickStylesOpen && (
+                  <div data-testid="quick-styles-grid" className="flex flex-wrap gap-1.5 mb-2">
+                    {ENHANCE_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        data-testid={`preset-${preset.id}`}
+                        onClick={() => {
+                          setCaption(preset.caption);
+                          setConsistency(preset.consistency);
+                        }}
+                        className="px-2.5 py-1 rounded-full bg-[#2a2a2e] hover:bg-[#3a3a3e] text-[10px] text-zinc-300 transition-colors whitespace-nowrap border border-[#3a3a3a] hover:border-teal-500/40"
+                      >
+                        {preset.icon} {preset.label}
+                      </button>
+                    ))}
+                    <button
+                      data-testid="preset-surprise-me"
+                      onClick={() => {
+                        const result = surpriseMe();
+                        setCaption(result.caption);
+                        setConsistency(result.consistency);
+                      }}
+                      className="px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-600/30 to-pink-600/30 hover:from-purple-600/50 hover:to-pink-600/50 text-[10px] text-zinc-200 transition-all whitespace-nowrap border border-purple-500/30 hover:border-purple-400/60 font-medium"
+                    >
+                      {'\u{1F3B2}'} Surprise Me
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Styles (caption) */}
