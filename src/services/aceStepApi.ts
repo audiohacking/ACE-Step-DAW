@@ -177,11 +177,11 @@ export function modelSupportsTaskType(taskType: string): boolean {
  */
 export function inferModelCategory(model: { category?: ModelCategory; supported_task_types?: string[]; name?: string }): ModelCategory {
   if (model.category) return model.category;
-  if (model.supported_task_types?.includes('text2music')) return 'text2music';
-  if (model.supported_task_types?.includes('lego')) return 'lego';
-  // Fallback: if name contains hints, use them
+  // Name heuristic is checked before task types: base models all return both
+  // text2music and lego in supported_task_types, so the name is the only
+  // reliable signal to distinguish a dedicated lego model from a text2music one.
   if (model.name?.toLowerCase().includes('lego')) return 'lego';
-  // Default to text2music (the more general model)
+  if (model.supported_task_types?.includes('lego') && !model.supported_task_types?.includes('text2music')) return 'lego';
   return 'text2music';
 }
 

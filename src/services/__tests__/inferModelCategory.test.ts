@@ -25,10 +25,26 @@ describe('inferModelCategory', () => {
     expect(inferModelCategory({ name: 'mystery-model' })).toBe('text2music');
   });
 
-  it('prioritizes supported_task_types over name heuristic', () => {
+  it('prioritizes name heuristic over ambiguous supported_task_types', () => {
+    // When supported_task_types contains both text2music and lego,
+    // the name is the only reliable signal (base models all return both)
     expect(inferModelCategory({
       name: 'lego-model',
       supported_task_types: ['text2music', 'cover'],
+    })).toBe('lego');
+  });
+
+  it('classifies lego model correctly when task_types contain both text2music and lego', () => {
+    expect(inferModelCategory({
+      name: 'acestep-v15-lego-cover-repaint',
+      supported_task_types: ['text2music', 'repaint', 'cover', 'extract', 'lego', 'complete'],
+    })).toBe('lego');
+  });
+
+  it('classifies base text2music model correctly when task_types contain both', () => {
+    expect(inferModelCategory({
+      name: 'acestep-v15-base-4B-900k-sft-60k',
+      supported_task_types: ['text2music', 'repaint', 'cover', 'extract', 'lego', 'complete'],
     })).toBe('text2music');
   });
 });
