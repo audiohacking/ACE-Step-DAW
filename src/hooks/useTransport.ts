@@ -154,6 +154,7 @@ export function useTransport() {
     stopStrudelEditorPlayback();
     stopAllStrudelTracks();
     await engine.resume();
+    await Tone.start();
     await synthEngine.ensureStarted();
     await subtractiveEngine.ensureStarted();
     await samplerEngine.ensureStarted();
@@ -695,6 +696,7 @@ export function useTransport() {
     if (!scrubProject) return;
 
     await engine.resume();
+    await Tone.start();
     stopStrudelEditorPlayback();
     stopAllStrudelTracks();
     const resumePlayback = transport.isPlaying || engine.playing;
