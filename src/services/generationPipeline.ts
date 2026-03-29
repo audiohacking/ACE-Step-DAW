@@ -10,7 +10,7 @@ import {
 import { useModelStore } from '../store/modelStore';
 import { useUIStore } from '../store/uiStore';
 import type { LegoTaskParams, Text2MusicTaskParams, CoverTaskParams, RepaintTaskParams, RepaintMode, TaskResultEntry, TaskResultItem } from '../types/api';
-import type { InferredMetas } from '../types/project';
+import type { Clip, InferredMetas } from '../types/project';
 import * as api from './aceStepApi';
 import { generateSilenceWav } from './silenceGenerator';
 import { saveAudioBlob, loadAudioBlobByKey } from './audioFileManager';
@@ -25,6 +25,25 @@ import { computeEta } from '../utils/generationProgress';
 import { createDebugLogger } from '../utils/debugLogger';
 
 const logger = createDebugLogger('ace-step:generation');
+
+/**
+ * Resolve a clip's saved contextWindow to absolute project times.
+ * New format: relative offsets `{ offsetStart, offsetEnd, trackIds }`.
+ * Legacy format: absolute times `{ startTime, endTime }`.
+ */
+export function resolveContextWindow(clip: Clip): { startTime: number; endTime: number; trackIds: string[] } | null {
+  const saved = clip.generationParams?.contextWindow;
+  if (!saved) return null;
+  if ('offsetStart' in saved) {
+    return {
+      startTime: clip.startTime + saved.offsetStart,
+      endTime: clip.startTime + saved.offsetEnd,
+      trackIds: saved.trackIds,
+    };
+  }
+  // Legacy absolute format
+  return { startTime: saved.startTime, endTime: saved.endTime, trackIds: [] };
+}
 
 function extractProgressMetadata(entry: TaskResultEntry): { stage: string | null; progressPercent: number | null } {
   let stage: string | null = null;
@@ -72,6 +91,9 @@ export interface ClipInternalOptions {
   chunkMaskMode?: 'explicit' | 'auto';
   /** Override the default repainting range (clip.startTime → clip.startTime + clip.duration) */
   repaintRange?: { start: number; end: number };
+  /** Context window time range — when set, repainting_start/end and audio_duration
+   *  are made relative to ctxStart so the backend sees only the context region. */
+  contextWindow?: { startTime: number; endTime: number };
   /** Manual override for the backend guidance scale. */
   guidanceScaleOverride?: number;
   /** Manual override for inference steps. */
@@ -205,8 +227,22 @@ export async function regenerateClip(clipId: string): Promise<void> {
     genStore.setIsGenerating(true);
 
     try {
-      const previousBlob = await getPreviousCumulativeBlob(clipId);
-      const outcome = await generateClipInternal(clipId, previousBlob, {});
+      // If the clip was generated with a context window, re-extract the trimmed context
+      const resolvedCtx = clip ? resolveContextWindow(clip) : null;
+      let previousBlob: Blob | null;
+      const clipOpts: ClipInternalOptions = {};
+      if (resolvedCtx) {
+        previousBlob = await extractContextAudioLazy(resolvedCtx, { trimToContext: true });
+        clipOpts.contextWindow = resolvedCtx;
+        clipOpts.forceSilence = !previousBlob;
+      } else {
+        previousBlob = await getPreviousCumulativeBlob(clipId);
+      }
+      // Restore persisted chunkMaskMode
+      if (clip?.generationParams?.chunkMaskMode) {
+        clipOpts.chunkMaskMode = clip.generationParams.chunkMaskMode;
+      }
+      const outcome = await generateClipInternal(clipId, previousBlob, clipOpts);
 
       if (outcome.succeeded) {
         useProjectStore.getState().saveClipVersion(clipId);
@@ -334,9 +370,23 @@ export async function generateSingleClip(clipId: string, options?: { sharedSeed?
     genStore.setIsGenerating(true);
 
     try {
-      const previousBlob = await getPreviousCumulativeBlob(clipId);
+      const clip = useProjectStore.getState().getClipById(clipId);
+      const resolvedCtx = clip ? resolveContextWindow(clip) : null;
+      let previousBlob: Blob | null;
+      const clipOpts: ClipInternalOptions = options ? { sharedSeed: options.sharedSeed } : {};
+      if (resolvedCtx) {
+        previousBlob = await extractContextAudioLazy(resolvedCtx, { trimToContext: true });
+        clipOpts.contextWindow = resolvedCtx;
+        clipOpts.forceSilence = !previousBlob;
+      } else {
+        previousBlob = await getPreviousCumulativeBlob(clipId);
+      }
+      // Restore persisted chunkMaskMode
+      if (clip?.generationParams?.chunkMaskMode) {
+        clipOpts.chunkMaskMode = clip.generationParams.chunkMaskMode;
+      }
       logger.debug(`generateSingleClip: clip=${clipId}, previousBlob=${previousBlob ? `${previousBlob.size} bytes` : 'null'}`);
-      const outcome = await generateClipInternal(clipId, previousBlob, options ? { sharedSeed: options.sharedSeed } : {});
+      const outcome = await generateClipInternal(clipId, previousBlob, clipOpts);
 
       if (outcome.succeeded) {
         useProjectStore.getState().saveClipVersion(clipId);
@@ -612,8 +662,15 @@ async function generateClipInternal(
   store.updateClipStatus(clipId, 'queued', { generationJobId: jobId });
 
   try {
-    // Use actual audio duration (without timeline padding) for generation
-    const audioDuration = useProjectStore.getState().getAudioDuration();
+    // When a context window is provided, all times are relative to ctxStart
+    // so the backend only sees the context region (no leading silence).
+    const ctxOffset = options.contextWindow?.startTime ?? 0;
+    const ctxEnd = options.contextWindow?.endTime;
+
+    // Use context window duration if available, otherwise full project duration
+    const audioDuration = ctxEnd != null
+      ? ctxEnd - ctxOffset
+      : useProjectStore.getState().getAudioDuration();
 
     // Determine src_audio — prefer a server-side path (no upload), then
     // previous cumulative blob, then synthesized silence.
@@ -629,16 +686,27 @@ async function generateClipInternal(
         : `srcAudio: ${srcBlob ? 'previousCumulative' : 'silence'}`,
       `forceSilence=${options.forceSilence ?? false}`,
       `audioDuration=${audioDuration}s`,
+      ctxOffset > 0 ? `ctxOffset=${ctxOffset}s` : '',
     );
 
-    // Build instruction — detect chunk vs full mode based on whether the
-    // generation region covers the entire audio duration.  The backend's
-    // conditioning_text.py checks for "a segment" in the instruction to
-    // switch caption formatting (chunk omits Global: prefix).
+    // Build instruction — chunk mode ("a segment of") vs full mode.
+    // The backend's conditioning_text.py checks for "a segment" in the instruction
+    // to switch caption formatting (chunk = Local only, full = Global + Local).
+    //
+    // When a context window is present with explicit mask, always use chunk mode
+    // (the user is generating a segment within context). Only use full mode when
+    // there is no context window or the user explicitly chose "Whole song" (auto mask).
     const trackLabel = track.trackName.toUpperCase().replace('_', ' ');
-    const repaintStart = options.repaintRange?.start ?? clip.startTime;
-    const repaintEnd = options.repaintRange?.end ?? (clip.startTime + clip.duration);
-    const isChunkMode = repaintStart > 0.5 || repaintEnd < audioDuration - 0.5;
+    const repaintStart = (options.repaintRange?.start ?? clip.startTime) - ctxOffset;
+    const repaintEnd = (options.repaintRange?.end ?? (clip.startTime + clip.duration)) - ctxOffset;
+    // Determine chunk (segment) vs full mode:
+    // - "Whole song" (auto mask, no context) = full mode (needs Global caption)
+    // - Context window + explicit mask = always segment (even if selection covers all context)
+    // - No context + explicit = time-based heuristic (partial = segment, full = full)
+    const hasContextWindow = options.contextWindow != null;
+    const isChunkMode = options.chunkMaskMode === 'auto'
+      ? false  // "Whole song" = full mode
+      : hasContextWindow || (repaintStart >= 0.5 || repaintEnd <= audioDuration - 0.5);
     const instruction = isChunkMode
       ? `Generate a segment of the ${trackLabel} track based on the audio context:`
       : `Generate the ${trackLabel} track based on the audio context:`;
@@ -677,6 +745,17 @@ async function generateClipInternal(
       thinking: false, // lego is a pure DiT task — LM audio codes are out-of-distribution
       model: project.generationDefaults.model,
     } as LegoTaskParams;
+
+    // Always log critical generation params for debugging
+    console.log(
+      `[generateClip] audio_duration=${audioDuration}`,
+      `repainting=[${repaintStart.toFixed(2)}, ${repaintEnd.toFixed(2)}]`,
+      `isChunk=${isChunkMode}`,
+      `srcBlobSize=${srcAudioBlob.size}`,
+      `chunk_mask_mode=${options.chunkMaskMode ?? 'unset'}`,
+      `ctxOffset=${ctxOffset}`,
+      `instruction=${instruction}`,
+    );
 
     // Per-generation seed override from advanced params
     if (options.useRandomSeedOverride === false && options.seedOverride !== undefined) {
@@ -858,6 +937,8 @@ async function generateClipInternal(
     // it.  Since clipStart/clipDuration match the generation region, trimming to
     // the clip region extracts exactly the isolated track -- no wave subtraction
     // needed.
+    // When a context window was used, the backend audio spans [0, ctxDuration]
+    // and clip coordinates are relative to ctxStart. Trim using the same offset.
     const engine = getAudioEngine();
     const fullBuffer = await engine.decodeAudioData(cumulativeBlob);
 
@@ -866,9 +947,9 @@ async function generateClipInternal(
     const clipDuration = currentClip?.duration ?? clip.duration;
 
     const sampleRate = fullBuffer.sampleRate;
-    const startSample = Math.round(clipStart * sampleRate);
+    const startSample = Math.round((clipStart - ctxOffset) * sampleRate);
     const endSample = Math.min(
-      Math.round((clipStart + clipDuration) * sampleRate),
+      Math.round((clipStart - ctxOffset + clipDuration) * sampleRate),
       fullBuffer.length,
     );
     const trimmedLength = Math.max(1, endSample - startSample);
@@ -1024,8 +1105,22 @@ async function runVariationClip(
   _index: number,
   _report: (updates: VariationProgressUpdate) => void,
 ): Promise<VariationGenerationResult> {
-  const previousCumulativeBlob = await getPreviousCumulativeBlob(clipId);
-  const outcome = await generateClipInternal(clipId, previousCumulativeBlob);
+  const clip = useProjectStore.getState().getClipById(clipId);
+  const resolvedCtx = clip ? resolveContextWindow(clip) : null;
+  let previousCumulativeBlob: Blob | null;
+  const clipOpts: ClipInternalOptions = {};
+  if (resolvedCtx) {
+    previousCumulativeBlob = await extractContextAudioLazy(resolvedCtx, { trimToContext: true });
+    clipOpts.contextWindow = resolvedCtx;
+    clipOpts.forceSilence = !previousCumulativeBlob;
+  } else {
+    previousCumulativeBlob = await getPreviousCumulativeBlob(clipId);
+  }
+  // Restore persisted chunkMaskMode
+  if (clip?.generationParams?.chunkMaskMode) {
+    clipOpts.chunkMaskMode = clip.generationParams.chunkMaskMode;
+  }
+  const outcome = await generateClipInternal(clipId, previousCumulativeBlob, clipOpts);
   return {
     succeeded: outcome.succeeded,
     errorMessage: outcome.errorMessage,
@@ -1264,6 +1359,14 @@ export async function generateFromAddLayer(opts: AddLayerOptions): Promise<void>
 
       let clipId: string;
 
+      // Convert absolute context window to relative offsets for persistence
+      const clipStartTime = opts.startTime;
+      const savedCtxWindow = opts.contextWindow ? {
+        offsetStart: opts.contextWindow.startTime - clipStartTime,
+        offsetEnd: opts.contextWindow.endTime - clipStartTime,
+        trackIds: (opts.contextWindow as { trackIds?: string[] }).trackIds ?? [],
+      } : null;
+
       if (opts.clipId) {
         // Edit mode: reuse existing clip, update its params
         clipId = opts.clipId;
@@ -1276,7 +1379,8 @@ export async function generateFromAddLayer(opts: AddLayerOptions): Promise<void>
             prompt: opts.localDescription,
             lyrics: opts.lyrics,
             globalCaption: opts.globalCaption,
-            contextWindow: opts.contextWindow,
+            contextWindow: savedCtxWindow,
+            chunkMaskMode: opts.chunkMaskMode,
           },
         });
       } else {
@@ -1297,7 +1401,8 @@ export async function generateFromAddLayer(opts: AddLayerOptions): Promise<void>
             prompt: opts.localDescription,
             lyrics: opts.lyrics,
             globalCaption: opts.globalCaption,
-            contextWindow: opts.contextWindow,
+            contextWindow: savedCtxWindow,
+            chunkMaskMode: opts.chunkMaskMode,
           },
         });
       }
@@ -1307,9 +1412,45 @@ export async function generateFromAddLayer(opts: AddLayerOptions): Promise<void>
       }
 
       let contextBlob: Blob | null = null;
+      // The effective context window may be auto-padded below
+      let effectiveCtxWindow = opts.contextWindow;
 
-      if (opts.contextWindow) {
-        contextBlob = await extractContextAudioLazy(opts.contextWindow);
+      if (effectiveCtxWindow && opts.chunkMaskMode !== 'auto') {
+        // Auto-pad context window when repainting covers >= 95% of context duration.
+        // The model expects some preserved context around the repainting region;
+        // without padding, explicit mask = all 1s which is out-of-distribution.
+        const ctxDur = effectiveCtxWindow.endTime - effectiveCtxWindow.startTime;
+        const repaintDur = opts.duration;
+        if (ctxDur > 0 && repaintDur / ctxDur >= 0.95) {
+          const PAD_SECONDS = 1.0;
+          const paddedStart = Math.max(0, effectiveCtxWindow.startTime - PAD_SECONDS);
+          const audioDurationFull = useProjectStore.getState().getAudioDuration();
+          const paddedEnd = Math.min(audioDurationFull, effectiveCtxWindow.endTime + PAD_SECONDS);
+          // Only pad if it actually expands the window
+          if (paddedEnd - paddedStart > ctxDur + 0.1) {
+            toastInfo('Context window auto-padded to provide surrounding context for better generation quality');
+            effectiveCtxWindow = {
+              ...effectiveCtxWindow,
+              startTime: paddedStart,
+              endTime: paddedEnd,
+            };
+          }
+        }
+      }
+
+      if (effectiveCtxWindow) {
+        // trimToContext: blob spans [0, ctxDuration], no leading silence
+        contextBlob = await extractContextAudioLazy(effectiveCtxWindow, { trimToContext: true });
+        const ctxDur = effectiveCtxWindow.endTime - effectiveCtxWindow.startTime;
+        console.log(
+          `[AddLayer] contextBlob: size=${contextBlob?.size ?? 0}`,
+          `expectedDur=${ctxDur.toFixed(1)}s`,
+          `ctx=[${effectiveCtxWindow.startTime}, ${effectiveCtxWindow.endTime}]`,
+          `clipStart=${opts.startTime} clipDur=${opts.duration}`,
+          `chunkMaskMode=${opts.chunkMaskMode}`,
+        );
+      } else {
+        console.log(`[AddLayer] NO contextWindow, forceSilence=true`);
       }
 
       const outcome = await generateClipInternal(clipId, contextBlob, {
@@ -1318,6 +1459,7 @@ export async function generateFromAddLayer(opts: AddLayerOptions): Promise<void>
         globalCaptionOverride: opts.globalCaption,
         lyricsOverride: opts.lyrics,
         chunkMaskMode: opts.chunkMaskMode,
+        contextWindow: effectiveCtxWindow ?? undefined,
       });
 
       if (outcome.succeeded) {
@@ -1492,7 +1634,8 @@ export async function generateFromMultiTrack(opts: MultiTrackGenerateOptions): P
       let hasContextAudio = false;
       let contextBlob: Blob | null = null;
       if (opts.contextWindow) {
-        contextBlob = await extractContextAudioLazy(opts.contextWindow);
+        // trimToContext: blob spans [0, ctxDuration], no leading silence
+        contextBlob = await extractContextAudioLazy(opts.contextWindow, { trimToContext: true });
         hasContextAudio = contextBlob !== null && contextBlob.size > 44;
       }
       const mode = hasContextAudio ? 'context' : 'silence';
@@ -1548,6 +1691,7 @@ export async function generateFromMultiTrack(opts: MultiTrackGenerateOptions): P
           sharedSeed: opts.sharedSeed,
           lyricsOverride: lyrics,
           chunkMaskMode: opts.chunkMaskMode,
+          contextWindow: opts.contextWindow ?? undefined,
         };
         if (prevClipId) {
           const prevClip = useProjectStore.getState().getClipById(prevClipId);

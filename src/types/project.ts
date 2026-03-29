@@ -622,8 +622,18 @@ export interface ClipGenerationParams {
   globalCaption?: string;
   sampleMode?: boolean;
   autoExpandPrompt?: boolean;
-  /** Context window used for lego generation — persisted for edit/regenerate. */
-  contextWindow?: { startTime: number; endTime: number } | null;
+  /** Context window used for lego generation — persisted for edit/regenerate.
+   *  New format stores relative offsets + trackIds; legacy format has absolute startTime/endTime. */
+  contextWindow?: {
+    offsetStart: number;   // ctxStart - clip.startTime (typically negative)
+    offsetEnd: number;     // ctxEnd - clip.startTime
+    trackIds: string[];    // tracks that were in the context (for timeline visualization)
+  } | {
+    startTime: number;     // legacy absolute format
+    endTime: number;
+  } | null;
+  /** Chunk mask mode persisted for regeneration. */
+  chunkMaskMode?: 'explicit' | 'auto';
 }
 
 export interface Clip {

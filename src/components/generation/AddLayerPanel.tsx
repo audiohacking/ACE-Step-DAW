@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useGenerationStore } from '../../store/generationStore';
 import { useUIStore } from '../../store/uiStore';
-import { generateFromAddLayer } from '../../services/generationPipeline';
+import { generateFromAddLayer, resolveContextWindow } from '../../services/generationPipeline';
 import { extractContextAudioLazy } from '../../services/lazyContextAudioExtractor';
 import type { TrackName } from '../../types/project';
 import { TRACK_CATALOG, TRACK_NAMES } from '../../constants/tracks';
@@ -134,7 +134,7 @@ export function AddLayerPanel() {
   const [lyrics, setLyrics] = useState('');
   const [globalCaption, setGlobalCaption] = useState('');
 
-  const [chunkMaskMode, setChunkMaskMode] = useState<'auto' | 'explicit'>('auto');
+  const [chunkMaskMode, setChunkMaskMode] = useState<'auto' | 'explicit'>('explicit');
   const [seedValue, setSeedValue] = useState('');
   const [useRandomSeed, setUseRandomSeed] = useState(true);
 
@@ -302,13 +302,17 @@ export function AddLayerPanel() {
         setGlobalCaption(params?.globalCaption ?? clip.globalCaption ?? project?.globalCaption ?? '');
         setSeedValue(params?.seed !== undefined ? String(params.seed) : '');
         setUseRandomSeed(params?.useRandomSeed ?? true);
-        setChunkMaskMode('auto');
-        // Restore context window from saved generation params
-        if (params?.contextWindow) {
+        setChunkMaskMode('explicit');
+        // Restore context window from saved generation params (resolved to current clip position)
+        const resolvedCtx = resolveContextWindow(clip);
+        if (resolvedCtx) {
+          const allAudibleTrackIds = project!.tracks
+            .filter((t) => !t.muted && !t.isGroup)
+            .map((t) => t.id);
           useUIStore.getState().setContextWindow({
-            startTime: params.contextWindow.startTime,
-            endTime: params.contextWindow.endTime,
-            trackIds: [track.id],
+            startTime: resolvedCtx.startTime,
+            endTime: resolvedCtx.endTime,
+            trackIds: resolvedCtx.trackIds.length > 0 ? resolvedCtx.trackIds : allAudibleTrackIds,
           });
         }
         // Set select window to match clip range
@@ -326,7 +330,7 @@ export function AddLayerPanel() {
         setGlobalCaption(project?.globalCaption ?? '');
         setSeedValue('');
         setUseRandomSeed(true);
-        setChunkMaskMode('auto');
+        setChunkMaskMode('explicit');
       }
       setSavedSelectionBeforeWholeSong(null);
       setPanelPosition(null);
@@ -395,10 +399,10 @@ export function AddLayerPanel() {
     if (!contextWindow) return;
     setPreviewState('loading');
     try {
-      const blob = await extractContextAudioLazy(contextWindow);
+      // trimToContext: blob spans [0, ctxDuration] with no leading silence
+      const blob = await extractContextAudioLazy(contextWindow, { trimToContext: true });
       if (!blob) { setPreviewState('idle'); return; }
 
-      // Extract waveform peaks for visualization
       const peaks = await extractPeaks(blob, 80);
       setWaveformPeaks(peaks);
 
@@ -429,9 +433,9 @@ export function AddLayerPanel() {
     if (!previewDuration || previewState === 'idle') return;
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const t = ratio * previewDuration;
-    if (previewAudioRef.current) previewAudioRef.current.currentTime = t;
-    setPreviewCurrentTime(t);
+    const relativeT = ratio * previewDuration;
+    if (previewAudioRef.current) previewAudioRef.current.currentTime = relativeT;
+    setPreviewCurrentTime(relativeT);
   }, [previewDuration, previewState]);
 
   // Draggable selection mask on the context waveform
@@ -530,6 +534,7 @@ export function AddLayerPanel() {
     const barWidth = Math.max(1, (w / barCount) - 1);
     const gap = 1;
     const maxPeak = Math.max(...waveformPeaks, 0.01);
+    // previewCurrentTime and previewDuration are both context-relative (start at 0)
     const progress = previewDuration > 0 ? previewCurrentTime / previewDuration : 0;
 
     // Draw dim bars outside selection, bright bars inside
@@ -587,12 +592,14 @@ export function AddLayerPanel() {
       wholeSongSelection.targetRowIndex = selectWindow.targetRowIndex;
     }
     useUIStore.getState().setSelectWindow(wholeSongSelection);
+    setChunkMaskMode('auto');
   };
 
   const handleRestorePreviousWindow = () => {
     if (!savedSelectionBeforeWholeSong) return;
     useUIStore.getState().setSelectWindow(savedSelectionBeforeWholeSong);
     setSavedSelectionBeforeWholeSong(null);
+    setChunkMaskMode('explicit');
   };
 
   const handleGenerate = async () => {
@@ -604,18 +611,11 @@ export function AddLayerPanel() {
       // Edit mode: reuse existing track, update clip params
       trackId = editingClip.track.id;
       if (style) setTrackLocalCaption(trackId, style);
-      // Update clip with new params before regenerating
+      // Update clip text params — contextWindow is persisted by generateFromAddLayer
       useProjectStore.getState().updateClip(editingClip.clip.id, {
         prompt: style,
         globalCaption,
         lyrics: showLyrics ? lyrics : '',
-        generationParams: {
-          type: 'lego',
-          prompt: style,
-          lyrics: showLyrics ? lyrics : '',
-          globalCaption,
-          contextWindow: hasContext ? { startTime: contextWindow!.startTime, endTime: contextWindow!.endTime } : null,
-        },
       });
     } else {
       // New layer mode: create or find target track
