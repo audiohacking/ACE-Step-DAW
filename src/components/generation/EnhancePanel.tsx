@@ -266,6 +266,53 @@ export function EnhancePanel() {
     setSelEnd(e);
   }, []);
 
+  // After generation, load the new clip's audio to compute peaks and duration
+  const finalizeResult = useCallback(async (resultId: string, originalClipId: string, newClipId?: string) => {
+    // The generation pipeline may create a new clip (createNew) or update the existing one.
+    // When newClipId is provided (returned from the pipeline), use it directly.
+    // Otherwise fall back to searching the track for the newest ready clip.
+    const store = useProjectStore.getState();
+    const targetId = newClipId ?? originalClipId;
+    let updatedClip = store.getClipById(targetId);
+    let audioKey = updatedClip?.isolatedAudioKey || updatedClip?.cumulativeMixKey || '';
+
+    if (!audioKey && !newClipId && enhancerTarget) {
+      // Fallback: When createNew=true and no newClipId was returned, search the track.
+      const track = store.project?.tracks.find((t) => t.id === enhancerTarget.trackId);
+      if (track) {
+        const readyClip = [...track.clips]
+          .reverse()
+          .find((c) => c.id !== originalClipId && (c.isolatedAudioKey || c.cumulativeMixKey));
+        if (readyClip) {
+          updatedClip = readyClip;
+          audioKey = readyClip.isolatedAudioKey || readyClip.cumulativeMixKey || '';
+        }
+      }
+    }
+    if (!audioKey) return;
+
+    try {
+      const buffer = await playback.loadBuffer(audioKey);
+      if (!buffer) return;
+      const peaks = computeWaveformPeaks(buffer, 60);
+      const dur = buffer.duration;
+      const finalClipId = updatedClip?.id ?? originalClipId;
+      setResults((prev) => prev.map((r) =>
+        r.id === resultId
+          ? { ...r, clipId: finalClipId, audioKey, peaks, duration: formatDuration(dur), durationSec: dur }
+          : r,
+      ));
+      // Auto-select first result
+      setSelectedResultId((prev) => prev ?? resultId);
+      setMiniPlayerIdx((prev) => {
+        if (prev === 0) return Math.max(0, results.length); // point to new entry
+        return prev;
+      });
+    } catch {
+      // Audio decode failed — leave duration as --:--
+    }
+  }, [playback, results.length, enhancerTarget]);
+
   // Cover generation
   const handleCoverGenerate = useCallback(async () => {
     if (!enhancerTarget || isGenerating) return;
@@ -281,16 +328,17 @@ export function EnhancePanel() {
       peaks: [],
       timestamp: Date.now(),
     }]);
-    await generateCoverClip({
+    const newClipId = await generateCoverClip({
       clipId: enhancerTarget.clipId,
       caption,
       lyrics,
       coverStrength,
       createNew,
+      sourceAudioOverride: chainedSourceAudioKey || undefined,
     });
     // After generation, try to load the result audio to get peaks/duration
-    await finalizeResult(resultId, enhancerTarget.clipId);
-  }, [enhancerTarget, caption, lyrics, consistency, createNew, isGenerating]);
+    await finalizeResult(resultId, enhancerTarget.clipId, newClipId);
+  }, [enhancerTarget, caption, lyrics, consistency, createNew, isGenerating, chainedSourceAudioKey, finalizeResult]);
 
   // Repaint generation
   const handleRepaintGenerate = useCallback(async () => {
@@ -306,7 +354,7 @@ export function EnhancePanel() {
       peaks: [],
       timestamp: Date.now(),
     }]);
-    await generateRepaintClip({
+    const newClipId = await generateRepaintClip({
       clipId: enhancerTarget.clipId,
       repaintStart: selStart,
       repaintEnd: selEnd,
@@ -314,38 +362,10 @@ export function EnhancePanel() {
       globalCaption: globalCaption || undefined,
       repaintMode,
       repaintStrength,
+      sourceAudioOverride: chainedSourceAudioKey || undefined,
     });
-    await finalizeResult(resultId, enhancerTarget.clipId);
-  }, [enhancerTarget, selStart, selEnd, prompt, globalCaption, repaintMode, repaintStrength, isGenerating]);
-
-  // After generation, load the new clip's audio to compute peaks and duration
-  const finalizeResult = useCallback(async (resultId: string, originalClipId: string) => {
-    // The generation pipeline creates a new clip or updates the existing one
-    // Re-read the clip from the store to get the new audio key
-    const updatedClip = useProjectStore.getState().getClipById(originalClipId);
-    const audioKey = updatedClip?.isolatedAudioKey || updatedClip?.cumulativeMixKey || '';
-    if (!audioKey) return;
-
-    try {
-      const buffer = await playback.loadBuffer(audioKey);
-      if (!buffer) return;
-      const peaks = computeWaveformPeaks(buffer, 60);
-      const dur = buffer.duration;
-      setResults((prev) => prev.map((r) =>
-        r.id === resultId
-          ? { ...r, audioKey, peaks, duration: formatDuration(dur), durationSec: dur }
-          : r,
-      ));
-      // Auto-select first result
-      setSelectedResultId((prev) => prev ?? resultId);
-      setMiniPlayerIdx((prev) => {
-        if (prev === 0) return Math.max(0, results.length); // point to new entry
-        return prev;
-      });
-    } catch {
-      // Audio decode failed — leave duration as --:--
-    }
-  }, [playback, results.length]);
+    await finalizeResult(resultId, enhancerTarget.clipId, newClipId);
+  }, [enhancerTarget, selStart, selEnd, prompt, globalCaption, repaintMode, repaintStrength, isGenerating, chainedSourceAudioKey, finalizeResult]);
 
   const handleGenerate = mode === 'cover' ? handleCoverGenerate : handleRepaintGenerate;
 
