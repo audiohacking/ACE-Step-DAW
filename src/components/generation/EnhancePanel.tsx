@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useGenerationStore } from '../../store/generationStore';
-import { useUIStore, getBottomPanelHeight } from '../../store/uiStore';
+import { useUIStore, getBottomPanelHeight, isAnyModalOpen } from '../../store/uiStore';
 import { generateCoverClip } from '../../services/generationPipeline';
 import { generateRepaintClip } from '../../services/generationPipeline';
 import { modelSupportsTaskType, isModelInventoryLoaded, isModelReady } from '../../services/aceStepApi';
@@ -248,6 +248,8 @@ export function EnhancePanel() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // Don't close if a modal-level dialog is open on top of us
+        if (isAnyModalOpen()) return;
         e.stopPropagation();
         closeEnhancer();
         return;
@@ -518,6 +520,8 @@ export function EnhancePanel() {
   // No-selection guidance screen
   if (!enhancerTarget) {
     return (
+      <>
+      <div data-testid="enhance-backdrop" role="presentation" className="fixed inset-0 bg-black/30" style={{ zIndex: Z.panel - 1 }} onClick={closeEnhancer} />
       <div
         ref={panelRef}
         data-testid="enhance-panel"
@@ -551,6 +555,7 @@ export function EnhancePanel() {
           </button>
         </div>
       </div>
+      </>
     );
   }
 
@@ -585,6 +590,8 @@ export function EnhancePanel() {
   const miniProgress = miniIsPlaying ? playback.progress : 0;
 
   return (
+    <>
+    <div data-testid="enhance-backdrop" role="presentation" className="fixed inset-0 bg-black/30" style={{ zIndex: Z.panel - 1 }} onClick={closeEnhancer} />
     <div
       ref={panelRef}
       data-testid="enhance-panel"
@@ -1207,5 +1214,6 @@ export function EnhancePanel() {
         )}
       </div>
     </div>
+    </>
   );
 }
