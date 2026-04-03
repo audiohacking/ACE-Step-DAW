@@ -12,16 +12,16 @@ describe('limiterCurve', () => {
       const ceiling = -0.3;
       const pts = generateLimiterCurve(ceiling, 12, 'aggressive');
       for (const p of pts) {
-        expect(p.outputDb).toBeLessThanOrEqual(ceiling + 0.01);
+        expect(p.y).toBeLessThanOrEqual(ceiling + 0.01);
       }
     });
 
     it('below threshold, output equals input + gain', () => {
       const pts = generateLimiterCurve(0, 0, 'transparent', -48, 6, 200);
       // Well below ceiling, output should track input
-      const lowPt = pts.find((p) => p.inputDb === -48);
+      const lowPt = pts.find((p) => p.x === -48);
       expect(lowPt).toBeDefined();
-      expect(lowPt!.outputDb).toBeCloseTo(-48, 0);
+      expect(lowPt!.y).toBeCloseTo(-48, 0);
     });
 
     it('gain shifts the transfer curve', () => {
@@ -29,29 +29,32 @@ describe('limiterCurve', () => {
       const withGain = generateLimiterCurve(-0.3, 6, 'transparent');
       // At a low input level, gained output should be higher
       const idx = 10;
-      expect(withGain[idx].outputDb).toBeGreaterThan(noGain[idx].outputDb);
+      expect(withGain[idx].y).toBeGreaterThan(noGain[idx].y);
     });
 
-    it('warm style has softer knee than aggressive', () => {
+    it('warm and aggressive styles produce different curves', () => {
       const warm = generateLimiterCurve(-1, 6, 'warm');
       const aggressive = generateLimiterCurve(-1, 6, 'aggressive');
-      // Near the threshold, warm should have a more gradual transition
-      // Find a point near ceiling where they differ
-      const nearCeiling = warm.findIndex((p) => p.inputDb + 6 > -1);
-      if (nearCeiling > 0 && nearCeiling < warm.length - 1) {
-        // Warm should output slightly higher (less aggressive limiting) just below ceiling
-        const wVal = warm[nearCeiling - 2].outputDb;
-        const aVal = aggressive[nearCeiling - 2].outputDb;
-        // Both should be similar but warm transitions more gently
-        expect(Math.abs(wVal - aVal)).toBeLessThan(5);
+
+      // Both should have the same number of points
+      expect(warm).toHaveLength(aggressive.length);
+
+      // They should differ in the knee/limiting region
+      let hasDifference = false;
+      for (let i = 0; i < warm.length; i++) {
+        if (Math.abs(warm[i].y - aggressive[i].y) > 0.01) {
+          hasDifference = true;
+          break;
+        }
       }
+      expect(hasDifference).toBe(true);
     });
 
     it('all styles limit to ceiling', () => {
       for (const style of ['transparent', 'aggressive', 'warm'] as const) {
         const pts = generateLimiterCurve(-0.5, 12, style);
         const lastPt = pts[pts.length - 1];
-        expect(lastPt.outputDb).toBeLessThanOrEqual(-0.5 + 0.01);
+        expect(lastPt.y).toBeLessThanOrEqual(-0.5 + 0.01);
       }
     });
 
@@ -60,7 +63,7 @@ describe('limiterCurve', () => {
         const gain = 6;
         const pts = generateLimiterCurve(-0.3, gain, style);
         for (const p of pts) {
-          expect(p.outputDb).toBeLessThanOrEqual(p.inputDb + gain + 0.01);
+          expect(p.y).toBeLessThanOrEqual(p.x + gain + 0.01);
         }
       }
     });
