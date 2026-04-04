@@ -79,8 +79,8 @@ export type SamplerPlaybackMode = 'classic' | 'oneShot' | 'loop';
  * - 'slice': uses warp markers
  * - 'beats': transient-preserving slice for rhythmic material
  * - 'tones': WSOLA for monophonic sources
- * - 'complex': phase vocoder with identity phase locking
- * - 'complexPro': phase vocoder + transient preservation
+ * - 'complex': spectral/phase-vocoder-style stretching for general material
+ * - 'complexPro': enhanced spectral stretching for mixed or full-range material
  * - 'texture': granular synthesis for ambient/pad material
  */
 export type StretchMode = 'repitch' | 'slice' | 'beats' | 'tones' | 'complex' | 'complexPro' | 'texture';

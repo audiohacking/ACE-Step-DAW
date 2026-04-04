@@ -843,7 +843,9 @@ export class AudioEngine {
     clip: ClipScheduleInfo,
   ): AudioBuffer | null {
     const mode = clip.stretchMode;
-    const rate = clip.timeStretchRate ?? 1;
+    const rawRate = clip.timeStretchRate ?? 1;
+    // Validate rate: must be finite and within safe range
+    const rate = Number.isFinite(rawRate) ? Math.max(0.25, Math.min(4, rawRate)) : 1;
     if (!mode || mode === 'repitch' || mode === 'slice' || Math.abs(rate - 1) < 0.001) {
       return null;
     }

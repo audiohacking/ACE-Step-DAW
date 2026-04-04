@@ -294,6 +294,7 @@ export function useTransport() {
               audioOffset: loopAudioOffset,
               clipDuration: loopClipDuration,
               timeStretchRate: clip.timeStretchRate,
+              stretchMode: clip.stretchMode,
               gainEnvelope: clip.gainEnvelope,
             });
             loopIndex += 1;

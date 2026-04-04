@@ -8,7 +8,7 @@
  * Plus material-aware modes:
  * - beats:      Transient slicing → time-domain reassembly
  * - tones:      WSOLA for monophonic sources
- * - complex:    Phase vocoder with identity phase locking
+ * - complex:    Basic phase vocoder with per-bin phase propagation
  * - complexPro: Phase vocoder + transient preservation
  * - texture:    Granular synthesis for ambient/pad material
  *
@@ -23,10 +23,8 @@ export interface TimeStretchOptions {
   mode: TimeStretchMode;
   /** Stretch ratio: >1 = slower, <1 = faster. 1 = no change. */
   ratio: number;
-  /** FFT size for phase vocoder modes (default: 4096) */
+  /** FFT size for phase vocoder modes (default: 4096, must be power of 2) */
   fftSize?: number;
-  /** Hop size override. Default: fftSize/4 */
-  hopSize?: number;
   /** Sample rate (default: 48000) */
   sampleRate?: number;
 }
@@ -120,17 +118,19 @@ export function phaseVocoderStretch(
       const mag = Math.sqrt(fftReal[k] * fftReal[k] + fftImag[k] * fftImag[k]);
       const phase = Math.atan2(fftImag[k], fftReal[k]);
 
-      // Phase difference from previous frame
-      let phaseDiff = phase - prevAnalysisPhase[k] - expectedPhaseAdvance[k];
-
-      // Wrap to [-π, π]
-      phaseDiff = phaseDiff - 2 * Math.PI * Math.round(phaseDiff / (2 * Math.PI));
-
-      // True frequency deviation
-      const trueFreq = expectedPhaseAdvance[k] + phaseDiff;
-
-      // Propagate phase for synthesis
-      prevSynthesisPhase[k] += trueFreq * (synthesisHop / analysisHop);
+      if (frame === 0) {
+        // First frame: initialize phase directly (no difference to compute)
+        prevSynthesisPhase[k] = phase;
+      } else {
+        // Phase difference from previous frame
+        let phaseDiff = phase - prevAnalysisPhase[k] - expectedPhaseAdvance[k];
+        // Wrap to [-π, π]
+        phaseDiff -= 2 * Math.PI * Math.round(phaseDiff / (2 * Math.PI));
+        // True frequency deviation
+        const trueFreq = expectedPhaseAdvance[k] + phaseDiff;
+        // Propagate phase for synthesis
+        prevSynthesisPhase[k] += trueFreq * (synthesisHop / analysisHop);
+      }
       prevAnalysisPhase[k] = phase;
 
       // Reconstruct with new phase
@@ -297,26 +297,18 @@ function beatsStretch(input: Float32Array, ratio: number, sampleRate: number): F
 
     if (targetLen <= 0 || sliceLen <= 0) continue;
 
-    // Copy slice to target position
-    // If target is longer, we just have silence after the slice
-    // If target is shorter, we truncate
+    // Overlap-add slice to target position with crossfades
     const copyLen = Math.min(sliceLen, targetLen);
+    const fadeLen = Math.min(64, Math.floor(copyLen / 4));
     for (let j = 0; j < copyLen; j++) {
       const outIdx = targetStart + j;
       if (outIdx < outputLen && sliceStart + j < input.length) {
-        output[outIdx] = input[sliceStart + j];
-      }
-    }
-
-    // Apply short crossfade at slice boundaries
-    const fadeLen = Math.min(64, copyLen / 4);
-    if (i > 0 && targetStart > 0) {
-      for (let j = 0; j < fadeLen; j++) {
-        const t = j / fadeLen;
-        const outIdx = targetStart + j;
-        if (outIdx < outputLen) {
-          output[outIdx] *= t; // fade in
-        }
+        let gain = 1;
+        // Fade in at start of slice
+        if (j < fadeLen) gain *= j / fadeLen;
+        // Fade out at end of slice
+        if (j > copyLen - fadeLen) gain *= (copyLen - j) / fadeLen;
+        output[outIdx] += input[sliceStart + j] * gain;
       }
     }
   }
@@ -388,7 +380,15 @@ function textureStretch(
  * @returns           Time-stretched output samples
  */
 export function timeStretch(input: Float32Array, options: TimeStretchOptions): Float32Array {
-  const { mode, ratio, fftSize = 4096, sampleRate = 48000 } = options;
+  const { mode, sampleRate = 48000 } = options;
+
+  // Validate and clamp ratio to prevent infinite loops / huge allocations
+  const rawRatio = Number.isFinite(options.ratio) ? options.ratio : 1;
+  const ratio = Math.max(0.25, Math.min(4, rawRatio));
+
+  // Coerce fftSize to power of 2 (required by FFT)
+  const rawFft = options.fftSize ?? 4096;
+  const fftSize = 2 ** Math.round(Math.log2(Math.max(256, rawFft)));
 
   if (Math.abs(ratio - 1) < 0.001) return new Float32Array(input);
   if (input.length < 256) return new Float32Array(input);
