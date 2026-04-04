@@ -73,8 +73,17 @@ export interface UnisonSettings {
 
 export type DrumKitName = '808' | 'acoustic' | 'electronic' | 'lofi';
 export type SamplerPlaybackMode = 'classic' | 'oneShot' | 'loop';
-/** Time-stretch algorithm mode. 'repitch' uses playbackRate (changes pitch), 'slice' uses warp markers. */
-export type StretchMode = 'repitch' | 'slice';
+/**
+ * Time-stretch algorithm mode.
+ * - 'repitch': uses playbackRate (changes pitch)
+ * - 'slice': uses warp markers
+ * - 'beats': transient-preserving slice for rhythmic material
+ * - 'tones': WSOLA for monophonic sources
+ * - 'complex': phase vocoder with identity phase locking
+ * - 'complexPro': phase vocoder + transient preservation
+ * - 'texture': granular synthesis for ambient/pad material
+ */
+export type StretchMode = 'repitch' | 'slice' | 'beats' | 'tones' | 'complex' | 'complexPro' | 'texture';
 export type PianoRollGrid = '1/4' | '1/8' | '1/16' | '1/32';
 export type StrudelMidiNotationType = 'absolute' | 'relative';
 export type StrudelMidiTimingStyle = 'subdivision' | 'absoluteDuration';
