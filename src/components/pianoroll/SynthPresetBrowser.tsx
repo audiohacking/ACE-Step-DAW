@@ -223,11 +223,18 @@ export function SynthPresetBrowser({
           <div className="p-2 border-b border-[#333]">
             <input
               type="text"
-              placeholder="Search presets..."
+              placeholder="Search presets... (Tab for arrow keys)"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setSelectedCategory(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown' && filteredPresets && filteredPresets.length > 0) {
+                  e.preventDefault();
+                  setFocusedIndex(0);
+                  listRef.current?.focus();
+                }
               }}
               className="w-full bg-[#111] border border-[#333] rounded px-2 py-1 text-[11px] text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-[#555]"
               autoFocus
@@ -321,7 +328,7 @@ export function SynthPresetBrowser({
                       className={`shrink-0 w-4 h-4 flex items-center justify-center rounded-sm transition-colors ${
                         preview.isPlaying && preview.activePresetId === preset.id
                           ? 'text-blue-400'
-                          : 'text-zinc-600 hover:text-zinc-300 opacity-0 group-hover:opacity-100'
+                          : 'text-zinc-600 hover:text-zinc-300'
                       }`}
                       aria-label={`Preview ${preset.name}`}
                     >

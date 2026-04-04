@@ -4,7 +4,7 @@
  * Provides hover-to-preview (300ms delay), click-to-preview, volume control,
  * auto-stop on mouse leave, and keyboard support.
  */
-import { useCallback, useRef, useEffect, useState } from 'react';
+import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { previewEngine } from '../engine/PreviewEngine';
 import { useProjectStore } from '../store/projectStore';
 
@@ -27,18 +27,23 @@ export function usePresetPreview(options: UsePresetPreviewOptions = {}) {
   const [volume, setVolume] = useState(previewEngine.volume);
   const activePresetRef = useRef<string | null>(null);
 
-  const getBpm = useCallback(() => {
-    return useProjectStore.getState().project?.bpm ?? 120;
+  const getProjectSettings = useCallback(() => {
+    const project = useProjectStore.getState().project;
+    return {
+      bpm: project?.bpm ?? 120,
+      keyScale: project?.keyScale ?? 'C major',
+    };
   }, []);
 
   const play = useCallback((presetId: string, info: PresetPreviewInfo) => {
     activePresetRef.current = presetId;
     setIsPlaying(true);
-    previewEngine.playPresetPreview(info.instrumentKind, info.category, getBpm()).then(() => {
+    const { bpm, keyScale } = getProjectSettings();
+    previewEngine.playPresetPreview(info.instrumentKind, info.category, bpm, keyScale).then(() => {
       // Check if we're still supposed to be playing this preset
       // (another preview may have started since)
     });
-  }, [getBpm]);
+  }, [getProjectSettings]);
 
   const stop = useCallback(() => {
     if (hoverTimerRef.current) {
@@ -101,7 +106,7 @@ export function usePresetPreview(options: UsePresetPreviewOptions = {}) {
     };
   }, []);
 
-  return {
+  return useMemo(() => ({
     isPlaying,
     activePresetId: activePresetRef.current,
     volume,
@@ -111,5 +116,5 @@ export function usePresetPreview(options: UsePresetPreviewOptions = {}) {
     handlePresetHoverStart,
     handlePresetHoverEnd,
     handlePresetClick,
-  };
+  }), [isPlaying, volume, play, stop, changeVolume, handlePresetHoverStart, handlePresetHoverEnd, handlePresetClick]);
 }

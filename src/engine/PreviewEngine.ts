@@ -171,6 +171,34 @@ export function getPatternForCategory(category: string): PreviewPattern {
 }
 
 // ---------------------------------------------------------------------------
+// Key transposition — shift patterns from C to the project key
+// ---------------------------------------------------------------------------
+
+const KEY_SEMITONES: Record<string, number> = {
+  C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3,
+  E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8,
+  A: 9, 'A#': 10, Bb: 10, B: 11,
+};
+
+/** Parse "C major", "A minor", "F# major" etc. and return semitone offset from C. */
+export function getTransposeSemitones(keyScale: string): number {
+  const match = keyScale.match(/^([A-G][#b]?)/);
+  if (!match) return 0;
+  return KEY_SEMITONES[match[1]] ?? 0;
+}
+
+function transposePattern(pattern: PreviewPattern, semitones: number): PreviewPattern {
+  if (semitones === 0) return pattern;
+  return {
+    ...pattern,
+    notes: pattern.notes.map((n) => ({
+      ...n,
+      pitch: Math.max(0, Math.min(127, n.pitch + semitones)),
+    })),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Preview synth factory
 // ---------------------------------------------------------------------------
 
@@ -244,11 +272,14 @@ export class PreviewEngine {
     instrumentKind: 'subtractive' | 'fm' | 'wavetable',
     category: string,
     bpm: number,
+    keyScale = 'C major',
   ): Promise<void> {
     this.stop();
     await Tone.start();
 
-    const pattern = getPatternForCategory(category);
+    const basePattern = getPatternForCategory(category);
+    const semitones = getTransposeSemitones(keyScale);
+    const pattern = transposePattern(basePattern, semitones);
     const secondsPerBeat = 60 / bpm;
 
     // Create dedicated synth for preview

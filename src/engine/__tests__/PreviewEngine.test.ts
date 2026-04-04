@@ -49,6 +49,7 @@ import {
   type PreviewPattern,
   PREVIEW_PATTERNS,
   getPatternForCategory,
+  getTransposeSemitones,
 } from '../PreviewEngine';
 
 describe('PreviewEngine', () => {
@@ -149,6 +150,28 @@ describe('PreviewEngine', () => {
       // At 90 BPM, a quarter note = 60/90 = 0.667s
       expect(engine.isPlaying).toBe(true);
     });
+  });
+});
+
+describe('getTransposeSemitones', () => {
+  it('returns 0 for C major', () => {
+    expect(getTransposeSemitones('C major')).toBe(0);
+  });
+
+  it('returns correct semitones for sharp keys', () => {
+    expect(getTransposeSemitones('D major')).toBe(2);
+    expect(getTransposeSemitones('F# minor')).toBe(6);
+    expect(getTransposeSemitones('A minor')).toBe(9);
+  });
+
+  it('returns correct semitones for flat keys', () => {
+    expect(getTransposeSemitones('Bb major')).toBe(10);
+    expect(getTransposeSemitones('Eb minor')).toBe(3);
+  });
+
+  it('returns 0 for invalid key', () => {
+    expect(getTransposeSemitones('')).toBe(0);
+    expect(getTransposeSemitones('invalid')).toBe(0);
   });
 });
 
