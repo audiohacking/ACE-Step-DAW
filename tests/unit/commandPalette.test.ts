@@ -223,19 +223,18 @@ describe('commandPalette', () => {
     const context = createContext();
     const allCommands = buildCommandPaletteCommands(context);
     const playCommand = allCommands.find((c) => c.id === 'transport:play-pause');
+    expect(playCommand).toBeDefined();
 
-    if (playCommand) {
-      const withRecent = searchCommandPaletteCommands('play', allCommands, [playCommand.id]);
-      const withoutRecent = searchCommandPaletteCommands('play', allCommands, []);
+    const withRecent = searchCommandPaletteCommands('play', allCommands, [playCommand!.id]);
+    const withoutRecent = searchCommandPaletteCommands('play', allCommands, []);
 
-      const recentResult = withRecent.find((r) => r.id === playCommand.id);
-      const nonRecentResult = withoutRecent.find((r) => r.id === playCommand.id);
+    const recentResult = withRecent.find((r) => r.id === playCommand!.id);
+    const nonRecentResult = withoutRecent.find((r) => r.id === playCommand!.id);
 
-      if (recentResult && nonRecentResult) {
-        expect(recentResult.score).toBeGreaterThan(nonRecentResult.score);
-        expect(recentResult.isRecent).toBe(true);
-      }
-    }
+    expect(recentResult).toBeDefined();
+    expect(nonRecentResult).toBeDefined();
+    expect(recentResult!.score).toBeGreaterThan(nonRecentResult!.score);
+    expect(recentResult!.isRecent).toBe(true);
   });
 
   it('returns all transport commands when query is empty', () => {

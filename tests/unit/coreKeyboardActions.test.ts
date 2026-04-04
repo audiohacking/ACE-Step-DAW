@@ -126,7 +126,7 @@ describe('coreKeyboardActions', () => {
     expect(toggledBack?.muted).toBe(false);
   });
 
-  it('returns false when not in track scope (e.g., pianoRoll context with no track)', async () => {
+  it('returns false when not in track scope (e.g., global context)', async () => {
     useUIStore.getState().setKeyboardContext('global');
     const result = await executeCoreKeyboardAction('tracks.mute', makeDeps());
     expect(result).toBe(false);

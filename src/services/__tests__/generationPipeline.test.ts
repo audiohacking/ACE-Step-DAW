@@ -443,18 +443,19 @@ describe('generateSingleClip', () => {
     expect(useGenerationStore.getState().jobs.length).toBeGreaterThan(0);
   });
 
-  it('releases lock on error', async () => {
+  it('releases lock on API error', async () => {
     const track = useProjectStore.getState().addTrack('stems');
-    useProjectStore.getState().addClip(track.id, {
+    const clip = useProjectStore.getState().addClip(track.id, {
       startTime: 0,
       duration: 10,
     });
 
-    mockReleaseLegoTask.mockRejectedValue(new Error('fail'));
+    // Force API failure with a real clip to exercise the error-handling path
+    mockReleaseLegoTask.mockRejectedValue(new Error('API connection refused'));
     mockLoadAudioBlobByKey.mockResolvedValue(null);
 
-    const promise = generateSingleClip('nonexistent-clip');
-    await vi.advanceTimersByTimeAsync(3000);
+    const promise = generateSingleClip(clip.id);
+    await vi.advanceTimersByTimeAsync(5000);
     await promise;
 
     expect(useGenerationStore.getState().isGenerating).toBe(false);
@@ -560,22 +561,27 @@ describe('generateText2Music', () => {
     expect(useGenerationStore.getState().isGenerating).toBe(false);
   });
 
-  it('throws when no model is available', async () => {
-    // No models available — ensureModelForIntent will throw
-    useModelStore.setState({ availableModels: [], activeModelId: null });
+  it('fails when generation lock is already held', async () => {
+    setupModelStore();
+    useGenerationStore.setState({ isGenerating: true });
 
-    const promise = generateText2Music({
-      prompt: 'test',
-      lyrics: '',
-      durationSeconds: 60,
-      bpm: null,
-      keyScale: '',
-      timeSignature: '',
-      splitToStems: false,
-    });
-    await vi.advanceTimersByTimeAsync(3000);
+    let error: Error | undefined;
+    try {
+      await generateText2Music({
+        prompt: 'test',
+        lyrics: '',
+        durationSeconds: 60,
+        bpm: null,
+        keyScale: '',
+        timeSignature: '',
+        splitToStems: false,
+      });
+    } catch (e) {
+      error = e as Error;
+    }
 
-    await expect(promise).rejects.toThrow('model');
+    expect(error).toBeDefined();
+    expect(error!.message).toContain('already in progress');
   });
 
   it('returns failure when generation times out', async () => {
