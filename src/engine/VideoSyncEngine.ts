@@ -108,7 +108,7 @@ export class VideoSyncEngine {
 
   /**
    * Sync the video element to a target time.
-   * For play mode, adjusts playbackRate for small drifts.
+   * For play mode, seeks directly when drift exceeds ±1 frame tolerance.
    * For scrub mode, directly seeks to the target time.
    */
   syncTo(targetTimeSeconds: number): void {

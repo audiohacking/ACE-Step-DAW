@@ -87,29 +87,35 @@ function VideoClipBlockInner({ clip, track }: VideoClipBlockProps) {
         )}
       </div>
 
-      {/* Context menu */}
+      {/* Context menu with click-outside-to-close */}
       {ctxMenu && (
-        <div
-          className="fixed z-50 min-w-[160px] bg-[var(--daw-surface-2)] border border-[var(--daw-border)] rounded shadow-lg py-1"
-          style={{ left: ctxMenu.x, top: ctxMenu.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            className="w-full text-left px-3 py-1 text-xs text-white/80 hover:bg-[var(--daw-surface-3)]"
-            onClick={() => {
-              removeClip(clip.id);
-              setCtxMenu(null);
-            }}
-          >
-            Remove Clip
-          </button>
-          <button
-            className="w-full text-left px-3 py-1 text-xs text-white/80 hover:bg-[var(--daw-surface-3)]"
+        <>
+          <div
+            className="fixed inset-0 z-40"
             onClick={() => setCtxMenu(null)}
+          />
+          <div
+            className="fixed z-50 min-w-[160px] bg-[var(--daw-surface-2)] border border-[var(--daw-border)] rounded shadow-lg py-1"
+            style={{ left: ctxMenu.x, top: ctxMenu.y }}
+            onClick={(e) => e.stopPropagation()}
           >
-            Cancel
-          </button>
-        </div>
+            <button
+              className="w-full text-left px-3 py-1 text-xs text-white/80 hover:bg-[var(--daw-surface-3)]"
+              onClick={() => {
+                removeClip(clip.id);
+                setCtxMenu(null);
+              }}
+            >
+              Remove Clip
+            </button>
+            <button
+              className="w-full text-left px-3 py-1 text-xs text-white/80 hover:bg-[var(--daw-surface-3)]"
+              onClick={() => setCtxMenu(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </>
       )}
     </>
   );

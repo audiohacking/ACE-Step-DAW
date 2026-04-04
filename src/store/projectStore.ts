@@ -2872,20 +2872,21 @@ export const useProjectStore = create<ProjectState>()(
       return undefined;
     }
 
+    // Create video track with videoSettings applied atomically via addTrack
+    // (addTrack → createTrackFromTemplate spreads overrides into the Track object)
     const track = get().addTrack('custom', 'video', { displayName: 'Video' });
     if (!track) return undefined;
 
-    // Set default video settings on the track
+    // Apply videoSettings directly — addTrack already pushed undo history,
+    // so we update the track in-place without a new history entry
     const project = get().project;
     if (project) {
-      const updatedTracks = project.tracks.map(t =>
-        t.id === track.id ? { ...t, videoSettings: { ...DEFAULT_VIDEO_TRACK_SETTINGS } } : t,
-      );
       set({
         project: {
           ...project,
-          updatedAt: Date.now(),
-          tracks: updatedTracks,
+          tracks: project.tracks.map(t =>
+            t.id === track.id ? { ...t, videoSettings: { ...DEFAULT_VIDEO_TRACK_SETTINGS } } : t,
+          ),
         },
       });
     }
