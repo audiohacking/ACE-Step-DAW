@@ -34,7 +34,6 @@ export interface ResultsPanelProps {
   onMiniNext: () => void;
   onMiniPlay: () => void;
   onMiniSeek: (e: React.MouseEvent<HTMLDivElement>) => void;
-  resultsLength: number;
 }
 
 export function ResultsPanel({
@@ -55,7 +54,6 @@ export function ResultsPanel({
   onMiniNext,
   onMiniPlay,
   onMiniSeek,
-  resultsLength,
 }: ResultsPanelProps) {
   return (
     <div data-testid="enhance-results" className="w-[220px] min-w-[220px] flex flex-col bg-[#1a1a1e]">
@@ -182,8 +180,8 @@ export function ResultsPanel({
             <button
               data-testid="mini-next-btn"
               onClick={onMiniNext}
-              disabled={miniPlayerIdx >= resultsLength - 1}
-              className={`transition-colors ${miniPlayerIdx >= resultsLength - 1 ? 'text-zinc-700' : 'text-zinc-500 hover:text-zinc-300'}`}
+              disabled={miniPlayerIdx >= results.length - 1}
+              className={`transition-colors ${miniPlayerIdx >= results.length - 1 ? 'text-zinc-700' : 'text-zinc-500 hover:text-zinc-300'}`}
               aria-label="Next"
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M16 18h2V6h-2zm-2-6L5.5 6v12z" /></svg>

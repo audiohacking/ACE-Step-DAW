@@ -10,16 +10,15 @@ import { WaveformPreview } from './WaveformPreview';
 import { useEnhancePlayback } from '../../hooks/useEnhancePlayback';
 import { computeWaveformPeaks } from '../../utils/waveformPeaks';
 import type { RepaintMode } from '../../types/api';
-import { ENHANCE_PRESETS, surpriseMe } from '../../constants/enhancePresets';
+// ENHANCE_PRESETS and surpriseMe moved to EnhanceCoverControls
 import type { EnhancementNode } from '../../types/enhance';
 import { VersionTreeNodes } from './VersionTree';
-import { EnhanceCoverControls } from './EnhanceCoverControls';
+import { EnhanceCoverControls, type ConsistencyLevel } from './EnhanceCoverControls';
 import { EnhanceRepaintControls } from './EnhanceRepaintControls';
 import { ResultsPanel, type ResultEntry, type ABSide } from './ResultsPanel';
 
 const ENHANCER_BASE_BOTTOM = 60;
 
-type ConsistencyLevel = 'low' | 'medium' | 'high';
 const CONSISTENCY_VALUES: Record<ConsistencyLevel, number> = {
   low: 0.75,
   medium: 0.5,
@@ -850,7 +849,6 @@ export function EnhancePanel() {
         onMiniNext={handleMiniNext}
         onMiniPlay={handleMiniPlay}
         onMiniSeek={handleMiniSeek}
-        resultsLength={results.length}
       />
     </div>
     </>
