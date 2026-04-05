@@ -84,7 +84,7 @@ export async function loadChordModelBytes(
 
   const response = await fetch(meta.url);
   if (!response.ok) {
-    throw new Error(`Failed to download ${meta.name}: ${response.status}`);
+    throw new Error(`Failed to download ${meta.name}: ${response.status} ${response.statusText}`);
   }
 
   const contentLength = Number(response.headers.get('Content-Length')) || meta.sizeBytes;

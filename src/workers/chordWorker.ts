@@ -11,6 +11,7 @@
  *   - We take the logits at the last chord position, apply softmax, return top-K.
  */
 import type { ChordWorkerRequest, ChordWorkerResponse, ChordStyleCondition } from '../types/chordSuggestion';
+import { CHORD_GENRES, CHORD_DECADES } from '../types/chordSuggestion';
 
 const MAX_SEQ_LEN = 256;
 const NUM_GENRES = 20;
@@ -99,13 +100,8 @@ function buildStyleVector(style?: ChordStyleCondition): Float32Array {
   const vec = new Float32Array(STYLE_VEC_LEN);
   if (!style) return vec;
 
-  const genreOrder = [
-    'Rock', 'Folk', 'Pop', 'Soundtrack', 'R&B',
-    'Country', 'Jazz', 'Experimental', 'Religious', 'Reggae',
-    'Hip Hop', 'Electronic', 'Comedy', 'Metal', 'Blues',
-    'World Music', 'Disco', 'Classical', 'New Age', 'Darkwave',
-  ];
-  const decadeOrder = ['1950', '1960', '1970', '1980', '1990', '2000', '2010', '2020'];
+  const genreOrder: readonly string[] = CHORD_GENRES;
+  const decadeOrder: readonly string[] = CHORD_DECADES;
 
   for (let i = 0; i < genreOrder.length; i++) {
     vec[i] = (style.genres as Record<string, number>)[genreOrder[i]] ?? 0;
@@ -128,11 +124,13 @@ async function predict(sequence: number[], style?: ChordStyleCondition, topK = 8
   };
 
   // Build input tensor: [1, 256] int64
-  // ChordSeqAI uses token indices; start token = numTokens - 2
+  // Truncate to the most recent MAX_SEQ_LEN tokens for long progressions
+  const truncated = sequence.length > MAX_SEQ_LEN
+    ? sequence.slice(sequence.length - MAX_SEQ_LEN)
+    : sequence;
   const inputData = new BigInt64Array(MAX_SEQ_LEN);
-  // Fill with the sequence (no start token — the model handles that in vocabulary)
-  for (let i = 0; i < Math.min(sequence.length, MAX_SEQ_LEN); i++) {
-    inputData[i] = BigInt(sequence[i]);
+  for (let i = 0; i < truncated.length; i++) {
+    inputData[i] = BigInt(truncated[i]);
   }
 
   const feeds: Record<string, unknown> = {
@@ -154,8 +152,8 @@ async function predict(sequence: number[], style?: ChordStyleCondition, topK = 8
   const dims = output.dims; // [1, 256, numTokens]
 
   const numTokens = dims[2];
-  // Get logits at the position of the last chord in the sequence
-  const lastPos = Math.max(0, Math.min(sequence.length - 1, MAX_SEQ_LEN - 1));
+  // Get logits at the position of the last chord in the (truncated) sequence
+  const lastPos = Math.max(0, truncated.length - 1);
   const offset = lastPos * numTokens;
   const positionLogits = outputData.slice(offset, offset + numTokens);
 

@@ -28,6 +28,8 @@ function handleWorkerMessage(e: MessageEvent<ChordWorkerResponse>) {
 
   switch (msg.type) {
     case 'model-loaded':
+      // Only now confirm the model variant is loaded (after worker confirms success)
+      loadedModelVariant = useChordSuggestionStore.getState().modelVariant;
       store.setStatus('ready');
       // If there's a pending prediction after model load, run it
       if (pendingPrediction) {
@@ -45,6 +47,8 @@ function handleWorkerMessage(e: MessageEvent<ChordWorkerResponse>) {
       break;
 
     case 'error':
+      // Reset loadedModelVariant so retry is possible
+      loadedModelVariant = null;
       store.setError(msg.error);
       break;
   }
@@ -74,18 +78,17 @@ export async function ensureModelLoaded(variant?: ChordModelVariant): Promise<vo
   const w = getWorker();
 
   try {
-    // Load the full vocabulary in parallel with the model
-    void ensureVocabulary();
+    // Load vocabulary and model in parallel; both must complete before predictions
+    const [, modelBytes] = await Promise.all([
+      ensureVocabulary(),
+      loadChordModelBytes(targetVariant, (percent, message) => {
+        void percent;
+        void message;
+      }),
+    ]);
 
-    const modelBytes = await loadChordModelBytes(targetVariant, (percent, message) => {
-      // Progress is reported but we don't update the store for download progress
-      // to avoid excessive re-renders; the status is already 'loading-model'
-      void percent;
-      void message;
-    });
-
+    // Don't set loadedModelVariant here — wait for worker 'model-loaded' confirmation
     w.postMessage({ type: 'load-model', modelUrl: meta.url, modelBytes });
-    loadedModelVariant = targetVariant;
   } catch (err) {
     store.setError(err instanceof Error ? err.message : 'Failed to load model');
   }

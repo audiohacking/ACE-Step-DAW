@@ -54,12 +54,12 @@ export function ChordSuggestionPanel() {
     void ensureModelLoaded();
   }, [modelVariant]);
 
-  // Re-predict when progression changes
+  // Re-predict when prediction inputs change
   useEffect(() => {
     if (progression.length > 0) {
       void requestPrediction();
     }
-  }, [progression.length]);
+  }, [progression, modelVariant, styleCondition]);
 
   const handleAddSuggestion = useCallback((tokenIndex: number) => {
     void addChordAndPredict(tokenIndex);
@@ -83,12 +83,15 @@ export function ChordSuggestionPanel() {
     );
 
     // Stamp chord at the next available position, 1 bar duration
-    const beatsPerBar = project?.timeSignature ?? 4;
+    const timeSignatureNumerator = project?.timeSignature ?? 4;
+    const timeSignatureDenominator = (project as Record<string, number> | null)?.timeSignatureDenominator ?? 4;
+    const beatsPerBar = timeSignatureNumerator * (4 / timeSignatureDenominator);
     const startBeat = lastEnd;
 
-    // Use the lowest MIDI note as root, derive intervals from it
-    const rootPitch = Math.min(...token.midiNotes);
-    const intervals = token.midiNotes.map((n) => n - rootPitch);
+    // Deduplicate pitches to avoid stacked duplicate notes from vocabulary
+    const uniqueMidiNotes = [...new Set(token.midiNotes)];
+    const rootPitch = Math.min(...uniqueMidiNotes);
+    const intervals = uniqueMidiNotes.map((n) => n - rootPitch);
 
     stampChord(openClipId, rootPitch, intervals, startBeat, beatsPerBar, 80);
 
