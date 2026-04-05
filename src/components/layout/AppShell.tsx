@@ -23,6 +23,7 @@ import { VST3SidePanel } from '../plugins/VST3SidePanel';
 import { useShareLink } from '../../hooks/useShareLink';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { WelcomeOverlay } from '../dialogs/WelcomeOverlay';
+import { useOnboardingTracking } from '../../hooks/useOnboardingTracking';
 import { BottomPanelTransition } from '../ui/BottomPanelTransition';
 import { PanelSkeleton } from '../ui/PanelSkeleton';
 
@@ -59,6 +60,7 @@ const VirtualKeyboard = lazy(() => import('../midi/VirtualKeyboard').then(m => (
 
 function EditorShell() {
   useAudioEngine();
+  useOnboardingTracking();
   const project = useProjectStore((s) => s.project);
   const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
   const setHistoryFocusScope = useUIStore((s) => s.setHistoryFocusScope);

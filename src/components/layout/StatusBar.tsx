@@ -7,6 +7,7 @@ import { useUIStore } from '../../store/uiStore';
 import { TIMELINE_ZOOM_LEVELS } from '../../utils/timelineZoom';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
 import type { SaveStatus } from '../../hooks/useAutoSave';
+import { OnboardingProgress } from './OnboardingProgress';
 
 const HEALTH_POLL_INTERVAL_MS = 10_000;
 const DEFAULT_SOURCE_CODE_URL = 'https://github.com/ace-step/ACE-Step-DAW';
@@ -168,6 +169,7 @@ export function StatusBar({ saveStatus, lastSavedAt }: StatusBarProps) {
           {saveStatus && (
             <SaveStatusIndicator status={saveStatus} lastSavedAt={lastSavedAt} />
           )}
+          <OnboardingProgress />
           <div className="hidden md:flex items-center gap-1.5 text-daw-text-muted">
             <button
               type="button"
