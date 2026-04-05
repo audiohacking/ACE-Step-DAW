@@ -102,8 +102,8 @@ export async function initMidiController(): Promise<MidiControllerState> {
   }
 
   try {
-    const access = await navigator.requestMIDIAccess();
-    midiAccess = access as MIDIAccess;
+    const access = await navigator.requestMIDIAccess() as MIDIAccess;
+    midiAccess = access;
     const inputs = Array.from(access.inputs.values());
 
     if (inputs.length > 0) {
