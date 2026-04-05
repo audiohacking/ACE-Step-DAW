@@ -140,7 +140,7 @@ export function SessionView() {
   const handleCaptureMidi = useCallback(() => {
     if (!hasArmedTrack) return;
     const targetTrackId = armedTrackIds[0];
-    captureMidi(targetTrackId, currentTime, captureService, { bars: captureBarCount });
+    captureMidi(targetTrackId, currentTime, captureService, { bars: captureBarCount, quantize: '1/16' });
   }, [hasArmedTrack, armedTrackIds, currentTime, captureMidi, captureService, captureBarCount]);
 
   const handleCloseColorMenu = useCallback(() => setColorMenu(null), []);

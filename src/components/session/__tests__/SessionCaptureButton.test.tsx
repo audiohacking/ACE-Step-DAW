@@ -127,7 +127,7 @@ describe('SessionView Capture MIDI', () => {
       'track-1',
       10.0,
       expect.any(Object), // MidiCaptureService instance
-      { bars: 8 }, // default 8 bars
+      { bars: 8, quantize: '1/16' }, // default 8 bars with quantization
     );
   });
 
@@ -140,7 +140,7 @@ describe('SessionView Capture MIDI', () => {
       'track-1',
       10.0,
       expect.any(Object),
-      { bars: 4 },
+      { bars: 4, quantize: '1/16' },
     );
   });
 
