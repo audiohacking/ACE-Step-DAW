@@ -23,7 +23,9 @@ let _previousFactory: IDSPFactory | null = null;
  * @returns The new NativeDSPFactory instance
  */
 export function configureNativeDsp(ctx: AudioContext): NativeDSPFactory {
-  _previousFactory = getDSPFactory();
+  if (_previousFactory === null) {
+    _previousFactory = getDSPFactory();
+  }
   const factory = new NativeDSPFactory(ctx);
   setDSPFactory(factory);
   return factory;

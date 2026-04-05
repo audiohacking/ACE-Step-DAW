@@ -140,20 +140,23 @@ describe('VoiceManager', () => {
     qvm.noteOn(67, 0.4);
 
     // Should steal the quietest (note 62, amp 0.2)
-    qvm.noteOn(72, 1.0);
-    // Voice with id 1 (note 62) should have been stolen
+    const stolenVoice = qvm.noteOn(72, 1.0);
+    expect(stolenVoice.id).toBe(1);
+    expect(stolenVoice.note).toBe(72);
   });
 
   it('lowest strategy steals lowest note', () => {
     const lvm = new VoiceManager(voices, callbacks, 'lowest');
 
-    lvm.noteOn(60, 0.8); // lowest
+    const lowestVoice = lvm.noteOn(60, 0.8); // lowest
     lvm.noteOn(72, 0.8);
     lvm.noteOn(84, 0.8);
     lvm.noteOn(96, 0.8);
 
     // Should steal the lowest note (60)
-    lvm.noteOn(48, 1.0);
+    const stolenVoice = lvm.noteOn(48, 1.0);
+    expect(stolenVoice).toBe(lowestVoice);
+    expect(lvm.activeCount).toBe(4);
   });
 
   it('strategy is settable', () => {

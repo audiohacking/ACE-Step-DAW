@@ -100,7 +100,15 @@ export class VoiceManager<T> {
    * Release a note. If multiple voices play the same note, releases the oldest.
    */
   noteOff(note: number): void {
-    const voice = this._voices.find(v => v.note === note && !v.releasing);
+    // Find the oldest voice playing this note (smallest triggerTime)
+    let voice: Voice<T> | undefined;
+    for (const candidate of this._voices) {
+      if (candidate.note === note && !candidate.releasing) {
+        if (!voice || candidate.triggerTime < voice.triggerTime) {
+          voice = candidate;
+        }
+      }
+    }
     if (voice) {
       voice.releasing = true;
       this._callbacks.onRelease(voice.instance);

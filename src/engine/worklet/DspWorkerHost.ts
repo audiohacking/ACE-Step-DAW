@@ -106,23 +106,43 @@ export class DspWorkerHost {
         paramSab: this._paramBuffer.sharedBuffer,
       });
 
-      // Wait for ready message
+      // Wait for ready message with settled pattern to prevent race conditions
       return new Promise((resolve) => {
+        const worker = this._worker!;
+        const origHandler = worker.onmessage;
+        let settled = false;
+
+        const cleanup = () => {
+          clearTimeout(timeout);
+          worker.onmessage = origHandler;
+        };
+
         const timeout = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          worker.terminate();
+          if (this._worker === worker) this._worker = null;
           this._setState('error');
+          this._onError?.('DSP worker initialization timed out');
           resolve(false);
         }, 5000);
 
-        const origHandler = this._worker!.onmessage;
-        this._worker!.onmessage = (e: MessageEvent) => {
+        worker.onmessage = (e: MessageEvent) => {
+          if (settled) return;
           const msg = e.data as WorkerMessage;
           if (msg.type === 'ready') {
-            clearTimeout(timeout);
+            settled = true;
+            cleanup();
             this._setState('ready');
-            this._worker!.onmessage = origHandler;
             resolve(true);
           } else {
-            origHandler?.call(this._worker!, e);
+            origHandler?.call(worker, e);
+            if (msg.type === 'error' || this._state === 'error') {
+              settled = true;
+              cleanup();
+              resolve(false);
+            }
           }
         };
       });

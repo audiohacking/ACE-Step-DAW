@@ -172,9 +172,10 @@ export class NativePolySynth extends NativeSynthBase implements IDSPPolySynth {
       const freq = noteNameToFreq(note);
       const env = this._envelope;
 
-      // Stop old oscillator
+      // Stop and disconnect old oscillator to prevent node leaks
       if (voice.osc) {
         try { voice.osc.stop(t); } catch { /* */ }
+        try { voice.osc.disconnect(); } catch { /* */ }
       }
 
       // Create new oscillator
@@ -310,6 +311,10 @@ export class NativeFMSynth extends NativeSynthBase implements IDSPFMSynth {
   private readonly _envelope: {
     attack: number; decay: number; sustain: number; release: number;
   };
+  /** Track active nodes for cleanup on release. */
+  private _activeCarrier: OscillatorNode | null = null;
+  private _activeModulator: OscillatorNode | null = null;
+  private _activeGain: GainNode | null = null;
 
   constructor(ctx: AudioContext, options?: IDSPFMSynthOptions) {
     super(ctx);
@@ -330,9 +335,21 @@ export class NativeFMSynth extends NativeSynthBase implements IDSPFMSynth {
 
   triggerRelease(time?: number): void {
     const t = time ?? this._ctx.currentTime;
-    this._output.gain.cancelScheduledValues(t);
-    this._output.gain.setValueAtTime(this._output.gain.value, t);
-    this._output.gain.linearRampToValueAtTime(0, t + this._envelope.release);
+    const rel = this._envelope.release;
+    if (this._activeGain) {
+      this._activeGain.gain.cancelScheduledValues(t);
+      this._activeGain.gain.setValueAtTime(this._activeGain.gain.value, t);
+      this._activeGain.gain.linearRampToValueAtTime(0, t + rel);
+    }
+    // Stop oscillators after release
+    if (this._activeCarrier) {
+      try { this._activeCarrier.stop(t + rel + 0.01); } catch { /* */ }
+      this._activeCarrier = null;
+    }
+    if (this._activeModulator) {
+      try { this._activeModulator.stop(t + rel + 0.01); } catch { /* */ }
+      this._activeModulator = null;
+    }
   }
 
   triggerAttackRelease(
@@ -373,6 +390,10 @@ export class NativeFMSynth extends NativeSynthBase implements IDSPFMSynth {
     envGain.gain.setValueAtTime(0, t);
     envGain.gain.linearRampToValueAtTime(velocity, t + env.attack);
     envGain.gain.linearRampToValueAtTime(velocity * env.sustain, t + env.attack + env.decay);
+
+    this._activeCarrier = carrier;
+    this._activeModulator = modulator;
+    this._activeGain = envGain;
 
     carrier.start(t);
     modulator.start(t);
@@ -644,6 +665,8 @@ export class NativeBufferSource extends NativeSynthBase implements IDSPBufferSou
     if (this._source) {
       try { this._source.stop(); } catch { /* */ }
     }
+
+    if (!this._buffer) return; // no-op when buffer is null
 
     const source = this._ctx.createBufferSource();
     source.buffer = this._buffer;

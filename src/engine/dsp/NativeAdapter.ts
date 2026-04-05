@@ -362,6 +362,7 @@ class NativeDistortion extends NativeNodeWrapper implements IDSPDistortion {
 
 class NativeChorus extends NativeNodeWrapper implements IDSPChorus {
   private readonly _delay: DelayNode;
+  private readonly _feedbackNode: GainNode;
   private readonly _lfo: OscillatorNode;
   private readonly _lfoGain: GainNode;
   private readonly _mix: DryWetMix;
@@ -402,6 +403,7 @@ class NativeChorus extends NativeNodeWrapper implements IDSPChorus {
 
     super(mix.input, mix.output);
     this._delay = delay;
+    this._feedbackNode = feedback;
     this._lfo = lfo;
     this._lfoGain = lfoGain;
     this._mix = mix;
@@ -431,7 +433,10 @@ class NativeChorus extends NativeNodeWrapper implements IDSPChorus {
   }
 
   get feedback(): number { return this._feedback; }
-  set feedback(v: number) { this._feedback = v; }
+  set feedback(v: number) {
+    this._feedback = v;
+    this._feedbackNode.gain.value = v;
+  }
 
   get wet(): number { return this._mix.wet; }
   set wet(v: number) { this._mix.wet = v; }
@@ -516,7 +521,11 @@ class NativePhaser extends NativeNodeWrapper implements IDSPPhaser {
   }
 
   get stages(): number { return this._stages; }
-  set stages(_v: number) { /* Cannot change stages after construction */ }
+  set stages(v: number) {
+    if (v !== this._stages) {
+      throw new Error('NativePhaser does not support changing stages after construction');
+    }
+  }
 
   get Q(): number { return this._Q; }
   set Q(v: number) {
