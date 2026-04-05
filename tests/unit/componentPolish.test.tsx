@@ -184,7 +184,8 @@ describe('ContextMenu — polish additions', () => {
         <ContextMenuItem label="Item" onClick={vi.fn()} />
       </ContextMenuWrapper>,
     );
-    fireEvent.keyDown(document, { key: 'Escape' });
+    const menu = screen.getByRole('menu');
+    fireEvent.keyDown(menu, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
