@@ -10,6 +10,7 @@ import { generateText2Music, regenerateClip } from '../../services/generationPip
 import { formatInput, createRandomSample } from '../../services/aceStepApi';
 import { toastError, toastInfo } from '../../hooks/useToast';
 import { PromptAutocompleteTextarea } from './PromptAutocompleteTextarea';
+import { TimbrePresetPicker } from './TimbrePresetPicker';
 
 /** Magic pen icon for AI enhance buttons */
 function MagicPenIcon({ size = 16 }: { size?: number }) {
@@ -289,6 +290,7 @@ export function FullSongForm({ initialData, onFooterChange }: FullSongFormProps)
         <label className="block text-[11px] font-medium uppercase text-zinc-400">
           Music Caption
         </label>
+        <TimbrePresetPicker onSelect={(template) => setPrompt(template)} />
         <div className="relative">
           <PromptAutocompleteTextarea
             value={prompt}
