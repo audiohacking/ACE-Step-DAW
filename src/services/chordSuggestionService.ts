@@ -5,6 +5,7 @@
 import type { ChordModelVariant, ChordStyleCondition, ChordWorkerResponse } from '../types/chordSuggestion';
 import { useChordSuggestionStore } from '../store/chordSuggestionStore';
 import { loadChordModelBytes, CHORD_MODEL_REGISTRY } from './chordModelManager';
+import { loadFullVocabulary, isFullVocabularyLoaded } from '../utils/chordVocabulary';
 
 let worker: Worker | null = null;
 let loadedModelVariant: ChordModelVariant | null = null;
@@ -50,6 +51,15 @@ function handleWorkerMessage(e: MessageEvent<ChordWorkerResponse>) {
 }
 
 /**
+ * Ensure the full ChordSeqAI vocabulary (1033 tokens) is loaded.
+ */
+async function ensureVocabulary(): Promise<void> {
+  if (!isFullVocabularyLoaded()) {
+    await loadFullVocabulary();
+  }
+}
+
+/**
  * Ensure the model is loaded, downloading if necessary.
  */
 export async function ensureModelLoaded(variant?: ChordModelVariant): Promise<void> {
@@ -64,6 +74,9 @@ export async function ensureModelLoaded(variant?: ChordModelVariant): Promise<vo
   const w = getWorker();
 
   try {
+    // Load the full vocabulary in parallel with the model
+    void ensureVocabulary();
+
     const modelBytes = await loadChordModelBytes(targetVariant, (percent, message) => {
       // Progress is reported but we don't update the store for download progress
       // to avoid excessive re-renders; the status is already 'loading-model'

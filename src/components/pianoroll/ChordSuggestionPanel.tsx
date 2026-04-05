@@ -69,7 +69,7 @@ export function ChordSuggestionPanel() {
     if (!openClipId || !openTrackId) return;
 
     const token = getChordByIndex(tokenIndex);
-    if (!token) return;
+    if (!token || token.midiNotes.length === 0) return;
 
     const track = project?.tracks.find((t) => t.id === openTrackId);
     const clip = track?.clips.find((c) => c.id === openClipId);
@@ -82,12 +82,12 @@ export function ChordSuggestionPanel() {
       0,
     );
 
-    // Stamp chord at the next available position, 1 bar (4 beats) duration
+    // Stamp chord at the next available position, 1 bar duration
     const beatsPerBar = project?.timeSignature ?? 4;
     const startBeat = lastEnd;
 
-    // Convert token's midiNotes to intervals from root
-    const rootPitch = 60 + token.root; // octave 4
+    // Use the lowest MIDI note as root, derive intervals from it
+    const rootPitch = Math.min(...token.midiNotes);
     const intervals = token.midiNotes.map((n) => n - rootPitch);
 
     stampChord(openClipId, rootPitch, intervals, startBeat, beatsPerBar, 80);
@@ -153,10 +153,11 @@ export function ChordSuggestionPanel() {
               aria-label="Decade conditioning"
               value={selectedDecade}
               onChange={(e) => {
-                const current = useChordSuggestionStore.getState().styleCondition;
-                useChordSuggestionStore.setState({
-                  styleCondition: { ...current, decades: e.target.value ? { [e.target.value]: 1.0 } : {} },
-                });
+                // Clear existing decade weights, set new one
+                for (const d of CHORD_DECADES) {
+                  setDecadeWeight(d, 0);
+                }
+                if (e.target.value) setDecadeWeight(e.target.value as ChordDecade, 1.0);
               }}
               className="bg-[#111] border border-[#333] rounded px-1.5 py-0.5 text-[10px] text-zinc-300"
             >
@@ -249,7 +250,7 @@ export function ChordSuggestionPanel() {
       {suggestions.length === 0 && progression.length === 0 && status !== 'loading-model' && (
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-zinc-500">
-            Click a chord to start a progression, or use the suggestions below:
+            Start with a common chord:
           </span>
           <div className="flex gap-1 flex-wrap">
             {['C', 'Am', 'F', 'G', 'Dm', 'Em'].map((label) => {

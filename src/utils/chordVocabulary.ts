@@ -88,14 +88,26 @@ export function buildCoreVocabulary(): ChordToken[] {
   return tokens;
 }
 
-/** Singleton vocabulary instance. */
+/** Singleton vocabulary instance — starts with core, upgradeable to full ChordSeqAI vocab. */
 let _vocabulary: ChordToken[] | null = null;
+let _labelIndex: Map<string, ChordToken> | null = null;
+let _fullVocabLoaded = false;
 
 export function getChordVocabulary(): ChordToken[] {
   if (!_vocabulary) {
     _vocabulary = buildCoreVocabulary();
+    _labelIndex = null;
   }
   return _vocabulary;
+}
+
+/** Build a label-to-token index for fast lookup. */
+function getLabelIndex(): Map<string, ChordToken> {
+  if (!_labelIndex) {
+    const vocab = getChordVocabulary();
+    _labelIndex = new Map(vocab.map((t) => [t.label, t]));
+  }
+  return _labelIndex;
 }
 
 /** Look up a chord token by its index. */
@@ -105,7 +117,66 @@ export function getChordByIndex(index: number): ChordToken | undefined {
 
 /** Look up a chord token by label (e.g. "Am7"). */
 export function getChordByLabel(label: string): ChordToken | undefined {
-  return getChordVocabulary().find((t) => t.label === label);
+  return getLabelIndex().get(label);
+}
+
+/** Whether the full 1033-token ChordSeqAI vocabulary is loaded. */
+export function isFullVocabularyLoaded(): boolean {
+  return _fullVocabLoaded;
+}
+
+/** Raw vocabulary entry from chord-vocabulary.json. */
+interface RawVocabEntry {
+  label: string;
+  labels: string[];
+  notes: number[];
+}
+
+/**
+ * Load the full ChordSeqAI vocabulary (1033 tokens) from the JSON file.
+ * Falls back to the core vocabulary if loading fails.
+ */
+export async function loadFullVocabulary(): Promise<ChordToken[]> {
+  if (_fullVocabLoaded) return getChordVocabulary();
+
+  try {
+    const response = await fetch('/models/chord-vocabulary.json');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const raw: Record<string, RawVocabEntry> = await response.json();
+    const tokens: ChordToken[] = [];
+
+    for (const [idxStr, entry] of Object.entries(raw)) {
+      const index = Number(idxStr);
+      const parsed = parseChordLabel(entry.label);
+      tokens[index] = {
+        index,
+        label: entry.label,
+        root: parsed?.root ?? 0,
+        midiNotes: entry.notes,
+      };
+    }
+
+    _vocabulary = tokens;
+    _labelIndex = null; // rebuild on next access
+    _fullVocabLoaded = true;
+
+    // Also add all alternate labels to the index
+    const idx = getLabelIndex();
+    for (const [, entry] of Object.entries(raw)) {
+      const token = idx.get(entry.label);
+      if (token) {
+        for (const alt of entry.labels) {
+          if (!idx.has(alt)) idx.set(alt, token);
+        }
+      }
+    }
+
+    return tokens;
+  } catch {
+    // Fall back to core vocabulary
+    return getChordVocabulary();
+  }
 }
 
 /**

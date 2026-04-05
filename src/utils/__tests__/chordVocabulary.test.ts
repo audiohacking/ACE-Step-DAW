@@ -7,6 +7,7 @@ import {
   parseNoteName,
   pitchClassName,
   chordLabelToMidiNotes,
+  isFullVocabularyLoaded,
 } from '../chordVocabulary';
 
 describe('chordVocabulary', () => {
@@ -151,6 +152,12 @@ describe('chordVocabulary', () => {
 
     it('returns empty array for unparseable labels', () => {
       expect(chordLabelToMidiNotes('???')).toEqual([]);
+    });
+  });
+
+  describe('isFullVocabularyLoaded', () => {
+    it('returns false when only core vocabulary is loaded', () => {
+      expect(isFullVocabularyLoaded()).toBe(false);
     });
   });
 });
