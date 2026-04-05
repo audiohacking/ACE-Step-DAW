@@ -197,8 +197,14 @@ export function SessionView() {
   const followActionsEnabled = project.session?.followActionsEnabled !== false;
 
   return (
-    <div className="flex-1 min-w-0 bg-[radial-gradient(circle_at_top,#313131_0%,#202020_55%,#171717_100%)] border-l border-[#111] overflow-auto">
-      <div className="sticky top-0 z-20 border-b border-[#303030] bg-[#1c1c1c]/95 backdrop-blur-sm">
+    <div className={`flex-1 min-w-0 bg-[radial-gradient(circle_at_top,#313131_0%,#202020_55%,#171717_100%)] border-l border-[#111] overflow-auto${sessionArrangementRecording ? ' ring-2 ring-red-500/40 ring-inset' : ''}`}>
+      {sessionArrangementRecording && (
+        <div className="sticky top-0 z-30 flex items-center justify-center gap-2 bg-red-600/90 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur-sm" role="status" aria-live="polite" data-testid="session-recording-indicator">
+          <span className="inline-block w-2 h-2 rounded-full bg-white animate-pulse" aria-hidden="true" />
+          Recording to Arrangement
+        </div>
+      )}
+      <div className="sticky top-0 z-20 border-b border-[#303030] bg-[#1c1c1c]/95 backdrop-blur-sm" style={sessionArrangementRecording ? { top: 28 } : undefined}>
         <div className="flex items-center justify-between px-4 py-3">
           <div>
             <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-400">Performance Grid</div>
@@ -355,6 +361,7 @@ export function SessionView() {
               onSlotQuantizationChange={(slotId, q) => setSessionSlotQuantization(slotId, q)}
               onContextMenuSlot={setColorMenu}
               onSlotClick={(sceneIndex) => setSelectedSessionSlot({ trackId: track.id, sceneIndex })}
+              isRecording={sessionArrangementRecording}
               dragState={dragState}
               dropTarget={dropTarget}
               onDragStart={handlePointerDown}
@@ -646,6 +653,7 @@ function FragmentRow({
   currentTime,
   pendingLaunches,
   selectedSceneIndex,
+  isRecording,
   onLaunch,
   onStop,
   onSlotQuantizationChange,
@@ -665,6 +673,7 @@ function FragmentRow({
   currentTime: number;
   pendingLaunches: SessionPendingLaunch[];
   selectedSceneIndex: number | null;
+  isRecording: boolean;
   onLaunch: (clipId: string, sceneIndex: number) => void | Promise<void>;
   onStop: () => void | Promise<void>;
   onSlotQuantizationChange: (slotId: string, quantization: 'global' | SessionLaunchQuantization) => void;
@@ -884,6 +893,14 @@ function FragmentRow({
                   >
                     &#x2192;
                   </span>
+                )}
+                {isActive && isRecording && (
+                  <span
+                    className="absolute bottom-1 right-1 inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse pointer-events-none"
+                    title="Recording to arrangement"
+                    data-testid={`recording-indicator-${slot?.id}`}
+                    aria-label="Recording"
+                  />
                 )}
                 {hasOverride && (
                   <span
