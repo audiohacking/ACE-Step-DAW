@@ -60,11 +60,28 @@ describe('videoUtils', () => {
       // 1.5s at 24fps = 36 frames → 1s + 12 frames
       expect(formatTimecode(1.5, 24)).toBe('00:00:01:12');
     });
+
+    it('returns 00:00:00:00 for frameRate 0', () => {
+      expect(formatTimecode(10, 0)).toBe('00:00:00:00');
+    });
+
+    it('returns 00:00:00:00 for negative frameRate', () => {
+      expect(formatTimecode(10, -1)).toBe('00:00:00:00');
+    });
+
+    it('returns 00:00:00:00 for NaN frameRate', () => {
+      expect(formatTimecode(10, NaN)).toBe('00:00:00:00');
+    });
+
+    it('uses integer fps consistently for 29.97', () => {
+      // 29.97 rounds to 30; 1.5s * 30 = 45 frames → 1s + 15 frames
+      expect(formatTimecode(1.5, 29.97)).toBe('00:00:01:15');
+    });
   });
 
   describe('computeLeftTrim', () => {
     it('trims left edge correctly', () => {
-      const result = computeLeftTrim(10, 20, 0, 15, 30, 120);
+      const result = computeLeftTrim(10, 20, 0, 15, 30);
       expect(result).not.toBeNull();
       expect(result!.startTime).toBeCloseTo(15, 1);
       expect(result!.duration).toBeCloseTo(15, 1);
@@ -72,7 +89,7 @@ describe('videoUtils', () => {
     });
 
     it('snaps to frame boundary', () => {
-      const result = computeLeftTrim(10, 20, 0, 10.02, 30, 120);
+      const result = computeLeftTrim(10, 20, 0, 10.02, 30);
       expect(result).not.toBeNull();
       // 0.02 / (1/30) = 0.6 → round to 1 → 1/30 ≈ 0.0333
       // New start = 10 + 0.0333
@@ -80,19 +97,19 @@ describe('videoUtils', () => {
     });
 
     it('returns null when trimming past right edge', () => {
-      const result = computeLeftTrim(10, 5, 0, 15.1, 30, 120);
+      const result = computeLeftTrim(10, 5, 0, 15.1, 30);
       expect(result).toBeNull();
     });
 
     it('returns null when sourceOffset would go negative', () => {
       // sourceOffset is already at 0, trimming left would push it negative
-      const result = computeLeftTrim(10, 20, 0, 5, 30, 120);
+      const result = computeLeftTrim(10, 20, 0, 5, 30);
       // Delta = 5 - 10 = -5 → sourceOffset = 0 + (-5) = -5 → null
       expect(result).toBeNull();
     });
 
     it('adjusts sourceOffset proportionally', () => {
-      const result = computeLeftTrim(10, 20, 5, 13, 30, 120);
+      const result = computeLeftTrim(10, 20, 5, 13, 30);
       expect(result).not.toBeNull();
       expect(result!.sourceOffset).toBeCloseTo(8, 1); // 5 + 3
     });

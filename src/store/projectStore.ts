@@ -3012,7 +3012,7 @@ export const useProjectStore = create<ProjectState>()(
     if (edge === 'left') {
       const result = computeLeftTrim(
         sourceClip.startTime, sourceClip.duration, meta.sourceOffset,
-        newValue, meta.frameRate, meta.fileDuration,
+        newValue, meta.frameRate,
       );
       if (!result) return;
 

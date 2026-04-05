@@ -14,16 +14,23 @@ export function snapToFrame(timeSeconds: number, frameRate: number): number {
 
 /**
  * Format a time in seconds as timecode: HH:MM:SS:FF
+ *
+ * Uses the rounded integer FPS consistently for all arithmetic
+ * to avoid drift with non-integer rates like 29.97 or 23.976.
  */
 export function formatTimecode(timeSeconds: number, frameRate: number): string {
-  const totalFrames = Math.floor(Math.abs(timeSeconds) * frameRate);
+  const pad2 = (n: number) => n.toString().padStart(2, '0');
   const fps = Math.round(frameRate);
+  if (!Number.isFinite(fps) || fps <= 0) {
+    return '00:00:00:00';
+  }
+
+  const totalFrames = Math.floor(Math.abs(timeSeconds) * fps);
   const ff = totalFrames % fps;
   const totalSeconds = Math.floor(totalFrames / fps);
   const ss = totalSeconds % 60;
   const mm = Math.floor(totalSeconds / 60) % 60;
   const hh = Math.floor(totalSeconds / 3600);
-  const pad2 = (n: number) => n.toString().padStart(2, '0');
   return `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}:${pad2(ff)}`;
 }
 
@@ -38,7 +45,6 @@ export function computeLeftTrim(
   currentSourceOffset: number,
   newStartTime: number,
   frameRate: number,
-  fileDuration: number,
 ): { startTime: number; duration: number; sourceOffset: number } | null {
   const snapped = snapToFrame(newStartTime, frameRate);
   const clipEnd = currentStartTime + currentDuration;
@@ -60,6 +66,7 @@ export function computeLeftTrim(
 /**
  * Compute new clip values after trimming the right (end) edge.
  * Adjusts only duration; sourceOffset stays the same.
+ * Clamps to source file end in frame units to ensure frame-alignment.
  */
 export function computeRightTrim(
   currentStartTime: number,
@@ -71,9 +78,23 @@ export function computeRightTrim(
   const snapped = snapToFrame(newEndTime, frameRate);
   const minDuration = 1 / (frameRate > 0 ? frameRate : 30);
   if (snapped <= currentStartTime + minDuration) return null;
+
   // Can't extend beyond source file end
   const maxEnd = currentStartTime + (fileDuration - currentSourceOffset);
-  const clampedEnd = Math.min(snapped, maxEnd);
+
+  // Clamp in frame units so the result stays frame-aligned
+  if (frameRate <= 0) {
+    const clampedEnd = Math.min(snapped, maxEnd);
+    if (clampedEnd <= currentStartTime + minDuration) return null;
+    return { duration: clampedEnd - currentStartTime };
+  }
+
+  const snappedFrame = Math.round(snapped * frameRate);
+  const maxEndFrame = Math.floor(maxEnd * frameRate);
+  const clampedEndFrame = Math.min(snappedFrame, maxEndFrame);
+  const clampedEnd = clampedEndFrame / frameRate;
+
+  if (clampedEnd <= currentStartTime + minDuration) return null;
   return { duration: clampedEnd - currentStartTime };
 }
 
