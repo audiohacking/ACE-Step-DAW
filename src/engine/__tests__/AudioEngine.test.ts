@@ -1,7 +1,7 @@
 /**
  * Tests for AudioEngine — scheduling, playback, track management, metering.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
 
 // ─── Audio stubs ────────────────────────────────────────────────────────────
 
@@ -164,6 +164,10 @@ describe('AudioEngine', () => {
 
   afterEach(() => {
     engine.dispose();
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
   });
 
   // ── Constructor & Initialization ──────────────────────────────────────

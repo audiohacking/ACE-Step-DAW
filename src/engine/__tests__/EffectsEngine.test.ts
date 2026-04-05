@@ -144,19 +144,22 @@ vi.mock('../../utils/factoryImpulseResponses', () => ({
   generateImpulseResponse: vi.fn(() => new Float32Array(4096)),
 }));
 
-vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
-vi.stubGlobal('cancelAnimationFrame', vi.fn());
-
 import { effectsEngine } from '../EffectsEngine';
 import type { TrackEffect } from '../../types/project';
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('EffectsEngine', () => {
+  beforeEach(() => {
+    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  });
+
   afterEach(() => {
     effectsEngine.disposeChain('track-1');
     effectsEngine.disposeChain('track-2');
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
   // ── Chain Management ───────────────────────────────────────────────────

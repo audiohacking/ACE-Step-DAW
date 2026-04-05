@@ -1,7 +1,7 @@
 /**
  * Tests for offlineRender — MIDI, sampler, and sequencer track offline rendering.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 // ─── Mock AudioBuffer ───────────────────────────────────────────────────────
 
@@ -152,6 +152,10 @@ import type { MidiNote, SamplerConfig, SequencerPattern } from '../../types/proj
 describe('offlineRender', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
   });
 
   // ── renderMidiTrackOffline ─────────────────────────────────────────────
