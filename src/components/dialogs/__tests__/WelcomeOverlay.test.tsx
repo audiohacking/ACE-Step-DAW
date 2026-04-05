@@ -26,6 +26,15 @@ vi.mock('../../../store/uiStore', () => ({
   }),
 }));
 
+vi.mock('../../../store/generationStore', () => ({
+  useGenerationStore: vi.fn((selector) => {
+    const state = {
+      hydrateGenerationForm: vi.fn(),
+    };
+    return selector(state);
+  }),
+}));
+
 describe('WelcomeOverlay', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -125,5 +134,53 @@ describe('WelcomeOverlay', () => {
     // Should be back at main menu
     expect(screen.getByText(/Generate a Song/i)).toBeInTheDocument();
     expect(screen.getByText(/Start from Template/i)).toBeInTheDocument();
+  });
+
+  // === Genre selection flow ===
+
+  it('shows genre picker when "Generate a Song" is clicked', () => {
+    render(<WelcomeOverlay />);
+    fireEvent.click(screen.getByText(/Generate a Song/i));
+    expect(screen.getByText(/Pick a Genre/i)).toBeInTheDocument();
+    expect(screen.getByText('Pop')).toBeInTheDocument();
+    expect(screen.getByText('Rock')).toBeInTheDocument();
+    expect(screen.getByText('Jazz')).toBeInTheDocument();
+    expect(screen.getByText('Electronic')).toBeInTheDocument();
+    expect(screen.getByText('Hip-Hop')).toBeInTheDocument();
+    expect(screen.getByText('Lo-Fi')).toBeInTheDocument();
+    expect(screen.getByText('Ambient')).toBeInTheDocument();
+  });
+
+  it('shows BPM and key for each genre', () => {
+    render(<WelcomeOverlay />);
+    fireEvent.click(screen.getByText(/Generate a Song/i));
+    // Pop preset is 120 BPM, C major
+    expect(screen.getByText(/120 BPM/)).toBeInTheDocument();
+  });
+
+  it('dismisses on genre selection', () => {
+    render(<WelcomeOverlay />);
+    fireEvent.click(screen.getByText(/Generate a Song/i));
+    fireEvent.click(screen.getByText('Pop'));
+    expect(screen.queryByText(/Pick a Genre/i)).not.toBeInTheDocument();
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('true');
+  });
+
+  it('has skip option in genre view to write custom prompt', () => {
+    render(<WelcomeOverlay />);
+    fireEvent.click(screen.getByText(/Generate a Song/i));
+    const skipBtn = screen.getByText(/skip.*write my own/i);
+    expect(skipBtn).toBeInTheDocument();
+    fireEvent.click(skipBtn);
+    expect(screen.queryByText(/Pick a Genre/i)).not.toBeInTheDocument();
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('true');
+  });
+
+  it('navigates back from genre view to main menu', () => {
+    render(<WelcomeOverlay />);
+    fireEvent.click(screen.getByText(/Generate a Song/i));
+    expect(screen.getByText(/Pick a Genre/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(/back/i));
+    expect(screen.getByText(/Generate a Song/i)).toBeInTheDocument();
   });
 });

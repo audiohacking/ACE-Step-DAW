@@ -9,10 +9,27 @@ import {
   instantiateDemoProject,
 } from '../../data/onboardingCatalog';
 import { toastSuccess } from '../../hooks/useToast';
+import { useGenerationStore } from '../../store/generationStore';
+import {
+  PRESET_CATEGORIES,
+  GENERATION_PRESETS,
+  type PresetCategory,
+} from '../../constants/generationPresets';
 
 const STORAGE_KEY = 'ace-step-welcome-seen';
 
-type View = 'main' | 'templates';
+type View = 'main' | 'templates' | 'generate';
+
+const GENRE_ICONS: Record<PresetCategory, string> = {
+  Pop: '🎤',
+  Rock: '🎸',
+  Jazz: '🎷',
+  Electronic: '🎛',
+  'Hip-Hop': '🎧',
+  Classical: '🎻',
+  'Lo-Fi': '📻',
+  Ambient: '🌊',
+};
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl';
@@ -131,6 +148,7 @@ export function WelcomeOverlay() {
   const setProject = useProjectStore((s) => s.setProject);
   const createProjectFromTemplate = useProjectStore((s) => s.createProjectFromTemplate);
   const setShowGenerationPanel = useUIStore((s) => s.setShowGenerationPanel);
+  const hydrateGenerationForm = useGenerationStore((s) => s.hydrateGenerationForm);
 
   const dismiss = useCallback(() => {
     setVisible(false);
@@ -151,6 +169,30 @@ export function WelcomeOverlay() {
   }, [visible, dismiss]);
 
   const handleGenerateSong = () => {
+    setView('generate');
+  };
+
+  const handleSelectGenre = (category: PresetCategory) => {
+    const preset = GENERATION_PRESETS.find((p) => p.category === category);
+    if (!preset) return;
+    createProject({
+      name: `${category} Song`,
+      bpm: preset.suggestedBpm,
+      keyScale: preset.suggestedKey,
+    });
+    hydrateGenerationForm({
+      prompt: preset.caption,
+      bpm: preset.suggestedBpm,
+      keyScale: preset.suggestedKey,
+      lyrics: preset.lyricsTemplate,
+      presetId: preset.id,
+    });
+    setShowGenerationPanel(true);
+    toastSuccess(`${category} preset loaded — edit the prompt and generate!`);
+    dismiss();
+  };
+
+  const handleSkipGenre = () => {
     createProject({ name: 'AI Song' });
     setShowGenerationPanel(true);
     toastSuccess('Ready to generate — describe your song!');
@@ -190,7 +232,55 @@ export function WelcomeOverlay() {
         className="w-[480px] bg-daw-surface rounded-lg border border-daw-border shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {view === 'main' ? (
+        {view === 'generate' ? (
+          /* Genre selection view */
+          <>
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-daw-border">
+              <button
+                onClick={() => setView('main')}
+                aria-label="back"
+                className="text-zinc-400 hover:text-zinc-200 text-sm p-1 rounded hover:bg-white/[0.06] transition-colors"
+              >
+                ←
+              </button>
+              <h2 className="text-sm font-medium text-zinc-200">Pick a Genre</h2>
+            </div>
+            <div className="p-4">
+              <p className="text-[10px] text-zinc-500 mb-3">
+                Choose a genre to pre-fill your prompt, or skip to write your own.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {PRESET_CATEGORIES.map((category) => {
+                  const preset = GENERATION_PRESETS.find((p) => p.category === category);
+                  return (
+                    <button
+                      key={category}
+                      data-genre={category}
+                      onClick={() => handleSelectGenre(category)}
+                      className="text-left rounded-lg border border-daw-border/50 hover:border-daw-accent/50 hover:bg-daw-surface-2 transition-colors p-2.5"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm">{GENRE_ICONS[category]}</span>
+                        <span className="text-xs font-medium text-zinc-200">{category}</span>
+                      </div>
+                      {preset && (
+                        <p className="text-[10px] text-zinc-500">
+                          {preset.suggestedBpm} BPM · {preset.suggestedKey}
+                        </p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={handleSkipGenre}
+                className="w-full mt-3 text-center text-[11px] text-zinc-500 hover:text-zinc-300 py-1.5 rounded hover:bg-white/[0.03] transition-colors"
+              >
+                Skip — write my own prompt
+              </button>
+            </div>
+          </>
+        ) : view === 'main' ? (
           <>
             {/* Header */}
             <div className="px-6 pt-6 pb-4 text-center">
