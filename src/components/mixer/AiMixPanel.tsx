@@ -3,10 +3,11 @@
  * Follows the same layout pattern as MasteringPanel.
  * Issue #738
  */
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { useAiMixStore } from '../../store/aiMixStore';
 import { useProjectStore } from '../../store/projectStore';
 import { analyzeAiMix, formatDb, formatPan } from '../../services/aiMixService';
+import { dbToGain } from '../../engine/dsp/core/dsp-utils';
 import type { AiMixMode, TrackMixParams } from '../../types/api';
 
 const MODE_OPTIONS: Array<{ value: AiMixMode; label: string; description: string }> = [
@@ -127,26 +128,57 @@ export function AiMixPanel() {
   /** Find a project track by AI-suggested name (case-insensitive match on displayName or trackName). */
   const findTrack = useCallback((name: string) => {
     if (!project) return undefined;
+    const normalized = name.toLowerCase();
     return project.tracks.find(
-      (t) => t.displayName.toLowerCase() === name.toLowerCase() ||
-             t.trackName === name,
+      (t) => t.displayName.toLowerCase() === normalized ||
+             t.trackName.toLowerCase() === normalized,
     );
   }, [project]);
 
+  const cancelRef = useRef<AbortController | null>(null);
+
+  // Cancel in-flight analysis on unmount
+  useEffect(() => {
+    return () => {
+      cancelRef.current?.abort();
+      cancelRef.current = null;
+    };
+  }, []);
+
   const handleAnalyze = useCallback(() => {
-    void analyzeAiMix();
+    cancelRef.current?.abort();
+    const controller = new AbortController();
+    cancelRef.current = controller;
+    void analyzeAiMix({ signal: controller.signal });
   }, []);
 
   /** Apply a single track's AI mix suggestions. */
   const applyTrackParams = useCallback((trackName: string, params: TrackMixParams) => {
     const track = findTrack(trackName);
     if (!track) return;
-    updateTrack(track.id, {
-      volume: params.gain_db,
-      muted: params.mute ?? false,
-      soloed: params.solo ?? false,
-    });
-    updateTrackMixer(track.id, { pan: params.pan });
+
+    // Volume: convert dB to linear gain
+    const trackUpdate: Record<string, unknown> = {
+      volume: dbToGain(params.gain_db),
+    };
+    // Only update mute/solo when explicitly provided by AI
+    if (params.mute !== undefined) trackUpdate.muted = params.mute;
+    if (params.solo !== undefined) trackUpdate.soloed = params.solo;
+    updateTrack(track.id, trackUpdate as Parameters<typeof updateTrack>[1]);
+
+    // Pan + EQ + compressor via mixer update
+    const mixerUpdate: Record<string, unknown> = { pan: params.pan };
+    if (params.eq && params.eq.length >= 3) {
+      mixerUpdate.eqLowGain = params.eq[0].gain_db;
+      mixerUpdate.eqMidGain = params.eq[1].gain_db;
+      mixerUpdate.eqHighGain = params.eq[2].gain_db;
+    }
+    if (params.compressor) {
+      mixerUpdate.compressorEnabled = true;
+      mixerUpdate.compressorThreshold = params.compressor.threshold_db;
+      mixerUpdate.compressorRatio = params.compressor.ratio;
+    }
+    updateTrackMixer(track.id, mixerUpdate as Parameters<typeof updateTrackMixer>[1]);
   }, [findTrack, updateTrack, updateTrackMixer]);
 
   const handleAcceptAll = useCallback(() => {
@@ -195,7 +227,11 @@ export function AiMixPanel() {
           )}
           <button
             type="button"
-            onClick={closePanel}
+            onClick={() => {
+              cancelRef.current?.abort();
+              cancelRef.current = null;
+              closePanel();
+            }}
             className="rounded bg-[#303030] px-2 py-1 text-[10px] text-zinc-300 hover:bg-[#3a3a3a] transition-colors"
           >
             Close

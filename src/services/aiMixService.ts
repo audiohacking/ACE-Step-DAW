@@ -65,28 +65,48 @@ export async function submitAiMix(params: AiMixTaskParams): Promise<string> {
 
 /**
  * Poll for AI mix results.
+ * Supports cancellation via AbortSignal with per-request timeouts.
  */
-export async function pollAiMixResult(taskId: string): Promise<AiMixResult> {
+export async function pollAiMixResult(taskId: string, signal?: AbortSignal): Promise<AiMixResult> {
   const base = getApiBase();
 
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-    const res = await fetch(`${base}/v1/ai-mix/result/${taskId}`);
+    if (signal?.aborted) throw new Error('AI mix analysis cancelled');
 
-    if (!res.ok) {
-      throw new Error(`Failed to poll AI mix result: ${res.status}`);
+    const controller = new AbortController();
+    signal?.addEventListener('abort', () => controller.abort(), { once: true });
+    const timer = setTimeout(() => controller.abort(), AI_MIX_TIMEOUT_MS);
+
+    try {
+      const res = await fetch(`${base}/v1/ai-mix/result/${taskId}`, {
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to poll AI mix result: ${res.status}`);
+      }
+
+      const data: AiMixResultResponse = await res.json();
+
+      if (data.status === 'completed' && data.result) {
+        return data.result;
+      }
+
+      if (data.status === 'error') {
+        throw new Error(data.error ?? 'AI mix analysis failed on the server');
+      }
+    } finally {
+      clearTimeout(timer);
     }
 
-    const data: AiMixResultResponse = await res.json();
-
-    if (data.status === 'completed' && data.result) {
-      return data.result;
-    }
-
-    if (data.status === 'error') {
-      throw new Error(data.error ?? 'AI mix analysis failed on the server');
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    // Wait before next poll (abortable)
+    await new Promise<void>((resolve, reject) => {
+      const delayTimer = setTimeout(resolve, POLL_INTERVAL_MS);
+      signal?.addEventListener('abort', () => {
+        clearTimeout(delayTimer);
+        reject(new Error('AI mix analysis cancelled'));
+      }, { once: true });
+    });
   }
 
   throw new Error('AI mix analysis timed out');
@@ -96,13 +116,14 @@ export async function pollAiMixResult(taskId: string): Promise<AiMixResult> {
  * Run the full AI mix workflow:
  * 1. Submit analysis request to backend
  * 2. Poll for results
- * 3. Update store with AI-suggested parameters
+ * 3. Update store with AI-suggested parameters (only if panel is still open)
  */
 export async function analyzeAiMix(options?: {
   mode?: AiMixTaskParams['mode'];
   textPrompt?: string;
   targetLufs?: number;
   model?: string;
+  signal?: AbortSignal;
 }): Promise<void> {
   const store = useAiMixStore.getState();
   store.startAnalysis();
@@ -121,14 +142,23 @@ export async function analyzeAiMix(options?: {
     const taskId = await submitAiMix(params);
     logger.info('AI mix task submitted:', taskId);
 
-    const result = await pollAiMixResult(taskId);
+    const result = await pollAiMixResult(taskId, options?.signal);
     logger.info(`AI mix complete: ${Object.keys(result.tracks).length} tracks`);
 
-    store.setSuggestion(result);
+    // Guard: only update store if panel is still open and analyzing
+    const current = useAiMixStore.getState();
+    if (current.panelOpen && current.status === 'analyzing') {
+      current.setSuggestion(result);
+    }
   } catch (error) {
+    if (options?.signal?.aborted) return; // Silently ignore cancellation
     const message = error instanceof Error ? error.message : String(error);
     logger.error('AI mix analysis failed:', message);
-    store.setError(message);
+    // Only set error if panel is still open
+    const current = useAiMixStore.getState();
+    if (current.panelOpen) {
+      current.setError(message);
+    }
   }
 }
 

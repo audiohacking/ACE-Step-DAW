@@ -93,10 +93,22 @@ describe('aiMixStore', () => {
       expect(Object.keys(useAiMixStore.getState().suggestion!.tracks)).toHaveLength(2);
     });
 
-    it('transitions to idle when last track accepted', () => {
+    it('stays reviewing when last track accepted but master remains', () => {
       const suggestion = makeSuggestion();
       suggestion.tracks = { vocals: suggestion.tracks['vocals'] };
       useAiMixStore.getState().setSuggestion(suggestion);
+
+      useAiMixStore.getState().acceptTrack('vocals');
+      // Master bus suggestions still remain
+      expect(useAiMixStore.getState().status).toBe('reviewing');
+      expect(useAiMixStore.getState().suggestion).not.toBeNull();
+    });
+
+    it('transitions to idle when last track accepted and master is empty', () => {
+      useAiMixStore.getState().setSuggestion({
+        tracks: { vocals: { gain_db: -3, pan: 0 } },
+        master: {},
+      });
 
       useAiMixStore.getState().acceptTrack('vocals');
       expect(useAiMixStore.getState().status).toBe('idle');

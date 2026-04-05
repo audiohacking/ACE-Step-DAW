@@ -129,7 +129,9 @@ export const useAiMixStore = create<AiMixState>((set, get) => ({
       // Remove the accepted track from remaining suggestions
       const remaining = { ...suggestion.tracks };
       delete remaining[trackName];
-      const hasRemaining = Object.keys(remaining).length > 0;
+      const hasRemainingTracks = Object.keys(remaining).length > 0;
+      const hasRemainingMaster = Object.keys(suggestion.master).length > 0;
+      const hasRemaining = hasRemainingTracks || hasRemainingMaster;
       set({
         suggestion: hasRemaining ? { ...suggestion, tracks: remaining } : null,
         status: hasRemaining ? 'reviewing' : 'idle',
