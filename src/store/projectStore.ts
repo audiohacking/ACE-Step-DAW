@@ -65,6 +65,7 @@ import type {
   SessionLaunchQuantization,
   SessionPendingLaunch,
   SceneFollowActionType,
+  SceneFollowActionConfig,
   SessionScene,
   SessionState,
   PlaybackLatencySettings,
@@ -788,6 +789,8 @@ export interface ProjectState extends MidiSliceActions {
   setSessionSceneFollowAction: (sceneId: string, action: SceneFollowActionType, bars?: number) => void;
   /** Create a clip in an empty session slot, using context from adjacent clips. Returns the clip or null. */
   aiFillSessionSlot: (slotId: string) => Clip | null;
+  setSessionSceneFollowActionConfig: (sceneId: string, config: SceneFollowActionConfig) => void;
+  clearSessionSceneFollowActionConfig: (sceneId: string) => void;
 
   removeAsset: (assetId: string) => void;
   toggleAssetStar: (assetId: string) => void;
@@ -5918,12 +5921,11 @@ export const useProjectStore = create<ProjectState>()(
     const session = ensureProjectSession(state.project).session!;
 
     const slot = session.slots.find((s) => s.id === slotId);
-    if (!slot || slot.clipId) return null; // Only fill empty slots
+    if (!slot || slot.clipId) return null;
 
     const track = state.project.tracks.find((t) => t.id === slot.trackId);
     if (!track) return null;
 
-    // Gather context from adjacent clips in the same track
     const sceneIndex = session.scenes.findIndex((s) => s.id === slot.sceneId);
     const trackSlots = session.slots
       .filter((s) => s.trackId === slot.trackId && s.clipId)
@@ -5933,7 +5935,6 @@ export const useProjectStore = create<ProjectState>()(
       }))
       .sort((a, b) => a.sceneIdx - b.sceneIdx);
 
-    // Find the nearest clips for context
     let contextPrompt = '';
     let contextCaption = state.project.globalCaption ?? '';
     const adjacentClips = trackSlots
@@ -5954,13 +5955,11 @@ export const useProjectStore = create<ProjectState>()(
       contextPrompt = `${track.displayName} fill`;
     }
 
-    // Calculate duration — use a sensible clip length (4 bars), not full project measures
     const beatsPerBar = state.project.timeSignature ?? 4;
-    const clipBars = 4; // Standard session clip length
+    const clipBars = 4;
     const beatDuration = 60 / Math.max(1, state.project.bpm);
     const duration = clipBars * beatsPerBar * beatDuration;
 
-    // Create clip on the track
     const clip = get().addClip(slot.trackId, {
       startTime: sceneIndex * duration,
       duration,
@@ -5970,11 +5969,9 @@ export const useProjectStore = create<ProjectState>()(
       source: 'generated',
     });
 
-    // Ensure the clip is assigned to the correct slot (not just auto-assigned)
     const updatedSession = get().project!.session!;
     const updatedSlot = updatedSession.slots.find((s) => s.id === slotId);
     if (updatedSlot && updatedSlot.clipId !== clip.id) {
-      // Auto-assign may have placed it elsewhere; fix it
       const nextSlots = updatedSession.slots.map((s) => {
         if (s.id === slotId) return { ...s, clipId: clip.id };
         if (s.clipId === clip.id && s.id !== slotId) return { ...s, clipId: null };
@@ -5989,6 +5986,49 @@ export const useProjectStore = create<ProjectState>()(
     }
 
     return clip;
+  },
+
+  setSessionSceneFollowActionConfig: (sceneId, config) => {
+    const state = get();
+    if (!state.project) return;
+    const session = ensureProjectSession(state.project).session!;
+    if (!session.scenes.some((s) => s.id === sceneId)) return;
+    _pushHistory(state.project);
+    const clampedChance = Math.max(0, Math.min(1, config.chanceA));
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        session: {
+          ...session,
+          scenes: session.scenes.map((scene) =>
+            scene.id === sceneId
+              ? { ...scene, followActionConfig: { ...config, chanceA: clampedChance } }
+              : scene,
+          ),
+        },
+      },
+    });
+  },
+
+  clearSessionSceneFollowActionConfig: (sceneId) => {
+    const state = get();
+    if (!state.project) return;
+    const session = ensureProjectSession(state.project).session!;
+    set({
+      project: {
+        ...state.project,
+        updatedAt: Date.now(),
+        session: {
+          ...session,
+          scenes: session.scenes.map((scene) =>
+            scene.id === sceneId
+              ? { ...scene, followActionConfig: undefined }
+              : scene,
+          ),
+        },
+      },
+    });
   },
 
   removeAsset: (assetId) => {
