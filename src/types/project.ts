@@ -840,6 +840,7 @@ export interface ClipGenerationParams {
   inferenceSteps?: number;
   guidanceScale?: number;
   shift?: number;
+  negativePrompt?: string;
   // lego params
   globalCaption?: string;
   sampleMode?: boolean;
