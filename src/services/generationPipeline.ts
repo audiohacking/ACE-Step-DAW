@@ -284,6 +284,7 @@ async function regenerateText2MusicClip(clipId: string): Promise<void> {
   const params = clip.generationParams;
   store.saveClipVersion(clipId);
 
+  let _regenerateJobId: string | null = null;
   try {
     await useModelStore.getState().ensureModelForIntent('full-song');
     const project = store.project;
@@ -312,7 +313,9 @@ async function regenerateText2MusicClip(clipId: string): Promise<void> {
     if (params.vocalLanguage) taskParams.vocal_language = params.vocalLanguage;
 
     const jobId = uuidv4();
-    genStore.addJob({ id: jobId, clipId, trackName: 'Full Mix', status: 'queued', progress: 'Queued', stage: 'Queued', progressPercent: null, etaSeconds: null, etaConfidence: 'none' });
+    _regenerateJobId = jobId;
+    const abortCtrl = registerJobAbortController(jobId);
+    genStore.addJob({ id: jobId, clipId, trackName: 'Full Mix', status: 'queued', progress: 'Queued', stage: 'Queued', progressPercent: null, etaSeconds: null, etaConfidence: 'none', retryParams: { type: 'text2music', prompt: params.prompt, lyrics: params.lyrics, durationSeconds: params.durationSeconds } });
     store.updateClipStatus(clipId, 'generating', { generationJobId: jobId });
     genStore.updateJob(jobId, { status: 'generating', startedAt: Date.now(), progress: 'Submitting...', stage: 'Submitting request' });
 
@@ -326,7 +329,7 @@ async function regenerateText2MusicClip(clipId: string): Promise<void> {
     let firstResult: TaskResultItem | null = null;
 
     while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
-      await sleep(POLL_INTERVAL_MS);
+      await abortableSleep(POLL_INTERVAL_MS, abortCtrl.signal);
       const entries = await api.queryResult([taskId]);
       const entry = entries?.[0];
       if (!entry) continue;
@@ -360,13 +363,21 @@ async function regenerateText2MusicClip(clipId: string): Promise<void> {
     const actualDuration = audioBuffer.duration;
     useProjectStore.getState().updateClipStatus(clipId, 'ready', { isolatedAudioKey: audioKey, waveformPeaks: peaks, inferredMetas, audioDuration: actualDuration, audioOffset: 0 });
     useProjectStore.getState().updateClip(clipId, { duration: actualDuration });
+    unregisterJobAbortController(jobId);
     genStore.updateJob(jobId, { status: 'done', progress: 'Done', stage: 'Complete' });
     useProjectStore.getState().saveClipVersion(clipId);
     toastSuccess('Clip regenerated');
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Regeneration failed';
-    toastError(message);
-    useProjectStore.getState().updateClipStatus(clipId, 'error', { errorMessage: message });
+    if (_regenerateJobId) unregisterJobAbortController(_regenerateJobId);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      useProjectStore.getState().updateClipStatus(clipId, 'error', { errorMessage: 'Cancelled' });
+      if (_regenerateJobId) genStore.updateJob(_regenerateJobId, { status: 'cancelled', progress: 'Cancelled', stage: 'Cancelled' });
+      logger.debug('regenerateText2MusicClip: cancelled by user');
+    } else {
+      const message = err instanceof Error ? err.message : 'Regeneration failed';
+      toastError(message);
+      useProjectStore.getState().updateClipStatus(clipId, 'error', { errorMessage: message });
+    }
   } finally {
     useGenerationStore.getState().setIsGenerating(false);
   }
@@ -652,6 +663,7 @@ async function generateClipInternal(
 
   // Create generation job
   const jobId = uuidv4();
+  const abortCtrl = registerJobAbortController(jobId);
   genStore.addJob({
     id: jobId,
     clipId,
@@ -870,7 +882,7 @@ async function generateClipInternal(
     let firstResult: TaskResultItem | null = null;
 
     while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
-      await sleep(POLL_INTERVAL_MS);
+      await abortableSleep(POLL_INTERVAL_MS, abortCtrl.signal);
 
       const entries = await api.queryResult([taskId]);
       const entry = entries?.[0];
@@ -1045,8 +1057,19 @@ async function generateClipInternal(
       error: undefined,
     });
 
+    unregisterJobAbortController(jobId);
     return { cumulativeBlob, succeeded: true };
   } catch (error) {
+    unregisterJobAbortController(jobId);
+
+    // Handle user cancellation via AbortController
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      useProjectStore.getState().updateClipStatus(clipId, 'error', { errorMessage: 'Cancelled' });
+      genStore.updateJob(jobId, { status: 'cancelled', progress: 'Cancelled', stage: 'Cancelled' });
+      updateVariationProgress({ status: 'cancelled', progress: 'Cancelled', completedAt: Date.now() });
+      return { cumulativeBlob: previousCumulativeBlob, succeeded: false, errorMessage: 'Cancelled' };
+    }
+
     const message = error instanceof Error ? error.message : 'Unknown error';
     useProjectStore.getState().updateClipStatus(clipId, 'error', { errorMessage: message });
     genStore.upsertGenerationHistoryRecord({
@@ -1809,6 +1832,7 @@ export async function generateCoverClip(opts: GenerateCoverOptions): Promise<str
     resolvedTargetClipId = targetClipId;
 
     const jobId = uuidv4();
+    const abortCtrl = registerJobAbortController(jobId);
     genStore.addJob({
       id: jobId,
       clipId: targetClipId,
@@ -1845,7 +1869,7 @@ export async function generateCoverClip(opts: GenerateCoverOptions): Promise<str
       let resultAudioPath: string | null = null;
 
       while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
-        await sleep(POLL_INTERVAL_MS);
+        await abortableSleep(POLL_INTERVAL_MS, abortCtrl.signal);
         const entries = await api.queryResult([taskId]);
         const entry = entries?.[0];
         if (!entry) continue;
@@ -1899,10 +1923,17 @@ export async function generateCoverClip(opts: GenerateCoverOptions): Promise<str
         generatedFromContext: false,
       });
 
+      unregisterJobAbortController(jobId);
       genStore.updateJob(jobId, { status: 'done', progress: 'Done' });
       store.saveClipVersion(targetClipId);
       return true;
     } catch (error) {
+      unregisterJobAbortController(jobId);
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        store.updateClipStatus(targetClipId, 'error', { errorMessage: 'Cancelled' });
+        genStore.updateJob(jobId, { status: 'cancelled', progress: 'Cancelled', stage: 'Cancelled' });
+        return false;
+      }
       const message = error instanceof Error ? error.message : 'Unknown error';
       store.updateClipStatus(targetClipId, 'error', { errorMessage: message });
       genStore.updateJob(jobId, { status: 'error', progress: message, error: message });
@@ -1940,6 +1971,7 @@ async function generateRepaintInternal(
   }
 
   const jobId = uuidv4();
+  const abortCtrl = registerJobAbortController(jobId);
   genStore.addJob({
     id: jobId,
     clipId,
@@ -2001,7 +2033,7 @@ async function generateRepaintInternal(
     let firstResult: TaskResultItem | null = null;
 
     while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
-      await sleep(POLL_INTERVAL_MS);
+      await abortableSleep(POLL_INTERVAL_MS, abortCtrl.signal);
 
       const entries = await api.queryResult([taskId]);
       const entry = entries?.[0];
@@ -2121,8 +2153,15 @@ async function generateRepaintInternal(
       });
     }
 
+    unregisterJobAbortController(jobId);
     return { cumulativeBlob, succeeded: true };
   } catch (error) {
+    unregisterJobAbortController(jobId);
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      useProjectStore.getState().updateClipStatus(clipId, 'error', { errorMessage: 'Cancelled' });
+      genStore.updateJob(jobId, { status: 'cancelled', progress: 'Cancelled', stage: 'Cancelled' });
+      return { cumulativeBlob: null, succeeded: false, errorMessage: 'Cancelled' };
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     useProjectStore.getState().updateClipStatus(clipId, 'error', { errorMessage: message });
     {
@@ -2369,6 +2408,7 @@ export async function generateVocal2BGM(opts: Vocal2BGMOptions): Promise<void> {
     });
 
     const jobId = uuidv4();
+    const abortCtrl = registerJobAbortController(jobId);
     genStore.addJob({
       id: jobId,
       clipId: newClip.id,
@@ -2406,7 +2446,7 @@ export async function generateVocal2BGM(opts: Vocal2BGMOptions): Promise<void> {
       let firstResult: TaskResultItem | null = null;
 
       while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
-        await sleep(POLL_INTERVAL_MS);
+        await abortableSleep(POLL_INTERVAL_MS, abortCtrl.signal);
         const entries = await api.queryResult([taskId]);
         const entry = entries?.[0];
         if (!entry) continue;
@@ -2472,10 +2512,17 @@ export async function generateVocal2BGM(opts: Vocal2BGMOptions): Promise<void> {
         generatedFromContext: true,
       });
 
+      unregisterJobAbortController(jobId);
       genStore.updateJob(jobId, { status: 'done', progress: 'Done' });
       store.saveClipVersion(newClip.id);
       return true;
     } catch (error) {
+      unregisterJobAbortController(jobId);
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        store.updateClipStatus(newClip.id, 'error', { errorMessage: 'Cancelled' });
+        genStore.updateJob(jobId, { status: 'cancelled', progress: 'Cancelled', stage: 'Cancelled' });
+        return false;
+      }
       const message = error instanceof Error ? error.message : 'Unknown error';
       store.updateClipStatus(newClip.id, 'error', { errorMessage: message });
       genStore.updateJob(jobId, { status: 'error', progress: message, error: message });
