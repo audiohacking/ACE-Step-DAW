@@ -26,6 +26,19 @@ import { createDebugLogger } from '../utils/debugLogger';
 
 const logger = createDebugLogger('ace-step:generation');
 
+// Re-export abort registry for consumers that import from this module
+export {
+  registerJobAbortController,
+  abortJob,
+  unregisterJobAbortController,
+  isJobAborted,
+  getActiveControllerCount,
+} from './generationAbortRegistry';
+import {
+  registerJobAbortController,
+  unregisterJobAbortController,
+} from './generationAbortRegistry';
+
 /**
  * Resolve a clip's saved contextWindow to absolute project times.
  * New format: relative offsets `{ offsetStart, offsetEnd, trackIds }`.
@@ -1327,6 +1340,20 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Sleep that rejects early when the given signal is aborted. */
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) return sleep(ms);
+  if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // generateFromAddLayer — entry point for the unified "Add Layer" modal
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2597,6 +2624,7 @@ export async function generateText2Music(request: Text2MusicRequest): Promise<Te
 
   // Step 3: Build and submit task
   const jobId = uuidv4();
+  const abortController = registerJobAbortController(jobId);
   genStore.addJob({
     id: jobId,
     clipId,
@@ -2607,6 +2635,22 @@ export async function generateText2Music(request: Text2MusicRequest): Promise<Te
     progressPercent: null,
     etaSeconds: null,
     etaConfidence: 'none',
+    retryParams: {
+      type: 'text2music',
+      prompt: request.prompt,
+      lyrics: request.lyrics,
+      durationSeconds: request.durationSeconds,
+      bpm: request.bpm,
+      keyScale: request.keyScale,
+      timeSignature: request.timeSignature,
+      thinking: request.thinking,
+      seed: request.seed,
+      useRandomSeed: request.useRandomSeed,
+      vocalLanguage: request.vocalLanguage,
+      instrumental: request.instrumental,
+      splitToStems: request.splitToStems,
+      stemCount: request.stemCount,
+    },
   });
   store.updateClipStatus(clipId, 'queued', { generationJobId: jobId });
 
@@ -2667,7 +2711,7 @@ export async function generateText2Music(request: Text2MusicRequest): Promise<Te
     let firstResult: TaskResultItem | null = null;
 
     while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
-      await sleep(POLL_INTERVAL_MS);
+      await abortableSleep(POLL_INTERVAL_MS, abortController.signal);
 
       const entries = await api.queryResult([taskId]);
       const entry = entries?.[0];
@@ -2822,6 +2866,7 @@ export async function generateText2Music(request: Text2MusicRequest): Promise<Te
       }
     }
 
+    unregisterJobAbortController(jobId);
     useGenerationStore.getState().setIsGenerating(false);
     return {
       mixTrackId: mixTrack.id,
@@ -2831,7 +2876,23 @@ export async function generateText2Music(request: Text2MusicRequest): Promise<Te
       succeeded: true,
     };
   } catch (error) {
+    unregisterJobAbortController(jobId);
     useGenerationStore.getState().setIsGenerating(false);
+
+    // Handle abort (user cancellation) differently from real errors
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      useProjectStore.getState().updateClipStatus(clipId, 'error', { errorMessage: 'Generation cancelled' });
+      genStore.updateJob(jobId, { status: 'cancelled', progress: 'Cancelled', stage: 'Cancelled' });
+      logger.debug('Text2Music: cancelled by user');
+      return {
+        mixTrackId: mixTrack.id,
+        mixClipId: clipId,
+        audioBlob: new Blob(),
+        succeeded: false,
+        errorMessage: 'Cancelled',
+      };
+    }
+
     const message = error instanceof Error ? error.message : 'Unknown error';
     useProjectStore.getState().updateClipStatus(clipId, 'error', { errorMessage: message });
     genStore.updateJob(jobId, { status: 'error', progress: message, error: message });

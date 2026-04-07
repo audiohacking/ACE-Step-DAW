@@ -5,6 +5,7 @@ import type { GenerationPreset } from '../constants/generationPresets';
 import { useProjectStore } from './projectStore';
 import { classifyGenerationError, type GenerationErrorCategory } from '../services/generationErrorClassifier';
 import { loadAudioBlobByKey } from '../services/audioFileManager';
+import { abortJob as abortPipelineJob } from '../services/generationAbortRegistry';
 import {
   applyPromptAutocompleteSuggestion as applyPromptAutocompleteSuggestionToPrompt,
   getPromptAutocompleteSuggestions as getPromptAutocompleteSuggestionsForPrompt,
@@ -16,7 +17,7 @@ export interface GenerationJob {
   id: string;
   clipId: string;
   trackName: string;
-  status: 'queued' | 'generating' | 'processing' | 'done' | 'error';
+  status: 'queued' | 'generating' | 'processing' | 'done' | 'error' | 'cancelled';
   progress: string;
   stage?: string | null;
   progressPercent?: number | null;
@@ -29,6 +30,8 @@ export interface GenerationJob {
   errorCategory?: GenerationErrorCategory;
   error?: string;
   taskId?: string;
+  /** Stored generation parameters for retry. */
+  retryParams?: Record<string, unknown>;
 }
 
 export interface GenerationJobProgressInput {
@@ -456,6 +459,12 @@ export interface GenerationState {
   updateJob: (jobId: string, updates: Partial<GenerationJob>) => void;
   removeJob: (jobId: string) => void;
   clearCompletedJobs: () => void;
+  /** Cancel an active or queued generation job. */
+  cancelJob: (jobId: string) => void;
+  /** Cancel all active and queued generation jobs. */
+  cancelAllJobs: () => void;
+  /** Retry a failed or cancelled job. Returns new job ID, or null if not retryable. */
+  retryJob: (jobId: string) => string | null;
   setIsGenerating: (v: boolean) => void;
   /** Atomically acquire the generation lock. Returns true if acquired, false if already held. */
   tryAcquireGenerationLock: () => boolean;
@@ -603,8 +612,83 @@ export const useGenerationStore = create<GenerationState>()(
 
       clearCompletedJobs: () =>
         set((s) => ({
-          jobs: s.jobs.filter((j) => j.status !== 'done' && j.status !== 'error'),
+          jobs: s.jobs.filter((j) => j.status !== 'done' && j.status !== 'error' && j.status !== 'cancelled'),
         })),
+
+      cancelJob: (jobId) => {
+        const s = get();
+        const job = s.jobs.find((j) => j.id === jobId);
+        if (!job || job.status === 'done' || job.status === 'error' || job.status === 'cancelled') return;
+
+        // Abort in-flight API request if any
+        abortPipelineJob(jobId);
+
+        set((state) => {
+          const updatedJobs = state.jobs.map((j) =>
+            j.id === jobId
+              ? { ...j, status: 'cancelled' as const, progress: 'Cancelled', stage: 'Cancelled', lastUpdatedAt: Date.now() }
+              : j,
+          );
+
+          // Release generation lock if no more active jobs remain
+          const hasActiveJobs = updatedJobs.some(
+            (j) => j.status === 'queued' || j.status === 'generating' || j.status === 'processing',
+          );
+
+          return {
+            jobs: updatedJobs,
+            isGenerating: hasActiveJobs ? state.isGenerating : false,
+          };
+        });
+      },
+
+      cancelAllJobs: () => {
+        const s = get();
+        // Abort all in-flight API requests
+        for (const job of s.jobs) {
+          if (job.status === 'queued' || job.status === 'generating' || job.status === 'processing') {
+            abortPipelineJob(job.id);
+          }
+        }
+
+        set((state) => ({
+          jobs: state.jobs.map((j) =>
+            j.status === 'queued' || j.status === 'generating' || j.status === 'processing'
+              ? { ...j, status: 'cancelled' as const, progress: 'Cancelled', stage: 'Cancelled', lastUpdatedAt: Date.now() }
+              : j,
+          ),
+          isGenerating: false,
+        }));
+      },
+
+      retryJob: (jobId) => {
+        const state = get();
+        const job = state.jobs.find((j) => j.id === jobId);
+        if (!job) return null;
+        // Can only retry failed or cancelled jobs
+        if (job.status !== 'error' && job.status !== 'cancelled') return null;
+        // Must have retryParams
+        if (!job.retryParams) return null;
+
+        const newJobId = `job-retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const newJob: GenerationJob = {
+          id: newJobId,
+          clipId: job.clipId,
+          trackName: job.trackName,
+          status: 'queued',
+          progress: 'Queued (retry)',
+          stage: 'Queued',
+          progressPercent: null,
+          etaSeconds: null,
+          etaConfidence: 'none',
+          startedAt: Date.now(),
+          lastUpdatedAt: Date.now(),
+          retryParams: job.retryParams,
+        };
+
+        set((s) => ({ jobs: [...s.jobs, newJob] }));
+        return newJobId;
+      },
 
       setIsGenerating: (v) => set({ isGenerating: v }),
       tryAcquireGenerationLock: () => {
