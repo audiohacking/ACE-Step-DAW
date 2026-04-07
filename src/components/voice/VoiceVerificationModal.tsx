@@ -93,8 +93,11 @@ export function VoiceVerificationModal() {
     if (isRecording) {
       recordingEngine.stopRecording('voice-verify');
     }
+    // Clear blobs from memory for privacy — verification audio should not
+    // persist beyond the modal's lifecycle.
+    resetVerification();
     setShow(false);
-  }, [setShow, isRecording]);
+  }, [setShow, isRecording, resetVerification]);
 
   const requestMicPermission = useCallback(async () => {
     const granted = await recordingEngine.requestPermission();

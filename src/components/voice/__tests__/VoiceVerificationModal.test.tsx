@@ -98,14 +98,12 @@ describe('VoiceVerificationModal', () => {
     expect(screen.queryByText(/skip verification/i)).not.toBeInTheDocument();
   });
 
-  it('shows verification result on success', () => {
+  it('always starts on reference step regardless of store state', () => {
     useVoiceVerificationStore.setState({
       verificationStatus: 'verified',
     });
-    // Simulate being on result step by rendering with the verified state
     render(<VoiceVerificationModal />);
-    // The modal starts at step 'reference' regardless of store state
-    // This tests that the step indicator and reference step render correctly
+    // Modal resets to step 1 on open, so reference step shows even if store says verified
     expect(screen.getByText(/reference audio/i)).toBeInTheDocument();
   });
 });
