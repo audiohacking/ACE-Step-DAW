@@ -8,6 +8,7 @@ import { GenerationSettingsSection } from './GenerationSettingsSection';
 import { FullSongForm } from './FullSongForm';
 import { SimpleModeForm } from './SimpleModeForm';
 import { Button } from '../ui/Button';
+import { PromptLibraryPanel } from './PromptLibraryPanel';
 
 export type MixSubMode = 'simple' | 'custom';
 
@@ -271,11 +272,11 @@ export function GenerationSidePanel() {
           <div className="flex items-center justify-between border-b border-[#3a3a3a] px-5 py-3">
             <h2 className="text-sm font-semibold text-zinc-100">Generate</h2>
             <div className="flex items-center gap-2">
-              <div className="grid grid-cols-2 gap-1 rounded-lg border border-[#3a3a3a] bg-[#161618] p-0.5" data-testid="generation-panel-tabs">
+              <div className="grid grid-cols-3 gap-1 rounded-lg border border-[#3a3a3a] bg-[#161618] p-0.5" data-testid="generation-panel-tabs">
                 <button
                   type="button"
                   onClick={() => setGenerationPanelView('textToMusic')}
-                  className={`rounded-md px-3 py-1 text-[11px] font-medium transition-colors ${
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
                     generationPanelView === 'textToMusic'
                       ? 'bg-indigo-600 text-white'
                       : 'text-zinc-400 hover:bg-[#2a2a2a] hover:text-zinc-200'
@@ -288,7 +289,7 @@ export function GenerationSidePanel() {
                 <button
                   type="button"
                   onClick={openMultiTrackView}
-                  className={`rounded-md px-3 py-1 text-[11px] font-medium transition-colors ${
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
                     generationPanelView === 'multiTrack'
                       ? 'bg-indigo-600 text-white'
                       : 'text-zinc-400 hover:bg-[#2a2a2a] hover:text-zinc-200'
@@ -297,6 +298,19 @@ export function GenerationSidePanel() {
                   aria-pressed={generationPanelView === 'multiTrack'}
                 >
                   Stems
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGenerationPanelView('library')}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                    generationPanelView === 'library'
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-zinc-400 hover:bg-[#2a2a2a] hover:text-zinc-200'
+                  }`}
+                  data-testid="generation-panel-tab-library"
+                  aria-pressed={generationPanelView === 'library'}
+                >
+                  Prompts
                 </button>
               </div>
               <button
@@ -322,6 +336,8 @@ export function GenerationSidePanel() {
             />
           ) : generationPanelView === 'settings' ? (
             <GenerationSettingsSection active={generationPanelView === 'settings'} />
+          ) : generationPanelView === 'library' ? (
+            <PromptLibraryPanel />
           ) : (
             <>
               {/* Sub-mode tabs: Simple | Custom */}

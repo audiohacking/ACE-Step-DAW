@@ -978,6 +978,67 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
     }
   }
 
+  // Prompt Library commands
+  commands.push(
+    createTrackCommand(
+      'prompt-library:open',
+      'Open Prompt Library',
+      'AI Generation',
+      'action',
+      ['prompt', 'library', 'saved', 'prompts', 'favorites'],
+      ['show prompt library', 'browse saved prompts', 'open prompts'],
+      async () => {
+        const { useUIStore } = await import('../store/uiStore');
+        useUIStore.getState().openGenerationPanelView('library');
+      },
+      undefined,
+      'Browse and apply saved AI generation prompts',
+    ),
+    createTrackCommand(
+      'prompt-library:export',
+      'Export Prompt Library',
+      'AI Generation',
+      'action',
+      ['prompt', 'library', 'export', 'backup', 'json'],
+      ['export prompts', 'download prompt library', 'backup prompts'],
+      async () => {
+        const { useGenerationStore } = await import('../store/generationStore');
+        const { downloadBlob } = await import('./browserDownload');
+        const data = useGenerationStore.getState().exportPromptLibrary();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        downloadBlob(blob, `prompt-library-${new Date().toISOString().slice(0, 10)}.json`);
+      },
+      undefined,
+      'Export saved prompts as JSON file',
+    ),
+  );
+
+  // Add "Apply prompt: <title>" commands for each saved prompt (sync access)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { useGenerationStore } = require('../store/generationStore') as typeof import('../store/generationStore');
+    const library = useGenerationStore?.getState?.()?.promptLibrary ?? [];
+    for (const savedPrompt of library.slice(0, 20)) {
+      commands.push(
+        createTrackCommand(
+          `prompt-library:apply:${savedPrompt.id}`,
+          `Apply Prompt: ${savedPrompt.title}`,
+          'Prompt Library',
+          'action',
+          ['prompt', 'apply', 'library', ...savedPrompt.tags, savedPrompt.category].filter(Boolean),
+          [savedPrompt.prompt.slice(0, 60)],
+          () => {
+            useGenerationStore.getState().applyPromptFromLibrary(savedPrompt.id);
+          },
+          undefined,
+          savedPrompt.prompt.length > 60 ? savedPrompt.prompt.slice(0, 60) + '...' : savedPrompt.prompt,
+        ),
+      );
+    }
+  } catch {
+    // generationStore may not be available during SSR/test
+  }
+
   return commands;
 }
 

@@ -11,6 +11,17 @@ import {
   type AppliedPromptAutocompleteSuggestion,
   type PromptAutocompleteSuggestion,
 } from '../utils/promptAutocomplete';
+import {
+  createPromptLibrarySlice,
+  type PromptLibrarySlice,
+  type SavePromptInput,
+} from './slices/promptLibrarySlice';
+import type {
+  SavedPrompt,
+  PromptLibraryFilter,
+  PromptLibrarySortKey,
+  PromptLibraryExport,
+} from '../types/promptLibrary';
 
 export interface GenerationJob {
   id: string;
@@ -503,6 +514,22 @@ export interface GenerationState {
   setActiveVariation: (index: number) => void;
   clearVariationSession: () => void;
   cancelVariationSession: () => void;
+
+  // Prompt Library
+  promptLibrary: SavedPrompt[];
+  saveToPromptLibrary: (input: SavePromptInput) => SavedPrompt;
+  updatePromptLibraryEntry: (id: string, updates: Partial<SavePromptInput>) => SavedPrompt | null;
+  deleteFromPromptLibrary: (id: string) => boolean;
+  togglePromptLibraryFavorite: (id: string) => SavedPrompt | null;
+  recordPromptLibraryUse: (id: string) => SavedPrompt | null;
+  searchPromptLibrary: (filter: PromptLibraryFilter) => SavedPrompt[];
+  getSortedPromptLibrary: (sortKey: PromptLibrarySortKey) => SavedPrompt[];
+  getPromptLibraryById: (id: string) => SavedPrompt | null;
+  getPromptLibraryTags: () => string[];
+  getPromptLibraryCategories: () => string[];
+  exportPromptLibrary: () => PromptLibraryExport;
+  importPromptLibrary: (data: PromptLibraryExport) => number;
+  applyPromptFromLibrary: (id: string) => boolean;
 }
 
 let activeHistoryPreviewAudio: HTMLAudioElement | null = null;
@@ -538,6 +565,8 @@ function normalizeGenerationHistorySearch(search?: string): string[] {
     .filter(Boolean)
     ?? [];
 }
+
+const promptLibrary = createPromptLibrarySlice();
 
 export const useGenerationStore = create<GenerationState>()(
   persist(
@@ -1101,6 +1130,75 @@ export const useGenerationStore = create<GenerationState>()(
           },
         };
       }),
+
+      // Prompt Library
+      promptLibrary: [],
+
+      saveToPromptLibrary: (input) => {
+        const saved = promptLibrary.savePrompt(input);
+        set({ promptLibrary: promptLibrary.getState() });
+        return saved;
+      },
+
+      updatePromptLibraryEntry: (id, updates) => {
+        const updated = promptLibrary.updatePrompt(id, updates);
+        if (updated) set({ promptLibrary: promptLibrary.getState() });
+        return updated;
+      },
+
+      deleteFromPromptLibrary: (id) => {
+        const deleted = promptLibrary.deletePrompt(id);
+        if (deleted) set({ promptLibrary: promptLibrary.getState() });
+        return deleted;
+      },
+
+      togglePromptLibraryFavorite: (id) => {
+        const toggled = promptLibrary.toggleFavorite(id);
+        if (toggled) set({ promptLibrary: promptLibrary.getState() });
+        return toggled;
+      },
+
+      recordPromptLibraryUse: (id) => {
+        const used = promptLibrary.recordUse(id);
+        if (used) set({ promptLibrary: promptLibrary.getState() });
+        return used;
+      },
+
+      searchPromptLibrary: (filter) => promptLibrary.search(filter),
+
+      getSortedPromptLibrary: (sortKey) => promptLibrary.getSorted(sortKey),
+
+      getPromptLibraryById: (id) => promptLibrary.getById(id),
+
+      getPromptLibraryTags: () => promptLibrary.getAllTags(),
+
+      getPromptLibraryCategories: () => promptLibrary.getAllCategories(),
+
+      exportPromptLibrary: () => promptLibrary.exportLibrary(),
+
+      importPromptLibrary: (data) => {
+        const count = promptLibrary.importLibrary(data);
+        if (count > 0) set({ promptLibrary: promptLibrary.getState() });
+        return count;
+      },
+
+      applyPromptFromLibrary: (id) => {
+        const prompt = promptLibrary.getById(id);
+        if (!prompt) return false;
+        promptLibrary.recordUse(id);
+        set((s) => ({
+          promptLibrary: promptLibrary.getState(),
+          generationForm: {
+            ...s.generationForm,
+            prompt: prompt.prompt,
+            ...(prompt.metadata.bpm ? { bpm: prompt.metadata.bpm } : {}),
+            ...(prompt.metadata.keyScale ? { keyScale: prompt.metadata.keyScale } : {}),
+            ...(prompt.metadata.styleTags ? { styleTags: prompt.metadata.styleTags } : {}),
+            ...(prompt.metadata.lengthSeconds ? { lengthSeconds: prompt.metadata.lengthSeconds } : {}),
+          },
+        }));
+        return true;
+      },
     }),
     {
       name: 'ace-step-daw-generation',
@@ -1109,7 +1207,15 @@ export const useGenerationStore = create<GenerationState>()(
         promptHistory: state.promptHistory,
         generationHistory: state.generationHistory,
         generationForm: state.generationForm,
+        promptLibrary: state.promptLibrary,
       }),
+      merge: (persisted: unknown, current: GenerationState) => {
+        const p = persisted as Partial<GenerationState> | undefined;
+        if (p?.promptLibrary) {
+          promptLibrary.setState(p.promptLibrary);
+        }
+        return { ...current, ...p };
+      },
     },
   ),
 );

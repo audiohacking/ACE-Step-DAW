@@ -31,7 +31,7 @@ import {
 } from '../utils/timelineZoom';
 
 export type PianoRollChordShape = (typeof CHORD_SHAPES)[number]['abbr'];
-export type GenerationPanelView = 'textToMusic' | 'multiTrack' | 'history' | 'settings';
+export type GenerationPanelView = 'textToMusic' | 'multiTrack' | 'history' | 'settings' | 'library';
 
 const DEFAULT_PIANO_ROLL_CHORD_SHAPE: PianoRollChordShape = 'maj';
 const VALID_PIANO_ROLL_CHORD_SHAPES = new Set<string>(CHORD_SHAPES.map((shape) => shape.abbr));

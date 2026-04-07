@@ -10,6 +10,7 @@ import { generateText2Music, regenerateClip } from '../../services/generationPip
 import { formatInput, createRandomSample } from '../../services/aceStepApi';
 import { toastError, toastInfo } from '../../hooks/useToast';
 import { PromptAutocompleteTextarea } from './PromptAutocompleteTextarea';
+import { SavePromptDialog } from './SavePromptDialog';
 
 /** Magic pen icon for AI enhance buttons */
 function MagicPenIcon({ size = 16 }: { size?: number }) {
@@ -86,6 +87,7 @@ export function FullSongForm({ initialData, onFooterChange }: FullSongFormProps)
   const [loadingExample, setLoadingExample] = useState(false);
   const [expandCaption, setExpandCaption] = useState(false);
   const [expandLyrics, setExpandLyrics] = useState(false);
+  const [showSavePromptDialog, setShowSavePromptDialog] = useState(false);
 
   const handleEnhanceCaption = useCallback(async () => {
     if (!prompt.trim()) return;
@@ -325,6 +327,30 @@ export function FullSongForm({ initialData, onFooterChange }: FullSongFormProps)
           enhancing={enhancingCaption}
           disabled={isDisabled}
           placeholder="Describe the music you want to generate..."
+        />
+        {prompt.trim() && (
+          <button
+            type="button"
+            onClick={() => setShowSavePromptDialog(true)}
+            className="mt-1 flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+            data-testid="save-prompt-to-library"
+          >
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M12.5 14.5h-9a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1h6.5l3.5 3.5v8.5a1 1 0 0 1-1 1z" />
+              <path d="M5.5 1.5v3h4" />
+            </svg>
+            Save to Library
+          </button>
+        )}
+        <SavePromptDialog
+          open={showSavePromptDialog}
+          onClose={() => setShowSavePromptDialog(false)}
+          initialPrompt={prompt}
+          initialMetadata={{
+            bpm: project?.bpm,
+            keyScale: project?.keyScale,
+            styleTags: useGenerationStore.getState().generationForm.styleTags,
+          }}
         />
       </section>
 
