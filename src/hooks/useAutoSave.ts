@@ -2,10 +2,13 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { saveProject as saveProjectToIDB } from '../services/projectStorage';
 import { toastError, toastSuccess } from './useToast';
+import { saveVersion, pruneVersions } from '../services/versionHistory';
 
 export type SaveStatus = 'saved' | 'saving' | 'unsaved';
 
 const DEFAULT_DEBOUNCE_MS = 30_000;
+const VERSION_SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_AUTO_VERSIONS = 20;
 
 interface UseAutoSaveOptions {
   /** Debounce interval in milliseconds before auto-saving. Default: 30000 (30s). */
@@ -109,6 +112,19 @@ export function useAutoSave(options?: UseAutoSaveOptions): UseAutoSaveReturn {
       }
     };
   }, [debounceMs]);
+
+  // Periodic version snapshots (every 5 minutes)
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      const project = useProjectStore.getState().project;
+      if (!project) return;
+      void saveVersion(project, 'Auto-save').then(() => {
+        void pruneVersions(project.id, MAX_AUTO_VERSIONS);
+      });
+    }, VERSION_SNAPSHOT_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Beforeunload warning when dirty
   useEffect(() => {
