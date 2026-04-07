@@ -599,7 +599,7 @@ export function PianoRoll() {
         />
       )}
 
-      {track.instrument?.kind === 'physical' && (
+      {showSynthParams && track.instrument?.kind === 'physical' && (
         <PhysicalModelingEditor trackId={track.id} />
       )}
 

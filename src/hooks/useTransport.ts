@@ -11,6 +11,7 @@ import { createSamplerConfig, samplerEngine } from '../engine/SamplerEngine';
 import { drumEngine } from '../engine/DrumEngine';
 import { wavetableEngine } from '../engine/WavetableEngine';
 import { granularEngine } from '../engine/GranularEngine';
+import { karplusStrongEngine } from '../engine/KarplusStrongEngine';
 import { modulationEngine } from '../engine/ModulationEngine';
 import { automationEngine } from '../engine/AutomationEngine';
 import {
@@ -394,6 +395,7 @@ export function useTransport() {
         modulationEngine.removeTrack(track.id);
         samplerEngine.removeTrackSampler(track.id);
         granularEngine.removeTrack(track.id);
+        karplusStrongEngine.removeTrack(track.id);
 
         if (useSampler && samplerConfig) {
           const sampleBlob = await loadAudioBlobByKey(samplerConfig.audioKey);
@@ -441,6 +443,12 @@ export function useTransport() {
               trackNode.inputGain as unknown as AudioNode,
             );
           }
+        } else if (!vst3Instrument && track.instrument?.kind === 'physical') {
+          const trackNode = engine.getOrCreateTrackNode(track.id);
+          await karplusStrongEngine.ensureTrack(
+            track.id, track.instrument.settings,
+            trackNode.inputGain as unknown as Tone.InputNode,
+          );
         } else if (preset !== 'sampler') {
           synthEngine.ensureTrackSynth(track.id, preset);
         }
@@ -551,6 +559,10 @@ export function useTransport() {
               } else if (track.instrument?.kind === 'granular') {
                 engine.scheduleMidiEvent(scheduledStart, () => {
                   granularEngine.triggerAttackRelease(trackId, note.pitch, scheduledDuration, velocity);
+                });
+              } else if (track.instrument?.kind === 'physical') {
+                engine.scheduleMidiEvent(scheduledStart, () => {
+                  karplusStrongEngine.triggerAttackRelease(trackId, note.pitch, scheduledDuration, velocity);
                 });
               } else {
                 const freq = Tone.Frequency(note.pitch, 'midi').toFrequency();
