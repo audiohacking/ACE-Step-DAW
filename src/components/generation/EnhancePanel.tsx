@@ -13,6 +13,7 @@ import { useEnhancePlayback } from '../../hooks/useEnhancePlayback';
 import { computeWaveformPeaks } from '../../utils/waveformPeaks';
 import type { RepaintMode } from '../../types/api';
 import { ENHANCE_PRESETS, surpriseMe } from '../../constants/enhancePresets';
+import { NEGATIVE_PROMPT_CHIPS } from '../../constants/negativePromptSuggestions';
 import type { EnhancementNode } from '../../types/enhance';
 
 const ENHANCER_BASE_BOTTOM = 60;
@@ -135,6 +136,10 @@ export function EnhancePanel() {
   const [lyrics, setLyrics] = useState('');
   const [consistency, setConsistency] = useState<ConsistencyLevel>('medium');
   const [createNew, setCreateNew] = useState(true);
+
+  // Shared — negative prompt (applies to both Cover and Repaint)
+  const [negativePrompt, setNegativePrompt] = useState('');
+  const [showNegativePrompt, setShowNegativePrompt] = useState(false);
 
   // Repaint fields
   const [selStart, setSelStart] = useState(0);
@@ -400,6 +405,7 @@ export function EnhancePanel() {
         coverStrength,
         createNew,
         sourceAudioOverride: chainedSourceAudioKey || undefined,
+        negativePrompt: negativePrompt.trim() || undefined,
       });
       // After generation, try to load the result audio to get peaks/duration
       await finalizeResult(resultId, enhancerTarget.clipId, newClipId);
@@ -411,7 +417,7 @@ export function EnhancePanel() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [enhancerTarget, caption, lyrics, consistency, createNew, isGenerating, isSubmitting, chainedSourceAudioKey, finalizeResult]);
+  }, [enhancerTarget, caption, lyrics, consistency, createNew, isGenerating, isSubmitting, chainedSourceAudioKey, finalizeResult, negativePrompt]);
 
   // Repaint generation
   const handleRepaintGenerate = useCallback(async () => {
@@ -439,6 +445,7 @@ export function EnhancePanel() {
         repaintMode,
         repaintStrength,
         sourceAudioOverride: chainedSourceAudioKey || undefined,
+        negativePrompt: negativePrompt.trim() || undefined,
       });
       await finalizeResult(resultId, enhancerTarget.clipId, newClipId);
     } catch (err) {
@@ -449,7 +456,7 @@ export function EnhancePanel() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [enhancerTarget, selStart, selEnd, prompt, globalCaption, repaintMode, repaintStrength, isGenerating, isSubmitting, chainedSourceAudioKey, finalizeResult]);
+  }, [enhancerTarget, selStart, selEnd, prompt, globalCaption, repaintMode, repaintStrength, isGenerating, isSubmitting, chainedSourceAudioKey, finalizeResult, negativePrompt]);
 
   const handleGenerate = mode === 'cover' ? handleCoverGenerate : handleRepaintGenerate;
 
@@ -860,6 +867,69 @@ export function EnhancePanel() {
                   rows={3}
                   className="w-full bg-[#161618] border border-[#333] rounded-lg px-3 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-teal-500/60 font-mono"
                 />
+              </div>
+
+              {/* Negative Prompt — collapsible */}
+              <div>
+                <button
+                  data-testid="enhance-negative-prompt-toggle"
+                  onClick={() => setShowNegativePrompt((v) => !v)}
+                  className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-1 hover:text-zinc-300 transition-colors"
+                >
+                  <svg
+                    className={`w-3 h-3 transition-transform ${showNegativePrompt ? 'rotate-90' : ''}`}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Negative Prompt
+                  {negativePrompt.trim() && !showNegativePrompt && (
+                    <span className="ml-1 rounded bg-zinc-700 px-1.5 py-0.5 text-[9px] font-normal normal-case text-zinc-400">
+                      active
+                    </span>
+                  )}
+                </button>
+                {showNegativePrompt && (
+                  <>
+                    <textarea
+                      data-testid="enhance-negative-prompt-input"
+                      value={negativePrompt}
+                      onChange={(e) => setNegativePrompt(e.target.value)}
+                      placeholder="e.g. no autotune, no heavy reverb, no falsetto"
+                      rows={2}
+                      className="w-full bg-[#161618] border border-[#333] rounded-lg px-3 py-2 text-xs text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none focus:border-teal-500/60"
+                    />
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {NEGATIVE_PROMPT_CHIPS.map((chip) => {
+                        const isActive = negativePrompt.toLowerCase().includes(chip.toLowerCase());
+                        return (
+                          <button
+                            key={chip}
+                            type="button"
+                            onClick={() => {
+                              if (isActive) {
+                                const regex = new RegExp(`,?\\s*${chip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi');
+                                setNegativePrompt((prev) => prev.replace(regex, '').replace(/^,\s*/, '').trim());
+                              } else {
+                                setNegativePrompt((prev) => prev.trim() ? `${prev.trim()}, ${chip}` : chip);
+                              }
+                            }}
+                            className={`rounded-full px-2 py-0.5 text-[9px] transition-colors ${
+                              isActive
+                                ? 'bg-teal-600/30 text-teal-200 border border-teal-500/40'
+                                : 'bg-[#222] text-zinc-500 border border-transparent hover:text-zinc-300 hover:bg-[#2a2a2a]'
+                            }`}
+                          >
+                            {chip}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Quick Styles presets */}

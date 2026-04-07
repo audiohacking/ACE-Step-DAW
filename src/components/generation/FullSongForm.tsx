@@ -10,6 +10,7 @@ import { generateText2Music, regenerateClip } from '../../services/generationPip
 import { formatInput, createRandomSample } from '../../services/aceStepApi';
 import { toastError, toastInfo } from '../../hooks/useToast';
 import { PromptAutocompleteTextarea } from './PromptAutocompleteTextarea';
+import { NEGATIVE_PROMPT_CHIPS } from '../../constants/negativePromptSuggestions';
 
 /** Magic pen icon for AI enhance buttons */
 function MagicPenIcon({ size = 16 }: { size?: number }) {
@@ -189,6 +190,9 @@ export function FullSongForm({ initialData, onFooterChange }: FullSongFormProps)
       if (p.negativePrompt) {
         setNegativePrompt(p.negativePrompt);
         setShowNegativePrompt(true);
+      } else {
+        setNegativePrompt('');
+        setShowNegativePrompt(false);
       }
     } else {
       // Backward compatibility: hydrate from basic clip fields
@@ -436,15 +440,44 @@ export function FullSongForm({ initialData, onFooterChange }: FullSongFormProps)
           )}
         </button>
         {showNegativePrompt && (
-          <textarea
-            value={negativePrompt}
-            onChange={(e) => setNegativePrompt(e.target.value)}
-            rows={2}
-            placeholder="e.g. no autotune, no heavy reverb, no falsetto"
-            className="w-full resize-none rounded border border-[#444] bg-[#2a2a2a] px-2 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
-            disabled={isDisabled}
-            data-testid="negative-prompt-input"
-          />
+          <>
+            <textarea
+              value={negativePrompt}
+              onChange={(e) => setNegativePrompt(e.target.value)}
+              rows={2}
+              placeholder="e.g. no autotune, no heavy reverb, no falsetto"
+              className="w-full resize-none rounded border border-[#444] bg-[#2a2a2a] px-2 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-indigo-500 focus:outline-none"
+              disabled={isDisabled}
+              data-testid="negative-prompt-input"
+            />
+            <div className="flex flex-wrap gap-1" data-testid="negative-prompt-chips">
+              {NEGATIVE_PROMPT_CHIPS.map((chip) => {
+                const isActive = negativePrompt.toLowerCase().includes(chip.toLowerCase());
+                return (
+                  <button
+                    key={chip}
+                    type="button"
+                    disabled={isDisabled}
+                    onClick={() => {
+                      if (isActive) {
+                        const regex = new RegExp(`,?\\s*${chip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi');
+                        setNegativePrompt(negativePrompt.replace(regex, '').replace(/^,\s*/, '').trim());
+                      } else {
+                        setNegativePrompt(negativePrompt.trim() ? `${negativePrompt.trim()}, ${chip}` : chip);
+                      }
+                    }}
+                    className={`rounded-full px-2 py-0.5 text-[10px] transition-colors ${
+                      isActive
+                        ? 'bg-indigo-600/40 text-indigo-200 border border-indigo-500/50'
+                        : 'bg-[#333] text-zinc-500 border border-transparent hover:text-zinc-300 hover:bg-[#3a3a3a]'
+                    } disabled:opacity-40 disabled:cursor-not-allowed`}
+                  >
+                    {chip}
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
       </section>
 

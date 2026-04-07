@@ -4,7 +4,6 @@ import '@testing-library/jest-dom';
 import { FullSongForm } from '../../src/components/generation/FullSongForm';
 import { useGenerationStore } from '../../src/store/generationStore';
 import { useProjectStore } from '../../src/store/projectStore';
-import { useModelStore } from '../../src/store/modelStore';
 import { useUIStore } from '../../src/store/uiStore';
 
 vi.mock('../../src/services/generationPipeline', () => ({
