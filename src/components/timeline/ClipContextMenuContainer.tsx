@@ -5,6 +5,7 @@ import { useProjectStore } from '../../store/projectStore';
 import { useTransportStore } from '../../store/transportStore';
 import { regenerateClip } from '../../services/generationPipeline';
 import { ClipContextMenu } from './ClipContextMenu';
+import { GRID_BEATS_MAP } from '../pianoroll/PianoRollConstants';
 
 /** Default grid size for groove extraction (16th note = 0.25 beats). */
 const DEFAULT_GROOVE_GRID_BEATS = 0.25;
@@ -128,7 +129,7 @@ export function ClipContextMenuContainer({
         onClose();
         const name = `Groove from ${track.displayName || track.trackName}`;
         const gridBeats = clip.midiData?.grid
-          ? ({ '1/4': 1, '1/8': 0.5, '1/16': 0.25, '1/32': 0.125 }[clip.midiData.grid] ?? DEFAULT_GROOVE_GRID_BEATS)
+          ? (GRID_BEATS_MAP[clip.midiData.grid] ?? DEFAULT_GROOVE_GRID_BEATS)
           : DEFAULT_GROOVE_GRID_BEATS;
         const project = useProjectStore.getState().project;
         const bpm = project?.bpm ?? 120;

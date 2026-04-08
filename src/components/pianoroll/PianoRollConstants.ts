@@ -13,6 +13,14 @@ export const PIANO_ROLL_KEY_HEIGHT = 14;
 export const PIANO_KEYBOARD_WIDTH = 56;
 export const VELOCITY_LANE_HEIGHT = 60;
 
+/** PianoRollGrid → quarter-note beats mapping. Shared across grid-aware features. */
+export const GRID_BEATS_MAP: Record<PianoRollGrid, number> = {
+  '1/4': 1,
+  '1/8': 0.5,
+  '1/16': 0.25,
+  '1/32': 0.125,
+};
+
 interface PianoRollVisualState {
   isSelected: boolean;
   isSlide: boolean;

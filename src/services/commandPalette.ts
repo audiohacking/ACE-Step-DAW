@@ -1026,8 +1026,7 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
       'action',
       ['track', 'preset', 'manager', 'save', 'template', 'instrument'],
       ['manage track presets', 'track templates', 'save track preset'],
-      async () => {
-        const { useUIStore } = await import('../store/uiStore');
+      () => {
         const current = useUIStore.getState().showTrackPresetManager;
         useUIStore.getState().setShowTrackPresetManager(!current);
       },

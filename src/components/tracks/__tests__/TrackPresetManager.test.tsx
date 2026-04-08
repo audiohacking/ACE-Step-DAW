@@ -9,7 +9,7 @@ function makePreset(overrides: Partial<TrackPreset> = {}): TrackPreset {
     id: overrides.id ?? 'preset-1',
     name: overrides.name ?? 'Warm Pad',
     trackName: 'synth',
-    trackType: 'midi',
+    trackType: 'pianoRoll',
     settings: {
       synthPreset: 'pad',
       volume: 0.8,
