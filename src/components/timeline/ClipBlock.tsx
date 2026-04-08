@@ -247,6 +247,7 @@ function ClipBlockInner({ clip, track }: ClipBlockProps) {
           border: clipPresentation.clipBorder,
           contain: 'layout style paint',
           zIndex: 1,
+          animation: 'clip-mount-fade 200ms ease-out',
         }}
         data-clip-block
         data-clip-id={clip.id}
@@ -403,6 +404,32 @@ function ClipBlockInner({ clip, track }: ClipBlockProps) {
           hoveredResizeEdge={hoveredResizeEdge}
           canRegenerate={clip.source === 'generated' && !!(clip.generationParams || track.trackType === 'mix')}
         />
+
+        {/* AI-generated clip badge — subtle sparkle in bottom-left corner */}
+        {clip.source === 'generated' && (
+          <div
+            data-testid="ai-generated-badge"
+            className="absolute z-10 pointer-events-none"
+            style={{
+              bottom: 3,
+              left: 4,
+              width: 10,
+              height: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: 0.5,
+            }}
+            aria-label="AI-generated clip"
+          >
+            <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
+              <path
+                d="M5 0L6.1 3.9L10 5L6.1 6.1L5 10L3.9 6.1L0 5L3.9 3.9L5 0Z"
+                fill="white"
+              />
+            </svg>
+          </div>
+        )}
 
         <ClipStatusOverlay clip={clip} generatingProgress={generatingProgress} generationJob={generationJob} isMidiClip={isMidiClip} />
 

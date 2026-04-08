@@ -40,7 +40,7 @@ export function Playhead() {
             willChange: 'transform',
             minHeight: '100vh',
             backgroundColor: '#ffffff',
-            boxShadow: '0 0 3px rgba(0, 0, 0, 0.35), 0 0 8px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 0 4px rgba(255, 255, 255, 0.5), 0 0 8px rgba(147, 197, 253, 0.3), 0 0 3px rgba(0, 0, 0, 0.35)',
           }}
         />
       )}

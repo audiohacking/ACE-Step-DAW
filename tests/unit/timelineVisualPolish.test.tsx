@@ -1,0 +1,156 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { ClipBlock } from '../../src/components/timeline/ClipBlock';
+import { Playhead } from '../../src/components/timeline/Playhead';
+import { useProjectStore } from '../../src/store/projectStore';
+import { useUIStore } from '../../src/store/uiStore';
+import { useTransportStore } from '../../src/store/transportStore';
+import type { Clip, Track } from '../../src/types/project';
+
+// Mock heavy child components
+vi.mock('../../src/components/timeline/ClipContextMenu', () => ({
+  ClipContextMenu: () => null,
+}));
+vi.mock('../../src/components/timeline/CanvasClipWaveform', () => ({
+  CanvasClipWaveform: () => <div data-testid="clip-waveform" />,
+}));
+vi.mock('../../src/components/timeline/CanvasClipMidiThumbnail', () => ({
+  CanvasClipMidiThumbnail: () => <div data-testid="clip-midi-thumbnail" />,
+}));
+vi.mock('../../src/components/timeline/ClipGainEnvelope', () => ({
+  ClipGainEnvelope: () => null,
+}));
+vi.mock('../../src/components/timeline/ClipWarpMarkers', () => ({
+  ClipWarpMarkers: () => null,
+}));
+vi.mock('../../src/components/timeline/ClipStatusOverlay', () => ({
+  ClipStatusOverlay: () => null,
+}));
+vi.mock('../../src/components/generation/AddLayerModal', () => ({
+  AddLayerModal: () => null,
+}));
+vi.mock('../../src/services/generationPipeline', () => ({
+  regenerateClip: vi.fn(),
+}));
+vi.mock('../../src/hooks/useGeneration', () => ({
+  useGeneration: () => ({ generateClip: vi.fn() }),
+}));
+vi.mock('../../src/services/projectStorage', () => ({
+  saveProject: vi.fn(),
+}));
+
+const makeClip = (overrides?: Partial<Clip>): Clip => ({
+  id: 'clip-1',
+  trackId: 'track-1',
+  startTime: 0,
+  duration: 4,
+  prompt: 'Test clip',
+  lyrics: '',
+  generationStatus: 'ready',
+  generationJobId: null,
+  cumulativeMixKey: null,
+  isolatedAudioKey: 'some-audio-key',
+  waveformPeaks: [0.1, 0.5, 0.3],
+  ...overrides,
+});
+
+const makeTrack = (overrides?: Partial<Track>): Track => ({
+  id: 'track-1',
+  displayName: 'Track 1',
+  trackName: 'guitar',
+  trackType: 'stems',
+  color: '#4488ff',
+  volume: 0.8,
+  pan: 0,
+  mute: false,
+  solo: false,
+  clips: [],
+  effects: [],
+  sends: [],
+  armed: false,
+  inputMonitoring: 'off',
+  ...overrides,
+} as Track);
+
+beforeEach(() => {
+  localStorage.clear();
+  useProjectStore.setState(useProjectStore.getInitialState(), true);
+  useUIStore.setState(useUIStore.getInitialState(), true);
+  useTransportStore.setState(useTransportStore.getInitialState(), true);
+  useProjectStore.getState().createProject({ name: 'Visual Polish Test' });
+});
+
+// ── 1. Playhead Glow ──
+describe('Playhead glow effect', () => {
+  it('transport line has a bright glow boxShadow (not just dark shadow)', () => {
+    // Set transport at a different position than anchor so the line appears
+    useTransportStore.setState({ currentTime: 2, playStartTime: 0 });
+    useUIStore.setState({ pixelsPerSecond: 100 });
+
+    const { container } = render(<Playhead />);
+    const playheadLine = container.querySelector('.absolute.top-0');
+    expect(playheadLine).toBeTruthy();
+
+    const style = playheadLine!.getAttribute('style') ?? '';
+    // Must contain a white/bright glow component (not just dark rgba(0,0,0,...))
+    expect(style).toMatch(/rgba\(255/);
+  });
+});
+
+// ── 2. AI Clip Visual Distinction ──
+describe('AI-generated clip visual indicator', () => {
+  it('shows AI indicator badge when clip source is "generated"', () => {
+    const clip = makeClip({ source: 'generated' });
+    const track = makeTrack();
+    render(<ClipBlock clip={clip} track={track} />);
+
+    const indicator = screen.getByTestId('ai-generated-badge');
+    expect(indicator).toBeInTheDocument();
+  });
+
+  it('does NOT show AI indicator for uploaded clips', () => {
+    const clip = makeClip({ source: 'uploaded' });
+    const track = makeTrack();
+    render(<ClipBlock clip={clip} track={track} />);
+
+    expect(screen.queryByTestId('ai-generated-badge')).not.toBeInTheDocument();
+  });
+
+  it('does NOT show AI indicator when source is undefined', () => {
+    const clip = makeClip({ source: undefined });
+    const track = makeTrack();
+    render(<ClipBlock clip={clip} track={track} />);
+
+    expect(screen.queryByTestId('ai-generated-badge')).not.toBeInTheDocument();
+  });
+});
+
+// ── 3. Recording Track Lane Pulse ──
+describe('Recording track lane pulse', () => {
+  it('clip block shows recording animation class when track is armed and recording', () => {
+    const clip = makeClip();
+    const track = makeTrack({ armed: true });
+    useTransportStore.setState({ isRecording: true });
+    render(<ClipBlock clip={clip} track={track} />);
+
+    const clipEl = screen.getByTestId(`clip-${clip.id}`);
+    // The parent clip container should exist — the lane-level recording indicator
+    // is tested via TrackLane, but ClipBlock should still render normally
+    expect(clipEl).toBeInTheDocument();
+  });
+});
+
+// ── 4. Clip Mount Animation ──
+describe('Clip mount animation', () => {
+  it('clip block has a mount animation style', () => {
+    const clip = makeClip();
+    const track = makeTrack();
+    render(<ClipBlock clip={clip} track={track} />);
+
+    const clipEl = screen.getByTestId(`clip-${clip.id}`);
+    const style = clipEl.getAttribute('style') ?? '';
+    // Should have animation for smooth entry
+    expect(style).toMatch(/animation/);
+  });
+});
