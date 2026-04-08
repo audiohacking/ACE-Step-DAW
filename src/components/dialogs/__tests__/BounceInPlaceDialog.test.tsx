@@ -34,6 +34,8 @@ function setupBounceDialog() {
 
 describe('BounceInPlaceDialog', () => {
   beforeEach(() => {
+    useProjectStore.setState(useProjectStore.getInitialState(), true);
+    useUIStore.setState(useUIStore.getInitialState(), true);
     setupBounceDialog();
   });
 
@@ -97,5 +99,21 @@ describe('BounceInPlaceDialog', () => {
     render(<BounceInPlaceDialog />);
     expect(screen.getByText(/Bake the track effect chain/)).toBeInTheDocument();
     expect(screen.getByText(/Bake track volume and pan/)).toBeInTheDocument();
+  });
+
+  it('calls bounceInPlace API on Bounce Track click', async () => {
+    const { projectActionApi } = await import('../../../services/actionApi');
+    vi.mocked(projectActionApi.bounceInPlace).mockClear();
+    render(<BounceInPlaceDialog />);
+    fireEvent.click(screen.getByText('Bounce Track'));
+    expect(projectActionApi.bounceInPlace).toHaveBeenCalledWith({
+      trackId: useUIStore.getState().bounceInPlaceTrackId,
+      options: expect.objectContaining({
+        includeEffects: expect.any(Boolean),
+        includeAutomation: expect.any(Boolean),
+        normalize: expect.any(Boolean),
+        replaceOriginal: expect.any(Boolean),
+      }),
+    });
   });
 });

@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { KeyboardShortcutsDialog } from '../KeyboardShortcutsDialog';
 import { useUIStore } from '../../../store/uiStore';
 
 describe('KeyboardShortcutsDialog', () => {
   beforeEach(() => {
+    useUIStore.setState(useUIStore.getInitialState(), true);
     useUIStore.setState({ showKeyboardShortcutsDialog: true });
   });
 

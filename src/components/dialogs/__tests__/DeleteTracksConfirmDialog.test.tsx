@@ -16,6 +16,8 @@ describe('DeleteTracksConfirmDialog', () => {
   let trackIds: string[];
 
   beforeEach(() => {
+    useProjectStore.setState(useProjectStore.getInitialState(), true);
+    useUIStore.setState(useUIStore.getInitialState(), true);
     trackIds = setupWithTracks();
   });
 
@@ -65,33 +67,24 @@ describe('DeleteTracksConfirmDialog', () => {
   });
 
   it('calls confirmDeleteTracks on Delete click', () => {
-    const confirmSpy = vi.fn();
-    useUIStore.setState({
-      pendingDeleteTrackIds: [trackIds[0]],
-      confirmDeleteTracks: confirmSpy,
-    });
+    useUIStore.setState({ pendingDeleteTrackIds: [trackIds[0]] });
+    const confirmSpy = vi.spyOn(useUIStore.getState(), 'confirmDeleteTracks');
     render(<DeleteTracksConfirmDialog />);
     fireEvent.click(screen.getByText('Delete'));
     expect(confirmSpy).toHaveBeenCalledOnce();
   });
 
   it('calls cancelDeleteTracks on Cancel click', () => {
-    const cancelSpy = vi.fn();
-    useUIStore.setState({
-      pendingDeleteTrackIds: [trackIds[0]],
-      cancelDeleteTracks: cancelSpy,
-    });
+    useUIStore.setState({ pendingDeleteTrackIds: [trackIds[0]] });
+    const cancelSpy = vi.spyOn(useUIStore.getState(), 'cancelDeleteTracks');
     render(<DeleteTracksConfirmDialog />);
     fireEvent.click(screen.getByText('Cancel'));
     expect(cancelSpy).toHaveBeenCalledOnce();
   });
 
   it('calls cancelDeleteTracks on close button click', () => {
-    const cancelSpy = vi.fn();
-    useUIStore.setState({
-      pendingDeleteTrackIds: [trackIds[0]],
-      cancelDeleteTracks: cancelSpy,
-    });
+    useUIStore.setState({ pendingDeleteTrackIds: [trackIds[0]] });
+    const cancelSpy = vi.spyOn(useUIStore.getState(), 'cancelDeleteTracks');
     render(<DeleteTracksConfirmDialog />);
     // Close button is the × character
     const closeBtn = screen.getAllByRole('button').find(

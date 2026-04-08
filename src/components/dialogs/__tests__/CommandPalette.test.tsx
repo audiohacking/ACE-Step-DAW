@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CommandPalette } from '../CommandPalette';
 import { useUIStore } from '../../../store/uiStore';
 
 describe('CommandPalette', () => {
   beforeEach(() => {
+    useUIStore.setState(useUIStore.getInitialState(), true);
     useUIStore.setState({
       showCommandPalette: true,
       commandPaletteQuery: '',
@@ -41,14 +42,11 @@ describe('CommandPalette', () => {
     expect(input).toBeInTheDocument();
   });
 
-  it('renders search results', () => {
+  it('renders command results listbox', () => {
     render(<CommandPalette />);
-    // With empty query, should show recent or all commands
-    const listbox = screen.queryByRole('listbox');
-    // Listbox appears when there are results
-    if (listbox) {
-      expect(listbox).toBeInTheDocument();
-    }
+    // With empty query, command palette shows all commands as results
+    const listbox = screen.getByRole('listbox');
+    expect(listbox).toBeInTheDocument();
   });
 
   it('updates query on input change', () => {
@@ -67,7 +65,6 @@ describe('CommandPalette', () => {
 
   it('shows Esc shortcut hint', () => {
     render(<CommandPalette />);
-    // The Esc hint is rendered via ShortcutHint component
     const kbds = screen.getAllByText('Esc');
     expect(kbds.length).toBeGreaterThanOrEqual(1);
   });
