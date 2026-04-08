@@ -56,6 +56,12 @@ function ClipBlockInner({ clip, track }: ClipBlockProps) {
   const isMidiClip = Boolean(clip.midiData);
   const hasAudioBody = Boolean(clip.isolatedAudioKey || clip.cumulativeMixKey || clip.waveformPeaks);
 
+  const [mountAnimating, setMountAnimating] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setMountAnimating(false), 220);
+    return () => clearTimeout(t);
+  }, []);
+
   const [addLayerOpen, setAddLayerOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [dragGhost, setDragGhost] = useState<DragGhostInfo | null>(null);
@@ -247,7 +253,7 @@ function ClipBlockInner({ clip, track }: ClipBlockProps) {
           border: clipPresentation.clipBorder,
           contain: 'layout style paint',
           zIndex: 1,
-          animation: 'clip-mount-fade 200ms ease-out',
+          animation: mountAnimating ? 'clip-mount-fade 200ms ease-out' : undefined,
         }}
         data-clip-block
         data-clip-id={clip.id}
