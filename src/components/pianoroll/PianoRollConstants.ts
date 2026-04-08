@@ -13,13 +13,11 @@ export const PIANO_ROLL_KEY_HEIGHT = 14;
 export const PIANO_KEYBOARD_WIDTH = 56;
 export const VELOCITY_LANE_HEIGHT = 60;
 
-/** PianoRollGrid → quarter-note beats mapping. Shared across grid-aware features. */
-export const GRID_BEATS_MAP: Record<PianoRollGrid, number> = {
-  '1/4': 1,
-  '1/8': 0.5,
-  '1/16': 0.25,
-  '1/32': 0.125,
-};
+/** PianoRollGrid → quarter-note beats mapping. Derived from gridSizeToBeats to avoid drift. */
+const SUPPORTED_GRIDS: PianoRollGrid[] = ['1/4', '1/8', '1/16', '1/32'];
+export const GRID_BEATS_MAP: Record<PianoRollGrid, number> = Object.fromEntries(
+  SUPPORTED_GRIDS.map((grid) => [grid, gridSizeToBeats(grid)]),
+) as Record<PianoRollGrid, number>;
 
 interface PianoRollVisualState {
   isSelected: boolean;

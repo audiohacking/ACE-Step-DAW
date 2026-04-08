@@ -11,7 +11,7 @@ import { useProjectStore } from '../../store/projectStore';
 import { loadAudioBlobByKey } from '../../services/audioFileManager';
 import { getExistingAudioEngine } from '../../hooks/useAudioEngine';
 import { computeAudioMetrics, formatLufs, formatDbLevel, formatDbRange } from '../../services/audioMetrics';
-import type { Clip, Project } from '../../types/project';
+import type { Clip } from '../../types/project';
 import type { AudioMetrics } from '../../types/clipInspector';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -70,20 +70,18 @@ function TagChip({ tag, onRemove }: { tag: string; onRemove?: () => void }) {
   );
 }
 
-function collectProjectTags(project: Project | null): string[] {
-  if (!project) return [];
-  const tagSet = new Set<string>();
-  for (const track of project.tracks) {
-    for (const clip of track.clips) {
-      if (clip.tags) clip.tags.forEach((t) => tagSet.add(t));
-    }
-  }
-  return Array.from(tagSet).sort();
-}
-
 function useAllProjectTags(): string[] {
-  const project = useProjectStore((s) => s.project);
-  return useMemo(() => collectProjectTags(project), [project]);
+  const tracks = useProjectStore((s) => s.project?.tracks);
+  return useMemo(() => {
+    if (!tracks) return [];
+    const tagSet = new Set<string>();
+    for (const track of tracks) {
+      for (const clip of track.clips) {
+        if (clip.tags) clip.tags.forEach((t) => tagSet.add(t));
+      }
+    }
+    return Array.from(tagSet).sort();
+  }, [tracks]);
 }
 
 function TagInput({ clipId, existingTags }: { clipId: string; existingTags: string[] }) {
