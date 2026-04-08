@@ -62,10 +62,10 @@ export function VoiceLibraryPanel() {
       if (!file) return;
 
       setIsUploading(true);
+      let ctx: AudioContext | null = null;
       try {
-        const ctx = new AudioContext();
+        ctx = new AudioContext();
         const result = await processVoiceAudioFile(file, ctx);
-        ctx.close();
 
         if (isVoiceUploadError(result)) {
           toastError(result.message);
@@ -87,6 +87,7 @@ export function VoiceLibraryPanel() {
       } catch {
         toastError('Failed to process voice file');
       } finally {
+        ctx?.close();
         setIsUploading(false);
         // Reset the input so the same file can be re-selected
         if (fileInputRef.current) fileInputRef.current.value = '';

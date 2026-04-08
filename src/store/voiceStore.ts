@@ -65,8 +65,11 @@ export const useVoiceStore = create<VoiceState>()(
           waveformPeaks: input.waveformPeaks,
         };
 
-        // Persist audio blob asynchronously (fire-and-forget)
-        idbSet(audioKey, audioBlob);
+        // Persist audio blob asynchronously
+        idbSet(audioKey, audioBlob).catch(() => {
+          // Remove the profile if audio storage fails (e.g. quota exceeded)
+          set((state) => ({ voices: state.voices.filter((v) => v.id !== id) }));
+        });
 
         set((state) => ({ voices: [...state.voices, profile] }));
         return id;

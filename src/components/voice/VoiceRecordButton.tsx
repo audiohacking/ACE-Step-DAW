@@ -88,7 +88,7 @@ export function VoiceRecordButton() {
       className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-medium transition-colors ${
         isRecording
           ? 'bg-red-900/40 text-red-300 hover:bg-red-900/60'
-          : 'bg-transparent text-zinc-400 hover:bg-[#333] hover:text-zinc-200'
+          : 'bg-transparent text-zinc-400 hover:bg-daw-hover-subtle hover:text-zinc-200'
       }`}
       aria-label={isRecording ? 'Stop recording' : 'Record voice'}
       data-testid="voice-record-btn"
@@ -96,7 +96,7 @@ export function VoiceRecordButton() {
       {isRecording ? (
         <>
           <div className="w-2 h-2 rounded-sm bg-red-400 animate-pulse" />
-          <span>{recordingDuration}s</span>
+          <span className="font-mono">{recordingDuration}s</span>
         </>
       ) : (
         <>

@@ -71,7 +71,10 @@ export function VoiceCard({
           ? 'border-daw-accent bg-daw-accent/10'
           : 'border-daw-border bg-daw-surface hover:bg-daw-surface-2 hover:border-daw-surface-3'
       }`}
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(voice.id)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(voice.id); } }}
       data-testid={`voice-card-${voice.id}`}
     >
       {/* Waveform thumbnail */}
@@ -121,7 +124,7 @@ export function VoiceCard({
             {voice.name}
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[9px] text-zinc-500">{formatDuration(voice.durationSeconds)}</span>
+            <span className="text-[9px] text-zinc-500 font-mono">{formatDuration(voice.durationSeconds)}</span>
             <span className={`text-[8px] px-1 py-px rounded ${SKILL_COLORS[voice.skillLevel] ?? 'bg-zinc-700 text-zinc-400'}`}>
               {voice.skillLevel}
             </span>

@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useVoiceStore } from '../../store/voiceStore';
-import type { VoiceProfile, VoiceSkillLevel } from '../../types/voice';
+import type { VoiceSkillLevel } from '../../types/voice';
 import { Button } from '../ui/Button';
 
 const SKILL_LEVELS: VoiceSkillLevel[] = ['beginner', 'intermediate', 'advanced', 'professional'];
@@ -18,6 +18,15 @@ export function VoiceEditDialog({ voiceId, onClose }: VoiceEditDialogProps) {
   const [skillLevel, setSkillLevel] = useState<VoiceSkillLevel>(voice?.skillLevel ?? 'intermediate');
   const [language, setLanguage] = useState(voice?.language ?? '');
   const [tagsInput, setTagsInput] = useState(voice?.tags.join(', ') ?? '');
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const handleSave = useCallback(() => {
     if (!voice) return;
@@ -40,19 +49,23 @@ export function VoiceEditDialog({ voiceId, onClose }: VoiceEditDialogProps) {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Edit Voice Profile"
       data-testid="voice-edit-dialog"
     >
       <div
         className="w-80 rounded-lg border border-daw-border bg-daw-surface p-4 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-sm font-semibold text-zinc-100 mb-3">Edit Voice Profile</h3>
+        <h3 id="voice-edit-title" className="text-sm font-semibold text-zinc-100 mb-3">Edit Voice Profile</h3>
 
         <div className="space-y-3">
           {/* Name */}
           <div>
-            <label className="text-[10px] text-zinc-400 uppercase tracking-wider">Name</label>
+            <label htmlFor="voice-edit-name-input" className="text-[10px] text-zinc-400 uppercase tracking-wider">Name</label>
             <input
+              id="voice-edit-name-input"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -64,11 +77,13 @@ export function VoiceEditDialog({ voiceId, onClose }: VoiceEditDialogProps) {
           {/* Skill Level */}
           <div>
             <label className="text-[10px] text-zinc-400 uppercase tracking-wider">Skill Level</label>
-            <div className="mt-1 grid grid-cols-2 gap-1">
+            <div className="mt-1 grid grid-cols-2 gap-1" role="radiogroup" aria-label="Skill level">
               {SKILL_LEVELS.map((level) => (
                 <button
                   key={level}
                   type="button"
+                  role="radio"
+                  aria-checked={skillLevel === level}
                   onClick={() => setSkillLevel(level)}
                   className={`rounded px-2 py-1 text-[10px] font-medium transition-colors ${
                     skillLevel === level
@@ -85,8 +100,9 @@ export function VoiceEditDialog({ voiceId, onClose }: VoiceEditDialogProps) {
 
           {/* Language */}
           <div>
-            <label className="text-[10px] text-zinc-400 uppercase tracking-wider">Language</label>
+            <label htmlFor="voice-edit-language-input" className="text-[10px] text-zinc-400 uppercase tracking-wider">Language</label>
             <input
+              id="voice-edit-language-input"
               type="text"
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
@@ -98,8 +114,9 @@ export function VoiceEditDialog({ voiceId, onClose }: VoiceEditDialogProps) {
 
           {/* Tags */}
           <div>
-            <label className="text-[10px] text-zinc-400 uppercase tracking-wider">Tags (comma-separated)</label>
+            <label htmlFor="voice-edit-tags-input" className="text-[10px] text-zinc-400 uppercase tracking-wider">Tags (comma-separated)</label>
             <input
+              id="voice-edit-tags-input"
               type="text"
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
