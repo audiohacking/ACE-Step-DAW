@@ -11,7 +11,7 @@ export function TrackPresetManagerPanel() {
   return (
     <div
       className="fixed right-4 top-14 w-[280px] max-w-[calc(100vw-2rem)] max-h-[400px] overflow-hidden rounded-xl border border-white/10 bg-[#141426]/95 shadow-2xl backdrop-blur flex flex-col"
-      style={{ zIndex: Z.commandPalette }}
+      style={{ zIndex: Z.panel }}
       data-testid="track-preset-manager-panel"
     >
       <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">

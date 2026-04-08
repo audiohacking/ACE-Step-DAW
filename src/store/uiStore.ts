@@ -994,7 +994,7 @@ export const useUIStore = create<UIState>()(
   },
   setShowUndoHistoryPanel: (v) => set({ showUndoHistoryPanel: v }),
   setShowTrackPresetManager: (v) => set({ showTrackPresetManager: v }),
-  setGrooveStrength: (v) => set({ grooveStrength: v }),
+  setGrooveStrength: (v) => set({ grooveStrength: Math.max(0, Math.min(100, v)) }),
   setHistoryFocusScope: (scope, target) => set((state) => {
     const resolvedTrackId =
       target?.trackId
@@ -1496,6 +1496,8 @@ export const useUIStore = create<UIState>()(
         userInstrumentPresets: state.userInstrumentPresets,
         // Video recording settings
         videoRecordingSettings: state.videoRecordingSettings,
+        // Groove pool
+        grooveStrength: state.grooveStrength,
       }),
     },
   ),

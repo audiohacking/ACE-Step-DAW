@@ -40,7 +40,7 @@ function PresetRow({
       <button
         type="button"
         onClick={onApply}
-        className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-700/40 text-zinc-300 hover:bg-zinc-600/50 transition-colors opacity-0 group-hover:opacity-100"
+        className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-700/40 text-zinc-300 hover:bg-zinc-600/50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
         aria-label="Apply preset"
       >
         Apply
@@ -48,7 +48,7 @@ function PresetRow({
       <button
         type="button"
         onClick={onDelete}
-        className="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-[11px]"
+        className="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 text-[11px]"
         aria-label="Delete preset"
       >
         ×

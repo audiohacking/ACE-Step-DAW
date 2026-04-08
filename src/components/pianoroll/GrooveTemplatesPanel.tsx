@@ -95,7 +95,7 @@ function GrooveRow({
       <button
         type="button"
         onClick={onDelete}
-        className="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-[11px]"
+        className="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 text-[11px]"
         aria-label="Delete groove template"
       >
         ×
