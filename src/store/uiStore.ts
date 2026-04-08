@@ -994,7 +994,9 @@ export const useUIStore = create<UIState>()(
   },
   setShowUndoHistoryPanel: (v) => set({ showUndoHistoryPanel: v }),
   setShowTrackPresetManager: (v) => set({ showTrackPresetManager: v }),
-  setGrooveStrength: (v) => set({ grooveStrength: Math.max(0, Math.min(100, v)) }),
+  setGrooveStrength: (v) => set((state) => ({
+    grooveStrength: Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : state.grooveStrength,
+  })),
   setHistoryFocusScope: (scope, target) => set((state) => {
     const resolvedTrackId =
       target?.trackId

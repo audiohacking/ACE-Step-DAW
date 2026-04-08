@@ -75,6 +75,7 @@ function GrooveRow({
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={commitRename}
+            aria-label={`Rename groove template ${groove.name}`}
             className="w-full px-1 py-0.5 text-[10px] bg-zinc-800 border border-zinc-600 rounded text-zinc-200 focus:outline-none focus:border-zinc-400"
           />
         ) : (
