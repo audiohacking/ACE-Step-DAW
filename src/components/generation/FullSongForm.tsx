@@ -10,6 +10,7 @@ import { generateText2Music, regenerateClip } from '../../services/generationPip
 import { formatInput, createRandomSample } from '../../services/aceStepApi';
 import { toastError, toastInfo } from '../../hooks/useToast';
 import { PromptAutocompleteTextarea } from './PromptAutocompleteTextarea';
+import { VoiceLibraryPanel } from '../voice/VoiceLibraryPanel';
 
 /** Magic pen icon for AI enhance buttons */
 function MagicPenIcon({ size = 16 }: { size?: number }) {
@@ -555,6 +556,11 @@ export function FullSongForm({ initialData, onFooterChange }: FullSongFormProps)
           )}
         </div>
 
+      </section>
+
+      {/* Voice Library section */}
+      <section className="border-t border-[#3a3a3a] -mx-3 mt-2">
+        <VoiceLibraryPanel />
       </section>
 
     </div>
