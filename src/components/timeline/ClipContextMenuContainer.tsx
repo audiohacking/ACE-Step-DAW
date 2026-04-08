@@ -132,9 +132,10 @@ export function ClipContextMenuContainer({
           : DEFAULT_GROOVE_GRID_BEATS;
         const project = useProjectStore.getState().project;
         const bpm = project?.bpm ?? 120;
-        const timeSig = project?.timeSignature ?? 4;
+        const timeSigNumerator = project?.timeSignature ?? 4;
+        const timeSigDenominator = project?.timeSignatureDenominator ?? 4;
         const clipBeats = clip.duration * (bpm / 60);
-        const oneBar = timeSig; // beats per bar (e.g. 3 for 3/4, 4 for 4/4)
+        const oneBar = timeSigNumerator * (4 / timeSigDenominator); // quarter-note beats per bar (e.g. 3 for 6/8, 4 for 4/4)
         const lengthBeats = clipBeats >= 1 ? Math.round(clipBeats) : (oneBar || FALLBACK_GROOVE_LENGTH_BEATS);
         extractGrooveFromClip(clip.id, name, { gridBeats, lengthBeats });
       } : undefined}
