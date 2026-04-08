@@ -224,6 +224,10 @@ export function useRecording() {
     const bpm = project?.bpm ?? 120;
     const beatsPerBar = (typeof project?.timeSignature === 'number' ? project.timeSignature : 4);
 
+    // Sync count-in bars from transport store to recording engine
+    const storeCountInBars = useTransportStore.getState().countInBars;
+    recordingEngine.setCountInLength(storeCountInBars === 0 ? 'off' : storeCountInBars === 1 ? '1bar' : '2bars');
+
     if (recordingEngine.getCountInLength() !== 'off') {
       setCountIn(true, -(beatsPerBar * (recordingEngine.getCountInLength() === '1bar' ? 1 : 2)));
       await recordingEngine.playCountIn(bpm, beatsPerBar, (_bar, _beat, remaining) => {

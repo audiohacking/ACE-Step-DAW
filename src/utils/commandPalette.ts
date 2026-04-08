@@ -49,6 +49,42 @@ export function buildCommandList(): Command[] {
       shortcut: 'K',
       action: () => useTransportStore.getState().toggleMetronome(),
     },
+    {
+      id: 'metronome-sound-click',
+      label: 'Metronome Sound: Click',
+      category: 'Transport',
+      action: () => useTransportStore.getState().setMetronomeSound('click'),
+    },
+    {
+      id: 'metronome-sound-woodblock',
+      label: 'Metronome Sound: Woodblock',
+      category: 'Transport',
+      action: () => useTransportStore.getState().setMetronomeSound('woodblock'),
+    },
+    {
+      id: 'metronome-sound-beep',
+      label: 'Metronome Sound: Beep',
+      category: 'Transport',
+      action: () => useTransportStore.getState().setMetronomeSound('beep'),
+    },
+    {
+      id: 'countin-off',
+      label: 'Count-In: Off',
+      category: 'Transport',
+      action: () => useTransportStore.getState().setCountInBars(0),
+    },
+    {
+      id: 'countin-1bar',
+      label: 'Count-In: 1 Bar',
+      category: 'Transport',
+      action: () => useTransportStore.getState().setCountInBars(1),
+    },
+    {
+      id: 'countin-2bars',
+      label: 'Count-In: 2 Bars',
+      category: 'Transport',
+      action: () => useTransportStore.getState().setCountInBars(2),
+    },
 
     // Project
     {

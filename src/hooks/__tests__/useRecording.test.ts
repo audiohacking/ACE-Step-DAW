@@ -19,6 +19,7 @@ vi.mock('../../engine/RecordingEngine', () => ({
     stopAllRecordings: (...args: unknown[]) => mockStopAllRecordings(...args),
     setMonitoring: (...args: unknown[]) => mockSetMonitoring(...args),
     getCountInLength: () => mockGetCountInLength(),
+    setCountInLength: vi.fn(),
     getSession: (...args: unknown[]) => mockGetSession(...args),
     get hasPermission() { return mockHasPermission; },
     get denied() { return false; },

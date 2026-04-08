@@ -13,6 +13,7 @@ import { formatTime, formatBarsBeats, formatDurationMSS } from '../../utils/time
 import { getBarAtBeat, getBeatAtBar, timeToBeat } from '../../utils/tempoMap';
 import { Button } from '../ui/Button';
 import { LatencyDisplay } from './LatencyDisplay';
+import { MetronomeSettingsPopover } from './MetronomeSettingsPopover';
 
 const KEY_ROOT_LABELS: Record<string, string> = {
   C: 'C',
@@ -718,6 +719,7 @@ export function Toolbar() {
   const toggleLoop = useTransportStore((s) => s.toggleLoop);
   const metronomeEnabled = useTransportStore((s) => s.metronomeEnabled);
   const toggleMetronome = useTransportStore((s) => s.toggleMetronome);
+  const [metronomeSettingsOpen, setMetronomeSettingsOpen] = useState(false);
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__commandPaletteRuntime = {
       play,
@@ -849,18 +851,22 @@ export function Toolbar() {
         <ControlBarButton onClick={() => void toggleRecord()} title="Record (R)" active={isRecording}>
           <div className={`h-[20px] w-[20px] rounded-full bg-red-500 ${isRecording ? 'animate-pulse' : 'opacity-70'}`} />
         </ControlBarButton>
-        <button
-          onClick={toggleMetronome}
-          title="Metronome (K)"
-          aria-label="Metronome"
-          className={`flex h-10 w-10 items-center justify-center rounded-xl transition-[color,background-color,transform] duration-150 active:scale-95 ${
-            metronomeEnabled
-              ? 'bg-[#8276f6] text-white'
-              : 'bg-transparent text-white/90 hover:bg-transparent hover:text-white'
-          }`}
-        >
-          <MetronomePulseIcon />
-        </button>
+        <div className="relative">
+          <button
+            onClick={toggleMetronome}
+            onContextMenu={(e) => { e.preventDefault(); setMetronomeSettingsOpen((v) => !v); }}
+            title="Metronome (K) — Right-click for settings"
+            aria-label="Metronome"
+            className={`flex h-10 w-10 items-center justify-center rounded-xl transition-[color,background-color,transform] duration-150 active:scale-95 ${
+              metronomeEnabled
+                ? 'bg-[#8276f6] text-white'
+                : 'bg-transparent text-white/90 hover:bg-transparent hover:text-white'
+            }`}
+          >
+            <MetronomePulseIcon />
+          </button>
+          <MetronomeSettingsPopover open={metronomeSettingsOpen} onClose={() => setMetronomeSettingsOpen(false)} />
+        </div>
         <ControlBarButton
           active={loopEnabled}
           onClick={toggleLoop}
