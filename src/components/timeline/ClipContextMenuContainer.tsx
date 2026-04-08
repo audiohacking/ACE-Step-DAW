@@ -48,6 +48,7 @@ export function ClipContextMenuContainer({
   const applyAudioQuantize = useProjectStore((s) => s.applyAudioQuantize);
   const clearAudioQuantize = useProjectStore((s) => s.clearAudioQuantize);
   const exportMidiClip = useProjectStore((s) => s.exportMidiClip);
+  const extractGrooveFromClip = useProjectStore((s) => s.extractGrooveFromClip);
   const convertMidiClipToStrudel = useProjectStore((s) => s.convertMidiClipToStrudel);
   const applyStrudelCodeToTrack = useProjectStore((s) => s.applyStrudelCodeToTrack);
   const splitClipAtZeroCrossing = useProjectStore((s) => s.splitClipAtZeroCrossing);
@@ -118,6 +119,11 @@ export function ClipContextMenuContainer({
         })();
       } : undefined}
       onExportMidi={isMidiClip ? () => { onClose(); exportMidiClip(clip.id); } : undefined}
+      onExtractGroove={isMidiClip ? () => {
+        onClose();
+        const name = `Groove from ${track.displayName || track.trackName}`;
+        extractGrooveFromClip(clip.id, name, { gridBeats: 0.25, lengthBeats: 4 });
+      } : undefined}
       onEdit={() => {
         onClose();
         if (clip.generationParams?.type === 'text2music' || (clip.source === 'generated' && track.trackType === 'mix')) {
