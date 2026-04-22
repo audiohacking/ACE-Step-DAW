@@ -34,6 +34,7 @@ use crate::audio::ProcessingState;
 use crate::error::PluginHostError;
 use crate::host_impl::AceHostApplication;
 use crate::midi::MidiEvent;
+use crate::params::ParamPoint;
 use crate::types::{InstanceInfo, OutputBusInfo, ParamInfo};
 
 /// A loaded VST3 plugin instance + its COM handles. The `_library`
@@ -72,6 +73,13 @@ pub struct Vst3PluginInstance {
     /// the next `process_block` call — that's how DAWs typically
     /// handle latched notes during transport start.
     midi_queue: SegQueue<MidiEvent>,
+    /// Lock-free queue of pending parameter automation points.
+    /// Same shape as `midi_queue` so the two pipelines are
+    /// symmetric; `process_block` drains, windows, groups by
+    /// `param_id`, sorts each group by `sample_offset`, and wraps
+    /// the result in a host-side `ParameterChanges` COM object
+    /// passed via `ProcessData::inputParameterChanges`.
+    param_queue: SegQueue<ParamPoint>,
 }
 
 impl Vst3PluginInstance {
@@ -122,6 +130,103 @@ impl Vst3PluginInstance {
     /// `numInputs: 0` with a null `inputs` pointer for these.
     pub fn is_instrument(&self) -> bool {
         self.input_main_channels.is_none()
+    }
+
+    /// Queue a parameter-automation point. VST3 `value` is always
+    /// 0..1 normalised; callers get the raw range via `ParamInfo`.
+    ///
+    /// Input validation:
+    ///
+    /// - Non-finite `value` (NaN / ±Inf) → rejected with
+    ///   `InvalidLifecycle`. Forwarding NaN to a plugin's DSP graph
+    ///   reliably destabilises it and often produces audio-thread
+    ///   panics.
+    /// - `value` outside `[0.0, 1.0]` → clamped silently. VST3's
+    ///   contract is that parameters are always normalised; out-of-
+    ///   range values are a common caller mistake (e.g. forgetting
+    ///   to divide by 127 for a MIDI CC mapping) and clamping is
+    ///   safer than rejecting.
+    ///
+    /// On success, two things happen simultaneously:
+    ///
+    /// 1. The point is pushed onto the audio-thread queue and will
+    ///    be delivered via `inputParameterChanges` on the next
+    ///    `process_block` call.
+    /// 2. If the plugin exposes an `IEditController` and
+    ///    `sample_offset == 0` (i.e. "apply now"), we also call
+    ///    `setParamNormalized` directly so the plugin's own
+    ///    controller state — which drives its GUI and any state
+    ///    snapshot the DAW asks for — updates even when audio
+    ///    processing isn't running (transport stopped, pre-roll,
+    ///    user tweaking a slider while paused).
+    ///
+    /// Non-zero `sample_offset` points are treated as pure audio-
+    /// thread automation: the GUI / controller state stays at
+    /// whatever the plugin last rendered. This matches how real
+    /// DAWs handle block-internal automation.
+    ///
+    /// Ordering contract mirrors `queue_midi`: unordered cross-thread
+    /// pushes, deterministic sort by `(param_id, sample_offset)` at
+    /// process time.
+    pub fn set_parameter(
+        &self,
+        param_id: u32,
+        sample_offset: u32,
+        value: f64,
+    ) -> Result<(), PluginHostError> {
+        if !value.is_finite() {
+            return Err(PluginHostError::InvalidLifecycle(format!(
+                "set_parameter value must be finite (got {value})"
+            )));
+        }
+        let clamped = value.clamp(0.0, 1.0);
+
+        if sample_offset == 0 {
+            if let Some(ctrl) = self.controller.as_ref() {
+                // SAFETY: `ctrl` is a live `ComPtr<IEditController>`
+                // obtained from the loader. The setter only updates
+                // the controller's internal state — safe to call
+                // off the audio thread, and required here so GUI /
+                // state snapshots reflect the edit even when
+                // processing is stopped.
+                unsafe {
+                    ctrl.setParamNormalized(param_id, clamped);
+                }
+            }
+        }
+        self.param_queue.push(ParamPoint {
+            param_id,
+            sample_offset,
+            value: clamped,
+        });
+        Ok(())
+    }
+
+    pub(crate) fn drain_param_points(&self) -> Vec<ParamPoint> {
+        let mut out = Vec::new();
+        while let Some(p) = self.param_queue.pop() {
+            out.push(p);
+        }
+        out
+    }
+
+    /// Push a point back onto the queue — used by `process_block` to
+    /// preserve automation scheduled past the current block boundary
+    /// so it fires on a subsequent call.
+    pub(crate) fn requeue_param_point(&self, p: ParamPoint) {
+        self.param_queue.push(p);
+    }
+
+    /// Symmetric to `requeue_param_point` but for MIDI events.
+    /// Callers are responsible for decrementing `sample_offset` by
+    /// the current block's sample count before re-queueing.
+    pub(crate) fn requeue_midi_event(&self, e: MidiEvent) {
+        self.midi_queue.push(e);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn param_queue_len(&self) -> usize {
+        self.param_queue.len()
     }
 }
 
@@ -340,6 +445,7 @@ pub unsafe fn load_plugin(
         input_main_channels,
         processing_state: Mutex::new(ProcessingState::default()),
         midi_queue: SegQueue::new(),
+        param_queue: SegQueue::new(),
     };
 
     Ok((instance, info))
@@ -491,6 +597,76 @@ pub fn format_uid(uid: &[i8; 16]) -> String {
 mod tests {
     use super::*;
     use crate::midi::MidiEvent;
+
+    #[test]
+    fn param_queue_accumulates_and_drains() {
+        let candidates = ["/Library/Audio/Plug-Ins/VST3/ACE Bridge.vst3"];
+        let Some(path) = candidates.iter().map(Path::new).find(|p| p.exists()) else {
+            eprintln!("skipping: no known VST3 bundle installed");
+            return;
+        };
+        let (instance, _) = match unsafe { load_plugin(path, "param-queue-test") } {
+            Ok(pair) => pair,
+            Err(e) => {
+                eprintln!("load failed (environment-specific, not fatal): {e}");
+                return;
+            }
+        };
+
+        assert_eq!(instance.param_queue_len(), 0);
+
+        instance.set_parameter(1, 0, 0.25).unwrap();
+        instance.set_parameter(2, 128, 0.5).unwrap();
+        instance.set_parameter(1, 256, 0.75).unwrap();
+        assert_eq!(instance.param_queue_len(), 3);
+
+        let drained = instance.drain_param_points();
+        assert_eq!(drained.len(), 3);
+        assert_eq!(instance.param_queue_len(), 0);
+
+        // Content round-trips without loss.
+        let ids: Vec<u32> = drained.iter().map(|p| p.param_id).collect();
+        assert!(ids.contains(&1));
+        assert!(ids.contains(&2));
+    }
+
+    #[test]
+    fn set_parameter_rejects_nan_and_inf_clamps_out_of_range() {
+        let candidates = ["/Library/Audio/Plug-Ins/VST3/ACE Bridge.vst3"];
+        let Some(path) = candidates.iter().map(Path::new).find(|p| p.exists()) else {
+            eprintln!("skipping: no known VST3 bundle installed");
+            return;
+        };
+        let (instance, _) = match unsafe { load_plugin(path, "param-validate-test") } {
+            Ok(pair) => pair,
+            Err(e) => {
+                eprintln!("load failed (environment-specific, not fatal): {e}");
+                return;
+            }
+        };
+
+        // NaN / Inf rejected with InvalidLifecycle.
+        assert!(matches!(
+            instance.set_parameter(1, 0, f64::NAN),
+            Err(PluginHostError::InvalidLifecycle(_))
+        ));
+        assert!(matches!(
+            instance.set_parameter(1, 0, f64::INFINITY),
+            Err(PluginHostError::InvalidLifecycle(_))
+        ));
+        assert!(matches!(
+            instance.set_parameter(1, 0, f64::NEG_INFINITY),
+            Err(PluginHostError::InvalidLifecycle(_))
+        ));
+
+        // Out-of-range clamped silently.
+        assert!(instance.set_parameter(1, 0, -0.5).is_ok());
+        assert!(instance.set_parameter(1, 0, 1.5).is_ok());
+        let pts = instance.drain_param_points();
+        assert_eq!(pts.len(), 2);
+        assert!(pts.iter().any(|p| p.value == 0.0)); // -0.5 clamped
+        assert!(pts.iter().any(|p| p.value == 1.0)); // 1.5 clamped
+    }
 
     #[test]
     fn midi_queue_accumulates_and_drains() {

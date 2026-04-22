@@ -10,8 +10,8 @@
 //!
 //! - Stereo-only main bus I/O (multi-output busses land in 4B-3)
 //! - 4B-2a adds MIDI note-on / note-off via `IEventList`;
-//!   `inputParameterChanges` stays null until 4B-2b ships the
-//!   host-side `IParameterChanges` wrapper.
+//!   4B-2b adds parameter automation via host-side
+//!   `IParameterChanges` + `IParamValueQueue`.
 //! - No sidechain, no PDC, no sandbox (later sub-phases of #1524)
 //!
 //! Ported from `companion/src/audio_thread.rs::process_vst3_multi`,
@@ -25,13 +25,14 @@ use std::ptr;
 use tracing::warn;
 use vst3::Steinberg::Vst::{
     AudioBusBuffers, AudioBusBuffers__type0, IAudioProcessorTrait, IComponentTrait, IEventList,
-    ProcessData, ProcessModes_, ProcessSetup, SymbolicSampleSizes_,
+    IParameterChanges, ProcessData, ProcessModes_, ProcessSetup, SymbolicSampleSizes_,
 };
 use vst3::Steinberg::kResultOk;
 
 use crate::error::PluginHostError;
 use crate::loader::Vst3PluginInstance;
 use crate::midi::{midi_to_vst3_event, EventList};
+use crate::params::{partition_points_for_block, ParameterChanges};
 use crate::types::OutputBusInfo;
 
 /// Pure-logic guard that `setup_processing` delegates to. Extracted
@@ -618,11 +619,20 @@ impl Vst3PluginInstance {
         //
         // `event_list` must outlive `process_data` because the plugin
         // may read from the COM pointer during `process()`.
-        let mut pending = self.drain_midi();
+        let pending = self.drain_midi();
         let block_samples = samples;
-        pending.retain(|e| e.sample_offset < block_samples);
-        pending.sort_by_key(|e| e.sample_offset);
-        let vst3_events: Vec<_> = pending
+        let (mut this_block, future): (Vec<_>, Vec<_>) =
+            pending.into_iter().partition(|e| e.sample_offset < block_samples);
+        // Re-queue future events with offsets ticked down so they
+        // stay block-relative on the next call — matches the param
+        // automation path and avoids silently losing events when a
+        // caller batches multiple blocks of MIDI ahead of time.
+        for mut e in future {
+            e.sample_offset = e.sample_offset.saturating_sub(block_samples);
+            self.requeue_midi_event(e);
+        }
+        this_block.sort_by_key(|e| e.sample_offset);
+        let vst3_events: Vec<_> = this_block
             .iter()
             .filter_map(midi_to_vst3_event)
             .collect();
@@ -634,6 +644,32 @@ impl Vst3PluginInstance {
         let input_events_ptr = event_list
             .as_ref()
             .and_then(|el| el.to_com_ptr::<IEventList>())
+            .map(|p| p.as_ptr())
+            .unwrap_or(ptr::null_mut());
+
+        // Drain queued parameter-automation points and build a
+        // host-side `ParameterChanges`. `partition_points_for_block`
+        // returns `(this_block_groups, future_overflow)` so we can
+        // re-queue points scheduled past the current block —
+        // callers that batch multiple blocks of automation (bounce
+        // / sequencer workflows) would otherwise silently lose
+        // everything past block_samples. Future-bucket offsets are
+        // already decremented by block_samples so they stay
+        // block-relative on the next call.
+        let pending_params = self.drain_param_points();
+        let (groups, future_params) =
+            partition_points_for_block(pending_params, block_samples);
+        let param_changes = if groups.is_empty() {
+            None
+        } else {
+            Some(ParameterChanges::with_groups(groups))
+        };
+        for p in future_params {
+            self.requeue_param_point(p);
+        }
+        let input_param_changes_ptr = param_changes
+            .as_ref()
+            .and_then(|pc| pc.to_com_ptr::<IParameterChanges>())
             .map(|p| p.as_ptr())
             .unwrap_or(ptr::null_mut());
 
@@ -649,7 +685,7 @@ impl Vst3PluginInstance {
                 &mut input_bus
             },
             outputs: &mut output_bus,
-            inputParameterChanges: ptr::null_mut(),
+            inputParameterChanges: input_param_changes_ptr,
             outputParameterChanges: ptr::null_mut(),
             inputEvents: input_events_ptr,
             outputEvents: ptr::null_mut(),
@@ -679,8 +715,12 @@ impl Vst3PluginInstance {
                 out[s * output_stereo + ch] = output_channels[ch][s];
             }
         }
-        // `state` guard + `event_list` dropped here — after process().
+        // `state` guard + `event_list` + `param_changes` dropped
+        // here — after process() returns. Explicit drops document
+        // the lifetime requirement: their COM pointers were handed
+        // to the plugin via `process_data` and must outlive the call.
         drop(event_list);
+        drop(param_changes);
         drop(state);
         Ok(out)
     }
@@ -739,6 +779,49 @@ mod smoke {
         // process_block after deactivate errors.
         let err = instance.process_block(&input, 2, 512).unwrap_err();
         assert!(matches!(err, PluginHostError::InvalidLifecycle(_)));
+    }
+
+    /// Queues a parameter automation point and verifies the queue
+    /// drains through `process_block`. The plugin's reaction to the
+    /// value change isn't asserted — ACE Bridge is an effect, we
+    /// just confirm the host wiring doesn't reject or hang.
+    #[test]
+    fn parameter_queue_drains_through_process_block() {
+        let candidates = ["/Library/Audio/Plug-Ins/VST3/ACE Bridge.vst3"];
+        let Some(path) = candidates.iter().map(Path::new).find(|p| p.exists()) else {
+            eprintln!("skipping: no known VST3 bundle installed");
+            return;
+        };
+
+        let (instance, info) = match unsafe { crate::loader::load_plugin(path, "param-smoke") } {
+            Ok(pair) => pair,
+            Err(e) => {
+                eprintln!("load failed (environment-specific, not fatal): {e}");
+                return;
+            }
+        };
+
+        instance
+            .setup_processing(AudioConfig::new(48000.0, 512).unwrap())
+            .unwrap();
+        instance.activate().unwrap();
+
+        // Pick the plugin's first parameter if any; otherwise skip
+        // this assertion — some bundles expose no automatable params.
+        if let Some(first) = info.parameters.first() {
+            instance.set_parameter(first.id, 0, 0.5).unwrap();
+            instance.set_parameter(first.id, 128, 0.75).unwrap();
+            assert_eq!(instance.param_queue_len(), 2);
+        } else {
+            eprintln!("plugin exposes no parameters — skipping set_parameter assertion");
+        }
+
+        let input = vec![0.0f32; 2 * 512];
+        let out = instance.process_block(&input, 2, 512).unwrap();
+        assert_eq!(out.len(), 2 * 512);
+        assert_eq!(instance.param_queue_len(), 0);
+
+        instance.deactivate().unwrap();
     }
 
     /// Queues a MIDI note-on / note-off pair and runs one block.
