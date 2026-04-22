@@ -15,6 +15,7 @@
 
 use std::path::{Path, PathBuf};
 use std::ptr;
+use std::sync::Mutex;
 
 use libloading::{Library, Symbol};
 use tracing::{debug, info, warn};
@@ -28,6 +29,7 @@ use vst3::Steinberg::{
     PFactoryInfo,
 };
 
+use crate::audio::ProcessingState;
 use crate::error::PluginHostError;
 use crate::host_impl::AceHostApplication;
 use crate::types::{InstanceInfo, OutputBusInfo, ParamInfo};
@@ -43,6 +45,56 @@ pub struct Vst3PluginInstance {
     pub instance_id: String,
     pub plugin_uid: String,
     pub bundle_path: PathBuf,
+    /// Output-bus topology captured at load time. Used by
+    /// `setup_processing` to fail-fast on non-stereo plugins while
+    /// 4B-1 is still stereo-only; bus-arrangement negotiation lands
+    /// in 4B-3.
+    pub output_busses: Vec<OutputBusInfo>,
+    /// Processing lifecycle state. Guarded by a `Mutex` so the VST3
+    /// spec's serialisation requirement for `setupProcessing` /
+    /// `setActive` / `process` is enforced at our layer.
+    processing_state: Mutex<ProcessingState>,
+}
+
+impl Vst3PluginInstance {
+    /// Shared processing-state lock. Exposed crate-internally so the
+    /// lifecycle methods in `audio.rs` can read and mutate it without
+    /// duplicating state here.
+    pub(crate) fn processing_state(&self) -> &Mutex<ProcessingState> {
+        &self.processing_state
+    }
+}
+
+impl Drop for Vst3PluginInstance {
+    fn drop(&mut self) {
+        // Make sure the plugin is deactivated before its COM pointers
+        // get released — skipping this can leak audio threads or crash
+        // the plugin on teardown, depending on the vendor.
+        //
+        // If the mutex is poisoned we still want to attempt
+        // deactivation: a panic elsewhere shouldn't leave the plugin
+        // half-active. `PoisonError::into_inner` lets us recover the
+        // state without caring whether it's consistent.
+        let active = match self.processing_state.lock() {
+            Ok(state) => state.active,
+            Err(poisoned) => {
+                warn!(
+                    instance_id = %self.instance_id,
+                    plugin_uid = %self.plugin_uid,
+                    "processing_state poisoned in drop; attempting best-effort deactivation"
+                );
+                poisoned.into_inner().active
+            }
+        };
+        if active {
+            // SAFETY: deactivation order per the VST3 spec. We ignore
+            // the return values — we're tearing down regardless.
+            unsafe {
+                self.processor.setProcessing(0);
+                self.component.setActive(0);
+            }
+        }
+    }
 }
 
 // SAFETY: COM pointers in the `vst3` crate are `Send + Sync`; wrapping
@@ -222,6 +274,8 @@ pub unsafe fn load_plugin(
         instance_id: instance_id.to_string(),
         plugin_uid: uid_str,
         bundle_path: bundle_path.to_path_buf(),
+        output_busses: info.output_busses.clone(),
+        processing_state: Mutex::new(ProcessingState::default()),
     };
 
     Ok((instance, info))

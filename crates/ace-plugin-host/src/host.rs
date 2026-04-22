@@ -6,11 +6,12 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use tracing::{info, warn};
 use uuid::Uuid;
 
+use crate::audio::AudioConfig;
 use crate::error::PluginHostError;
 use crate::host_impl::{HostParamChange, ParamChangeCollector};
 use crate::loader::{load_plugin, Vst3PluginInstance};
@@ -30,7 +31,12 @@ struct Inner {
 }
 
 struct InstanceRecord {
-    _instance: Vst3PluginInstance,
+    /// Wrapped in `Arc` so registry operations (lookup, list) can drop
+    /// the registry lock before invoking long-running methods like
+    /// `process_block` — otherwise a single plugin's process() call
+    /// would block every other instance's lookups, and we'd serialise
+    /// processing across all plugins on the audio thread.
+    instance: Arc<Vst3PluginInstance>,
     info: InstanceInfo,
 }
 
@@ -73,12 +79,62 @@ impl PluginHost {
         inner.instances.insert(
             instance_id.clone(),
             InstanceRecord {
-                _instance: instance,
+                instance: Arc::new(instance),
                 info: info.clone(),
             },
         );
 
         Ok(info)
+    }
+
+    /// Look up a live instance by id, returning a cloned `Arc` so the
+    /// caller can drop the registry lock before invoking methods on
+    /// the instance. Returns `UnknownInstance` if not registered.
+    fn lookup(&self, instance_id: &str) -> Result<Arc<Vst3PluginInstance>, PluginHostError> {
+        let inner = self
+            .inner
+            .lock()
+            .map_err(|_| PluginHostError::RegistryUnavailable)?;
+        inner
+            .instances
+            .get(instance_id)
+            .map(|r| Arc::clone(&r.instance))
+            .ok_or_else(|| PluginHostError::UnknownInstance(instance_id.to_string()))
+    }
+
+    /// Configure the plugin's audio pipeline. Must be called before
+    /// [`activate_instance`](Self::activate_instance).
+    pub fn configure_instance(
+        &self,
+        instance_id: &str,
+        config: AudioConfig,
+    ) -> Result<(), PluginHostError> {
+        self.lookup(instance_id)?.setup_processing(config)
+    }
+
+    /// Activate the plugin so it's ready to accept `process()` calls.
+    pub fn activate_instance(&self, instance_id: &str) -> Result<(), PluginHostError> {
+        self.lookup(instance_id)?.activate()
+    }
+
+    /// Deactivate the plugin. Safe to call while already inactive.
+    pub fn deactivate_instance(&self, instance_id: &str) -> Result<(), PluginHostError> {
+        self.lookup(instance_id)?.deactivate()
+    }
+
+    /// Run one block of audio through the instance. Returns the
+    /// plugin's interleaved stereo output. The registry lock is
+    /// released before the plugin's `process()` call, so concurrent
+    /// processing on other instances is not blocked.
+    pub fn process_instance_block(
+        &self,
+        instance_id: &str,
+        input: &[f32],
+        channels: u32,
+        samples: u32,
+    ) -> Result<Vec<f32>, PluginHostError> {
+        self.lookup(instance_id)?
+            .process_block(input, channels, samples)
     }
 
     /// Drop a live instance. Releasing the only reference to its
@@ -145,6 +201,31 @@ mod tests {
             PluginHostError::UnknownInstance(id) => assert_eq!(id, "ghost-instance"),
             other => panic!("expected UnknownInstance, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn configure_unknown_instance_errors_out() {
+        let host = PluginHost::new();
+        let err = host
+            .configure_instance("ghost", AudioConfig::default())
+            .unwrap_err();
+        assert!(matches!(err, PluginHostError::UnknownInstance(_)));
+    }
+
+    #[test]
+    fn activate_unknown_instance_errors_out() {
+        let host = PluginHost::new();
+        let err = host.activate_instance("ghost").unwrap_err();
+        assert!(matches!(err, PluginHostError::UnknownInstance(_)));
+    }
+
+    #[test]
+    fn process_unknown_instance_errors_out() {
+        let host = PluginHost::new();
+        let err = host
+            .process_instance_block("ghost", &[0.0; 1024], 2, 512)
+            .unwrap_err();
+        assert!(matches!(err, PluginHostError::UnknownInstance(_)));
     }
 
     #[test]
