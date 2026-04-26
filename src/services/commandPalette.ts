@@ -1030,6 +1030,46 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
     }
   }
 
+  // ── Track Preset Manager ──────────────────────────────────────────────
+  commands.push(
+    createTrackCommand(
+      'track-preset-manager',
+      'Track Preset Manager',
+      'Tracks',
+      'action',
+      ['track', 'preset', 'manager', 'save', 'template', 'instrument'],
+      ['manage track presets', 'track templates', 'save track preset'],
+      () => {
+        const current = useUIStore.getState().showTrackPresetManager;
+        useUIStore.getState().setShowTrackPresetManager(!current);
+      },
+      undefined,
+      'Open track preset manager to save, browse, and apply presets',
+    ),
+  );
+
+  // ── Groove Pool ───────────────────────────────────────────────────────
+  if (context.project?.groovePool) {
+    for (const groove of context.project.groovePool) {
+      commands.push(
+        createTrackCommand(
+          `groove:delete:${groove.id}`,
+          `Delete Groove "${groove.name}"`,
+          'Groove',
+          'action',
+          ['groove', 'delete', 'remove', groove.name.toLowerCase()],
+          [`delete groove ${groove.name}`, `remove groove ${groove.name}`],
+          async () => {
+            const { useProjectStore } = await import('../store/projectStore');
+            useProjectStore.getState().deleteGrooveTemplate(groove.id);
+          },
+          undefined,
+          `Remove "${groove.name}" from the groove pool`,
+        ),
+      );
+    }
+  }
+
   return commands;
 }
 

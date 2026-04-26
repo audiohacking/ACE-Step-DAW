@@ -612,6 +612,7 @@ function _applyHistorySnapshot(current: Project | null, snapshot: Project, entry
 
 export interface ProjectState extends MidiSliceActions {
   project: Project | null;
+  isViewerMode: () => boolean;
 
   setProject: (project: Project) => void;
   createProject: (params?: {
@@ -721,8 +722,8 @@ export interface ProjectState extends MidiSliceActions {
   createQuickSamplerFromAsset: (assetId: string, options?: { trackId?: string; rootNote?: number }) => Track | undefined;
   /** Recreate a new track from a persisted asset snapshot. */
   restoreAssetToNewTrack: (assetId: string, startTime: number, options?: { order?: number }) => Track | undefined;
-  saveTrackPreset: (trackId: string, presetName: string) => TrackPreset;
-  applyTrackPreset: (presetId: string) => Track | undefined;
+  saveTrackPreset: (trackId: string, presetName: string) => TrackPreset | undefined;
+  applyTrackPreset: (presetId: string, options?: { order?: number }) => Track | undefined;
   deleteTrackPreset: (presetId: string) => void;
   renameTrack: (trackId: string, newName: string) => void;
   setInputMonitoring: (trackId: string, mode: InputMonitoringMode) => void;
@@ -1872,6 +1873,25 @@ function buildTrackOrderMapForMove(
   return orderMap;
 }
 
+function insertTrackPreservingOrder(existingTracks: Track[], track: Track): Track[] {
+  const requestedOrder = Number.isFinite(track.order) && track.order > 0
+    ? Math.floor(track.order)
+    : existingTracks.length + 1;
+  const hasOrderConflict = existingTracks.some((candidate) => candidate.order === requestedOrder);
+  const shiftedTracks = hasOrderConflict
+    ? existingTracks.map((candidate) => (
+        candidate.order >= requestedOrder
+          ? { ...candidate, order: candidate.order + 1 }
+          : candidate
+      ))
+    : existingTracks;
+
+  return [...shiftedTracks, { ...track, order: requestedOrder }]
+    .map((candidate, originalIndex) => ({ candidate, originalIndex }))
+    .sort((a, b) => a.candidate.order - b.candidate.order || a.originalIndex - b.originalIndex)
+    .map(({ candidate }) => candidate);
+}
+
 function createTrackPresetSnapshot(track: Track, name: string): TrackPreset {
   const settings: TrackPresetSettings = {
     color: track.color,
@@ -2248,6 +2268,7 @@ export const useProjectStore = create<ProjectState>()(
   persist(
     (set, get) => ({
   project: null,
+  isViewerMode: _isViewerMode,
 
   setProject: (project) => {
     _clearHistory();
@@ -3149,6 +3170,7 @@ export const useProjectStore = create<ProjectState>()(
 
   saveTrackPreset: (trackId, presetName) => {
     const state = get();
+    if (_isViewerMode()) return undefined;
     if (!state.project) throw new Error('No project');
     const track = state.project.tracks.find((candidate) => candidate.id === trackId);
     if (!track) throw new Error(`Track '${trackId}' not found`);
@@ -3168,8 +3190,9 @@ export const useProjectStore = create<ProjectState>()(
     return preset;
   },
 
-  applyTrackPreset: (presetId) => {
+  applyTrackPreset: (presetId, options) => {
     const state = get();
+    if (_isViewerMode()) return undefined;
     if (!state.project) return undefined;
     const preset = (state.project.trackPresets ?? []).find((candidate) => candidate.id === presetId);
     if (!preset) return undefined;
@@ -3183,10 +3206,11 @@ export const useProjectStore = create<ProjectState>()(
         ...preset.settings,
         effects: preset.effects,
         midiEffects: preset.midiEffects,
+        order: options?.order,
       },
     );
 
-    const newTracks = [...state.project.tracks, track];
+    const newTracks = insertTrackPreservingOrder(state.project.tracks, track);
     set({
       project: {
         ...state.project,
@@ -3384,6 +3408,7 @@ export const useProjectStore = create<ProjectState>()(
 
   deleteTrackPreset: (presetId) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project);
     set({
@@ -9709,6 +9734,7 @@ export const useProjectStore = create<ProjectState>()(
 
   extractGrooveFromClip: (clipId, name, options) => {
     const state = get();
+    if (_isViewerMode()) return undefined;
     if (!state.project) return undefined;
 
     let notes: MidiNote[] | undefined;
@@ -9829,6 +9855,7 @@ export const useProjectStore = create<ProjectState>()(
 
   applyGrooveToClip: (clipId, noteIds, grooveId, options) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
 
     const groove = state.project.groovePool?.find((g) => g.id === grooveId);
@@ -9859,6 +9886,7 @@ export const useProjectStore = create<ProjectState>()(
 
   addGrooveTemplate: (template) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project);
     set({
@@ -9872,6 +9900,7 @@ export const useProjectStore = create<ProjectState>()(
 
   deleteGrooveTemplate: (grooveId) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project);
     set({
@@ -9960,6 +9989,7 @@ export const useProjectStore = create<ProjectState>()(
 
   renameGrooveTemplate: (grooveId, name) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project);
     set({

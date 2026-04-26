@@ -4,6 +4,7 @@ import { Toolbar } from './Toolbar';
 import { NewProjectDialog } from '../dialogs/NewProjectDialog';
 import { ToastContainer } from '../ui/Toast';
 import { UndoHistoryPanel } from './UndoHistoryPanel';
+import { TrackPresetManagerPanel } from './TrackPresetManagerPanel';
 import { StatusBar } from './StatusBar';
 import { SkipLinks } from '../ui/SkipLinks';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
@@ -204,6 +205,7 @@ export function EditorShell() {
       {project && <Suspense fallback={null}><AddLayerPanel /></Suspense>}
       <ToastContainer />
       <UndoHistoryPanel />
+      <TrackPresetManagerPanel />
       <WelcomeOverlay />
 
       {/* Modals — lazy-loaded, code-split */}
