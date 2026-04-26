@@ -6,6 +6,7 @@
  */
 import { useState, useCallback } from 'react';
 import { useProjectStore } from '../../store/projectStore';
+import { useCollaborationStore } from '../../store/collaborationStore';
 import type { TrackPreset } from '../../types/project';
 import { toastError } from '../../hooks/useToast';
 
@@ -136,7 +137,7 @@ export function TrackPresetManager() {
   const presets = useProjectStore((s) => s.project?.trackPresets ?? []);
   const applyTrackPreset = useProjectStore((s) => s.applyTrackPreset);
   const deleteTrackPreset = useProjectStore((s) => s.deleteTrackPreset);
-  const isViewerMode = useProjectStore((s) => s.isViewerMode());
+  const isViewerMode = useCollaborationStore((s) => s.isViewerMode);
 
   const handleApplyPreset = useCallback((presetId: string) => {
     const track = applyTrackPreset(presetId);

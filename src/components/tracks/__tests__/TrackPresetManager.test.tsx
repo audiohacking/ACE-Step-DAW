@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { TrackPresetManager } from '../TrackPresetManager';
 import { useProjectStore } from '../../../store/projectStore';
 import { useToastStore } from '../../../hooks/useToast';
+import { useCollaborationStore } from '../../../store/collaborationStore';
 import type { Project, TrackPreset } from '../../../types/project';
 
 function makePreset(overrides: Partial<TrackPreset> = {}): TrackPreset {
@@ -44,7 +45,8 @@ function setupProject(presets: TrackPreset[] = []) {
 
 describe('TrackPresetManager', () => {
   beforeEach(() => {
-    useProjectStore.setState({ project: null, isViewerMode: () => false });
+    useProjectStore.setState({ project: null });
+    useCollaborationStore.getState().reset();
     useToastStore.getState().clearToasts();
   });
 
@@ -92,9 +94,9 @@ describe('TrackPresetManager', () => {
 
   it('shows feedback when applying a preset is blocked in viewer mode', () => {
     setupProject([makePreset({ id: 'p1' })]);
+    useCollaborationStore.getState().setViewerMode(true);
     useProjectStore.setState({
       applyTrackPreset: vi.fn(() => undefined),
-      isViewerMode: () => true,
     });
 
     render(<TrackPresetManager />);
@@ -104,10 +106,10 @@ describe('TrackPresetManager', () => {
 
   it('shows feedback instead of deleting presets in viewer mode', () => {
     setupProject([makePreset({ id: 'p1' })]);
+    useCollaborationStore.getState().setViewerMode(true);
     const deleteTrackPreset = vi.fn();
     useProjectStore.setState({
       deleteTrackPreset,
-      isViewerMode: () => true,
     });
 
     render(<TrackPresetManager />);
