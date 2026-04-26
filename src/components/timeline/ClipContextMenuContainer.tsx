@@ -3,6 +3,7 @@ import type { Clip, MidiNote, Project, Track } from '../../types/project';
 import { useUIStore } from '../../store/uiStore';
 import { useProjectStore } from '../../store/projectStore';
 import { useTransportStore } from '../../store/transportStore';
+import { useCollaborationStore } from '../../store/collaborationStore';
 import { toastError } from '../../hooks/useToast';
 import { ClipContextMenu } from './ClipContextMenu';
 import {
@@ -139,6 +140,7 @@ export function ClipContextMenuContainer({
   const splitClipAtZeroCrossing = useProjectStore((s) => s.splitClipAtZeroCrossing);
   const updateClipColors = useProjectStore((s) => s.updateClipColors);
   const tracks = useProjectStore((s) => s.project?.tracks);
+  const isViewerMode = useCollaborationStore((s) => s.isViewerMode);
 
   const hasAudio = !!(clip.isolatedAudioKey || clip.cumulativeMixKey);
   const isReady = clip.generationStatus === 'ready';
@@ -216,7 +218,16 @@ export function ClipContextMenuContainer({
         const project = useProjectStore.getState().project;
         const oneBar = getGrooveBarLengthBeatsForClip(project, clip.startTime);
         const lengthBeats = getGrooveLengthBeatsFromMidiNotes(clip.midiData?.notes, oneBar, gridBeats);
-        extractGrooveFromClip(clip.id, name, { gridBeats, lengthBeats });
+        const groove = extractGrooveFromClip(clip.id, name, { gridBeats, lengthBeats });
+        if (!groove) {
+          if (isViewerMode) {
+            toastError('Grooves cannot be extracted in viewer mode.');
+          } else if (!clip.midiData?.notes.length) {
+            toastError('Add MIDI notes before extracting a groove.');
+          } else {
+            toastError('Failed to extract groove.');
+          }
+        }
       } : undefined}
       onEdit={() => {
         onClose();

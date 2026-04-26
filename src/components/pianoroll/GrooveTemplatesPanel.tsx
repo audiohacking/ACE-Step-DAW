@@ -10,7 +10,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { useCollaborationStore } from '../../store/collaborationStore';
-import type { GrooveTemplate } from '../../types/project';
+import type { Clip, GrooveTemplate } from '../../types/project';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -30,12 +30,14 @@ function GrooveRow({
   onRename,
   onApply,
   isReadOnly,
+  canApply,
 }: {
   groove: GrooveTemplate;
   onDelete: () => void;
   onRename: (name: string) => void;
   onApply: () => void;
   isReadOnly: boolean;
+  canApply: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(groove.name);
@@ -103,10 +105,12 @@ function GrooveRow({
       <button
         type="button"
         onClick={onApply}
-        disabled={isReadOnly}
-        title={isReadOnly ? 'Groove templates are read-only in viewer mode' : undefined}
+        disabled={isReadOnly || !canApply}
+        title={isReadOnly
+          ? 'Groove templates are read-only in viewer mode'
+          : canApply ? undefined : 'Open a MIDI clip with notes before applying grooves'}
         className={`text-[9px] px-1.5 py-0.5 rounded bg-emerald-700/30 text-emerald-300 hover:bg-emerald-600/40 transition-colors ${
-          isReadOnly
+          isReadOnly || !canApply
             ? 'opacity-40 cursor-not-allowed hover:bg-emerald-700/30'
             : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
         }`}
@@ -135,34 +139,44 @@ function GrooveRow({
 // ─── Main Panel ───────────────────────────────────────────────────────────
 
 export function GrooveTemplatesPanel() {
-  const groovePool = useProjectStore((s) => s.project?.groovePool ?? []);
+  const project = useProjectStore((s) => s.project);
+  const groovePool = project?.groovePool ?? [];
   const deleteGrooveTemplate = useProjectStore((s) => s.deleteGrooveTemplate);
   const renameGrooveTemplate = useProjectStore((s) => s.renameGrooveTemplate);
   const applyGrooveToClip = useProjectStore((s) => s.applyGrooveToClip);
   const strength = useUIStore((s) => s.grooveStrength);
   const setStrength = useUIStore((s) => s.setGrooveStrength);
+  const openTrackId = useUIStore((s) => s.openPianoRollTrackId);
   const openClipId = useUIStore((s) => s.openPianoRollClipId);
   const selectedNoteIds = useUIStore((s) => s.selectedPianoRollNoteIds);
   const isViewerMode = useCollaborationStore((s) => s.isViewerMode);
 
+  const activeClip = useCallback((): Clip | null => {
+    if (openClipId) {
+      const track = project?.tracks.find((candidate) =>
+        openTrackId ? candidate.id === openTrackId : candidate.clips.some((clip) => clip.id === openClipId),
+      );
+      const selectedClip = track?.clips.find((candidate) => candidate.id === openClipId);
+      if (selectedClip?.midiData) return selectedClip;
+    }
+    const track = project?.tracks.find((candidate) => candidate.id === openTrackId);
+    if (!track) return null;
+    return track.clips.find((candidate) => candidate.midiData) ?? null;
+  }, [openClipId, openTrackId, project]);
+
+  const currentClip = activeClip();
+  const canApplyGroove = !isViewerMode && !!currentClip?.midiData?.notes.length;
+
   const handleApplyGroove = useCallback((grooveId: string) => {
     if (isViewerMode) return;
-    if (!openClipId) return;
+    const clip = activeClip();
+    if (!clip?.midiData) return;
     const noteIds = selectedNoteIds.length > 0
       ? selectedNoteIds
-      : (() => {
-          // If no notes selected, apply to all notes in the clip
-          const project = useProjectStore.getState().project;
-          if (!project) return [];
-          for (const track of project.tracks) {
-            const clip = track.clips.find((c) => c.id === openClipId);
-            if (clip?.midiData) return clip.midiData.notes.map((n) => n.id);
-          }
-          return [];
-        })();
+      : clip.midiData.notes.map((n) => n.id);
     if (noteIds.length === 0) return;
-    applyGrooveToClip(openClipId, noteIds, grooveId, { strength });
-  }, [openClipId, selectedNoteIds, strength, applyGrooveToClip, isViewerMode]);
+    applyGrooveToClip(clip.id, noteIds, grooveId, { strength });
+  }, [activeClip, selectedNoteIds, strength, applyGrooveToClip, isViewerMode]);
 
   return (
     <div className="flex flex-col h-full">
@@ -212,6 +226,7 @@ export function GrooveTemplatesPanel() {
               onRename={(name) => renameGrooveTemplate(groove.id, name)}
               onApply={() => handleApplyGroove(groove.id)}
               isReadOnly={isViewerMode}
+              canApply={canApplyGroove}
             />
           ))
         )}

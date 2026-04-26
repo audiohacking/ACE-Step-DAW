@@ -4,7 +4,7 @@ import { GrooveTemplatesPanel } from '../GrooveTemplatesPanel';
 import { useProjectStore } from '../../../store/projectStore';
 import { useUIStore } from '../../../store/uiStore';
 import { useCollaborationStore } from '../../../store/collaborationStore';
-import type { Project, GrooveTemplate } from '../../../types/project';
+import type { Clip, Project, GrooveTemplate, Track } from '../../../types/project';
 
 function makeGroove(overrides: Partial<GrooveTemplate> = {}): GrooveTemplate {
   return {
@@ -19,12 +19,54 @@ function makeGroove(overrides: Partial<GrooveTemplate> = {}): GrooveTemplate {
   };
 }
 
-function setupProject(groovePool: GrooveTemplate[] = []) {
+function makeMidiClip(overrides: Partial<Clip> = {}): Clip {
+  return {
+    id: overrides.id ?? 'clip-1',
+    trackId: overrides.trackId ?? 'track-1',
+    startTime: 0,
+    duration: 4,
+    prompt: '',
+    lyrics: '',
+    generationStatus: 'ready',
+    generationJobId: null,
+    cumulativeMixKey: null,
+    isolatedAudioKey: null,
+    waveformPeaks: null,
+    midiData: {
+      grid: '1/16',
+      notes: [
+        { id: 'note-1', pitch: 60, startBeat: 0, durationBeats: 0.25, velocity: 80 },
+        { id: 'note-2', pitch: 64, startBeat: 0.5, durationBeats: 0.25, velocity: 76 },
+      ],
+    },
+    ...overrides,
+  };
+}
+
+function makeTrack(overrides: Partial<Track> = {}): Track {
+  return {
+    id: overrides.id ?? 'track-1',
+    trackName: 'keyboard',
+    trackType: 'pianoRoll',
+    displayName: 'Keys',
+    color: '#3b82f6',
+    order: 1,
+    volume: 0.8,
+    muted: false,
+    soloed: false,
+    clips: overrides.clips ?? [makeMidiClip()],
+    effects: [],
+    effectsEnabled: true,
+    ...overrides,
+  } as Track;
+}
+
+function setupProject(groovePool: GrooveTemplate[] = [], tracks: Track[] = []) {
   useProjectStore.setState({
     project: {
       id: 'p',
       name: 'Test',
-      tracks: [],
+      tracks,
       bpm: 120,
       keyScale: 'C major',
       timeSignature: 4,
@@ -42,7 +84,12 @@ describe('GrooveTemplatesPanel', () => {
   beforeEach(() => {
     useProjectStore.setState({ project: null });
     useCollaborationStore.getState().reset();
-    useUIStore.setState({ grooveStrength: 100 });
+    useUIStore.setState({
+      grooveStrength: 100,
+      openPianoRollTrackId: null,
+      openPianoRollClipId: null,
+      selectedPianoRollNoteIds: [],
+    });
   });
 
   it('renders empty state when no grooves exist', () => {
@@ -115,7 +162,7 @@ describe('GrooveTemplatesPanel', () => {
   });
 
   it('calls applyGrooveToClip when Apply is clicked with open clip', () => {
-    setupProject([makeGroove({ id: 'g1' })]);
+    setupProject([makeGroove({ id: 'g1' })], [makeTrack()]);
     const applyGrooveToClip = vi.fn();
     useProjectStore.setState({ applyGrooveToClip });
     useUIStore.setState({
@@ -129,8 +176,24 @@ describe('GrooveTemplatesPanel', () => {
     expect(applyGrooveToClip).toHaveBeenCalledWith('clip-1', ['note-1', 'note-2'], 'g1', { strength: 75 });
   });
 
+  it('applies grooves to the visible fallback MIDI clip when the piano roll is opened at track scope', () => {
+    setupProject([makeGroove({ id: 'g1' })], [makeTrack()]);
+    const applyGrooveToClip = vi.fn();
+    useProjectStore.setState({ applyGrooveToClip });
+    useUIStore.setState({
+      openPianoRollTrackId: 'track-1',
+      openPianoRollClipId: null,
+      selectedPianoRollNoteIds: [],
+      grooveStrength: 80,
+    });
+
+    render(<GrooveTemplatesPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /apply groove/i }));
+    expect(applyGrooveToClip).toHaveBeenCalledWith('clip-1', ['note-1', 'note-2'], 'g1', { strength: 80 });
+  });
+
   it('disables groove actions in viewer mode', () => {
-    setupProject([makeGroove({ id: 'g1', name: 'Swing 16ths' })]);
+    setupProject([makeGroove({ id: 'g1', name: 'Swing 16ths' })], [makeTrack()]);
     const deleteGrooveTemplate = vi.fn();
     const renameGrooveTemplate = vi.fn();
     const applyGrooveToClip = vi.fn();

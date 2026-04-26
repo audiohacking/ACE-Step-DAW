@@ -1,12 +1,16 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ClipContextMenu } from '../ClipContextMenu';
+import { ClipContextMenuContainer } from '../ClipContextMenuContainer';
 import {
   getGrooveBarLengthBeatsForClip,
   getGrooveGridBeatsFromMidiNotes,
   getGrooveLengthBeatsFromMidiNotes,
 } from '../ClipContextMenuContainer';
-import type { MidiNote, Project } from '../../../types/project';
+import { useProjectStore } from '../../../store/projectStore';
+import { useCollaborationStore } from '../../../store/collaborationStore';
+import { useToastStore } from '../../../hooks/useToast';
+import type { Clip, MidiNote, Project, Track } from '../../../types/project';
 
 const noop = () => {};
 
@@ -33,7 +37,53 @@ const baseProps = {
   isMidiClip: true,
 };
 
+function makeMidiClip(overrides: Partial<Clip> = {}): Clip {
+  return {
+    id: overrides.id ?? 'clip-1',
+    trackId: overrides.trackId ?? 'track-1',
+    startTime: 0,
+    duration: 4,
+    prompt: '',
+    lyrics: '',
+    generationStatus: 'ready',
+    generationJobId: null,
+    cumulativeMixKey: null,
+    isolatedAudioKey: null,
+    waveformPeaks: null,
+    midiData: {
+      grid: '1/16',
+      notes: [],
+    },
+    ...overrides,
+  };
+}
+
+function makeTrack(clip: Clip): Track {
+  return {
+    id: 'track-1',
+    trackName: 'keyboard',
+    trackType: 'pianoRoll',
+    displayName: 'Keys',
+    color: '#3b82f6',
+    order: 1,
+    volume: 0.8,
+    muted: false,
+    soloed: false,
+    clips: [clip],
+    effects: [],
+    effectsEnabled: true,
+  } as Track;
+}
+
 describe('ClipContextMenu — Extract Groove', () => {
+  beforeEach(() => {
+    useCollaborationStore.getState().reset();
+    useToastStore.getState().clearToasts();
+    useProjectStore.setState({
+      project: null,
+    });
+  });
+
   it('shows Extract Groove option for MIDI clips', () => {
     const onExtractGroove = vi.fn();
     render(
@@ -137,6 +187,40 @@ describe('ClipContextMenu — Extract Groove', () => {
     ];
 
     expect(getGrooveGridBeatsFromMidiNotes(notes)).toBe(0.125);
+  });
+
+  it('shows feedback when extracting a groove from an empty MIDI clip is rejected', () => {
+    const clip = makeMidiClip();
+    const track = makeTrack(clip);
+    useProjectStore.setState({
+      project: {
+        id: 'p',
+        name: 'Test',
+        tracks: [track],
+        bpm: 120,
+        keyScale: 'C major',
+        timeSignature: 4,
+        timeSignatureDenominator: 4,
+        totalDuration: 4,
+        markers: [],
+        tempoMap: [],
+        timeSignatureMap: [],
+      } as unknown as Project,
+      extractGrooveFromClip: vi.fn(() => undefined),
+    });
+
+    render(
+      <ClipContextMenuContainer
+        {...baseProps}
+        clip={clip}
+        track={track}
+        selectedActionClipIds={[clip.id]}
+        onEditModalOpen={noop}
+      />,
+    );
+    fireEvent.click(screen.getByText(/extract groove/i));
+
+    expect(useToastStore.getState().toasts[0].message).toMatch(/add midi notes/i);
   });
 
 });
