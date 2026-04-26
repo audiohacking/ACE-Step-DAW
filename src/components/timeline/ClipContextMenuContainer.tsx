@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Clip, Track } from '../../types/project';
+import type { Clip, MidiNote, Track } from '../../types/project';
 import { useUIStore } from '../../store/uiStore';
 import { useProjectStore } from '../../store/projectStore';
 import { useTransportStore } from '../../store/transportStore';
@@ -11,6 +11,27 @@ import { GRID_BEATS_MAP } from '../pianoroll/PianoRollConstants';
 const DEFAULT_GROOVE_GRID_BEATS = 0.25;
 /** Fallback groove analysis length when clip is too short (1 bar of 4/4). */
 const FALLBACK_GROOVE_LENGTH_BEATS = 4;
+
+export function getGrooveLengthBeatsFromMidiNotes(
+  notes: MidiNote[] | undefined,
+  oneBarBeats: number,
+  gridBeats: number,
+): number {
+  const validOneBar = Number.isFinite(oneBarBeats) && oneBarBeats > 0
+    ? oneBarBeats
+    : FALLBACK_GROOVE_LENGTH_BEATS;
+
+  const noteEndBeat = notes?.reduce((maxEnd, note) => {
+    const start = Number.isFinite(note.startBeat) ? note.startBeat : 0;
+    const duration = Number.isFinite(note.durationBeats) && note.durationBeats > 0
+      ? note.durationBeats
+      : gridBeats;
+    return Math.max(maxEnd, start + duration);
+  }, 0) ?? 0;
+
+  if (noteEndBeat <= 0) return validOneBar;
+  return Math.max(validOneBar, Math.ceil(noteEndBeat / validOneBar) * validOneBar);
+}
 
 interface ClipContextMenuContainerProps {
   x: number;
@@ -137,12 +158,10 @@ export function ClipContextMenuContainer({
           ? (GRID_BEATS_MAP[clip.midiData.grid] ?? DEFAULT_GROOVE_GRID_BEATS)
           : DEFAULT_GROOVE_GRID_BEATS;
         const project = useProjectStore.getState().project;
-        const bpm = project?.bpm ?? 120;
         const timeSigNumerator = project?.timeSignature ?? 4;
         const timeSigDenominator = project?.timeSignatureDenominator ?? 4;
-        const clipBeats = clip.duration * (bpm / 60);
         const oneBar = timeSigNumerator * (4 / timeSigDenominator); // quarter-note beats per bar (e.g. 3 for 6/8, 4 for 4/4)
-        const lengthBeats = clipBeats >= 1 ? Math.ceil(clipBeats) : (oneBar || FALLBACK_GROOVE_LENGTH_BEATS);
+        const lengthBeats = getGrooveLengthBeatsFromMidiNotes(clip.midiData?.notes, oneBar, gridBeats);
         extractGrooveFromClip(clip.id, name, { gridBeats, lengthBeats });
       } : undefined}
       onEdit={() => {
