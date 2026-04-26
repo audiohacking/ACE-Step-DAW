@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useProjectStore } from '../../store/projectStore';
+import { useCollaborationStore } from '../../store/collaborationStore';
 import { loadAudioBlobByKey } from '../../services/audioFileManager';
 import { getExistingAudioEngine } from '../../hooks/useAudioEngine';
 import { computeAudioMetrics, formatLufs, formatDbLevel, formatDbRange } from '../../services/audioMetrics';
@@ -88,6 +89,7 @@ function TagInput({ clipId, existingTags }: { clipId: string; existingTags: stri
   const [value, setValue] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const addClipTag = useProjectStore((s) => s.addClipTag);
+  const isViewerMode = useCollaborationStore((s) => s.isViewerMode);
   const allTags = useAllProjectTags();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -105,12 +107,13 @@ function TagInput({ clipId, existingTags }: { clipId: string; existingTags: stri
   }, [value, allTags, existingTags]);
 
   const handleSubmit = useCallback(() => {
+    if (isViewerMode) return;
     const trimmed = value.trim();
     if (!trimmed) return;
     addClipTag(clipId, trimmed);
     setValue('');
     setShowSuggestions(false);
-  }, [value, clipId, addClipTag]);
+  }, [value, clipId, addClipTag, isViewerMode]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -123,11 +126,12 @@ function TagInput({ clipId, existingTags }: { clipId: string; existingTags: stri
   }, [handleSubmit]);
 
   const handleSuggestionClick = useCallback((tag: string) => {
+    if (isViewerMode) return;
     addClipTag(clipId, tag);
     setValue('');
     setShowSuggestions(false);
     inputRef.current?.focus();
-  }, [clipId, addClipTag]);
+  }, [clipId, addClipTag, isViewerMode]);
 
   return (
     <div className="relative">
@@ -135,12 +139,14 @@ function TagInput({ clipId, existingTags }: { clipId: string; existingTags: stri
         ref={inputRef}
         type="text"
         value={value}
-        onChange={(e) => { setValue(e.target.value); setShowSuggestions(true); }}
+        onChange={(e) => { setValue(e.target.value); setShowSuggestions(!isViewerMode); }}
         onKeyDown={handleKeyDown}
         onBlur={() => setShowSuggestions(false)}
-        onFocus={() => { if (value.trim()) setShowSuggestions(true); }}
+        onFocus={() => { if (!isViewerMode && value.trim()) setShowSuggestions(true); }}
         placeholder="Add tag..."
         aria-label="Add tag"
+        disabled={isViewerMode}
+        title={isViewerMode ? 'Tags are read-only in viewer mode' : undefined}
         className="w-full px-1.5 py-0.5 text-[10px] bg-zinc-800/50 border border-zinc-700/50 rounded text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500/70"
       />
       {showSuggestions && suggestions.length > 0 && (
@@ -267,6 +273,7 @@ function ClipDetail({ clip }: { clip: Clip }) {
     s.project?.tracks.find((t) => t.id === clip.trackId),
   );
   const removeClipTag = useProjectStore((s) => s.removeClipTag);
+  const isViewerMode = useCollaborationStore((s) => s.isViewerMode);
   const audioMetrics = useClipAudioMetrics(clip);
 
   return (
@@ -361,7 +368,7 @@ function ClipDetail({ clip }: { clip: Clip }) {
               <TagChip
                 key={tag}
                 tag={tag}
-                onRemove={() => removeClipTag(clip.id, tag)}
+                onRemove={isViewerMode ? undefined : () => removeClipTag(clip.id, tag)}
               />
             ))}
           </div>

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ClipInspectorPanel } from '../ClipInspectorPanel';
 import { useUIStore } from '../../../store/uiStore';
 import { useProjectStore } from '../../../store/projectStore';
+import { useCollaborationStore } from '../../../store/collaborationStore';
 import type { Project, Clip, Track } from '../../../types/project';
 
 function makeClip(overrides: Partial<Clip> = {}): Clip {
@@ -71,6 +72,7 @@ function setupStores(clips?: Clip[]) {
 describe('ClipInspectorPanel', () => {
   beforeEach(() => {
     useProjectStore.setState({ project: null });
+    useCollaborationStore.getState().reset();
     useUIStore.setState({
       selectedClipIds: new Set(),
       showClipInspector: false,
@@ -187,6 +189,24 @@ describe('ClipInspectorPanel', () => {
     const removeButtons = screen.getAllByRole('button', { name: /remove tag/i });
     fireEvent.click(removeButtons[0]);
     expect(removeClipTag).toHaveBeenCalledWith('clip-1', 'verse');
+  });
+
+  it('renders clip tags as read-only in viewer mode', () => {
+    const clip = makeClip({ tags: ['verse'] });
+    setupStores([clip]);
+    const addClipTag = vi.fn();
+    const removeClipTag = vi.fn();
+    useProjectStore.setState({ addClipTag, removeClipTag });
+    useCollaborationStore.getState().setViewerMode(true);
+
+    render(<ClipInspectorPanel />);
+    const input = screen.getByPlaceholderText(/add tag/i) as HTMLInputElement;
+    expect(input.disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: /remove tag/i })).toBeNull();
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(addClipTag).not.toHaveBeenCalled();
+    expect(removeClipTag).not.toHaveBeenCalled();
   });
 
   it('calls addClipTag when tag is submitted via Enter', () => {

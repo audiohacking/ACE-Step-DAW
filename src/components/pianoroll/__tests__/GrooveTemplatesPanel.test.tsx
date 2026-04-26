@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { GrooveTemplatesPanel } from '../GrooveTemplatesPanel';
 import { useProjectStore } from '../../../store/projectStore';
 import { useUIStore } from '../../../store/uiStore';
+import { useCollaborationStore } from '../../../store/collaborationStore';
 import type { Project, GrooveTemplate } from '../../../types/project';
 
 function makeGroove(overrides: Partial<GrooveTemplate> = {}): GrooveTemplate {
@@ -40,6 +41,7 @@ function setupProject(groovePool: GrooveTemplate[] = []) {
 describe('GrooveTemplatesPanel', () => {
   beforeEach(() => {
     useProjectStore.setState({ project: null });
+    useCollaborationStore.getState().reset();
     useUIStore.setState({ grooveStrength: 100 });
   });
 
@@ -125,6 +127,38 @@ describe('GrooveTemplatesPanel', () => {
     render(<GrooveTemplatesPanel />);
     fireEvent.click(screen.getByRole('button', { name: /apply groove/i }));
     expect(applyGrooveToClip).toHaveBeenCalledWith('clip-1', ['note-1', 'note-2'], 'g1', { strength: 75 });
+  });
+
+  it('disables groove actions in viewer mode', () => {
+    setupProject([makeGroove({ id: 'g1', name: 'Swing 16ths' })]);
+    const deleteGrooveTemplate = vi.fn();
+    const renameGrooveTemplate = vi.fn();
+    const applyGrooveToClip = vi.fn();
+    useProjectStore.setState({
+      deleteGrooveTemplate,
+      renameGrooveTemplate,
+      applyGrooveToClip,
+    });
+    useUIStore.setState({
+      openPianoRollClipId: 'clip-1',
+      selectedPianoRollNoteIds: ['note-1'],
+    });
+    useCollaborationStore.getState().setViewerMode(true);
+
+    render(<GrooveTemplatesPanel />);
+    const applyButton = screen.getByRole('button', { name: /apply groove/i }) as HTMLButtonElement;
+    const deleteButton = screen.getByRole('button', { name: /delete groove/i }) as HTMLButtonElement;
+    expect(applyButton.disabled).toBe(true);
+    expect(deleteButton.disabled).toBe(true);
+
+    fireEvent.click(applyButton);
+    fireEvent.click(deleteButton);
+    fireEvent.doubleClick(screen.getByText('Swing 16ths'));
+
+    expect(applyGrooveToClip).not.toHaveBeenCalled();
+    expect(deleteGrooveTemplate).not.toHaveBeenCalled();
+    expect(renameGrooveTemplate).not.toHaveBeenCalled();
+    expect(screen.queryByDisplayValue('Swing 16ths')).toBeNull();
   });
 
   it('shows strength slider defaulting to 100', () => {

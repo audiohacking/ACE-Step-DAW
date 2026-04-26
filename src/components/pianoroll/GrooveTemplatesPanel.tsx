@@ -9,6 +9,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
+import { useCollaborationStore } from '../../store/collaborationStore';
 import type { GrooveTemplate } from '../../types/project';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -28,11 +29,13 @@ function GrooveRow({
   onDelete,
   onRename,
   onApply,
+  isReadOnly,
 }: {
   groove: GrooveTemplate;
   onDelete: () => void;
   onRename: (name: string) => void;
   onApply: () => void;
+  isReadOnly: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(groove.name);
@@ -43,17 +46,18 @@ function GrooveRow({
   }, [editing]);
 
   const handleDoubleClick = useCallback(() => {
+    if (isReadOnly) return;
     setEditValue(groove.name);
     setEditing(true);
-  }, [groove.name]);
+  }, [groove.name, isReadOnly]);
 
   const commitRename = useCallback(() => {
     const trimmed = editValue.trim();
-    if (trimmed && trimmed !== groove.name) {
+    if (!isReadOnly && trimmed && trimmed !== groove.name) {
       onRename(trimmed);
     }
     setEditing(false);
-  }, [editValue, groove.name, onRename]);
+  }, [editValue, groove.name, onRename, isReadOnly]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -80,8 +84,9 @@ function GrooveRow({
           />
         ) : (
           <div
-            className="text-[10px] text-zinc-200 truncate cursor-default"
+            className={`text-[10px] truncate cursor-default ${isReadOnly ? 'text-zinc-400' : 'text-zinc-200'}`}
             onDoubleClick={handleDoubleClick}
+            title={isReadOnly ? 'Groove templates are read-only in viewer mode' : undefined}
           >
             {groove.name}
           </div>
@@ -98,7 +103,13 @@ function GrooveRow({
       <button
         type="button"
         onClick={onApply}
-        className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-700/30 text-emerald-300 hover:bg-emerald-600/40 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+        disabled={isReadOnly}
+        title={isReadOnly ? 'Groove templates are read-only in viewer mode' : undefined}
+        className={`text-[9px] px-1.5 py-0.5 rounded bg-emerald-700/30 text-emerald-300 hover:bg-emerald-600/40 transition-colors ${
+          isReadOnly
+            ? 'opacity-40 cursor-not-allowed hover:bg-emerald-700/30'
+            : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+        }`}
         aria-label="Apply groove template"
       >
         Apply
@@ -106,7 +117,13 @@ function GrooveRow({
       <button
         type="button"
         onClick={onDelete}
-        className="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 text-[11px]"
+        disabled={isReadOnly}
+        title={isReadOnly ? 'Groove templates are read-only in viewer mode' : undefined}
+        className={`text-zinc-600 hover:text-red-400 transition-colors text-[11px] ${
+          isReadOnly
+            ? 'opacity-40 cursor-not-allowed hover:text-zinc-600'
+            : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+        }`}
         aria-label="Delete groove template"
       >
         ×
@@ -126,8 +143,10 @@ export function GrooveTemplatesPanel() {
   const setStrength = useUIStore((s) => s.setGrooveStrength);
   const openClipId = useUIStore((s) => s.openPianoRollClipId);
   const selectedNoteIds = useUIStore((s) => s.selectedPianoRollNoteIds);
+  const isViewerMode = useCollaborationStore((s) => s.isViewerMode);
 
   const handleApplyGroove = useCallback((grooveId: string) => {
+    if (isViewerMode) return;
     if (!openClipId) return;
     const noteIds = selectedNoteIds.length > 0
       ? selectedNoteIds
@@ -143,7 +162,7 @@ export function GrooveTemplatesPanel() {
         })();
     if (noteIds.length === 0) return;
     applyGrooveToClip(openClipId, noteIds, grooveId, { strength });
-  }, [openClipId, selectedNoteIds, strength, applyGrooveToClip]);
+  }, [openClipId, selectedNoteIds, strength, applyGrooveToClip, isViewerMode]);
 
   return (
     <div className="flex flex-col h-full">
@@ -192,6 +211,7 @@ export function GrooveTemplatesPanel() {
               onDelete={() => deleteGrooveTemplate(groove.id)}
               onRename={(name) => renameGrooveTemplate(groove.id, name)}
               onApply={() => handleApplyGroove(groove.id)}
+              isReadOnly={isViewerMode}
             />
           ))
         )}
