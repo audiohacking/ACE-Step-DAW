@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractServerPath } from '../../utils/serverPath';
+import { extractServerPath, sanitizeServerPath } from '../../utils/serverPath';
 
 /**
  * Regression tests for #1702: multi-stem LEGO generation fails when
@@ -48,5 +48,15 @@ describe('extractServerPath', () => {
   it('returns null for UNC paths in query param', () => {
     expect(extractServerPath('/v1/audio?path=\\\\server\\share\\output.wav')).toBeNull();
     expect(extractServerPath('/v1/audio?path=//server/share/output.wav')).toBeNull();
+  });
+
+  it('rejects persisted absolute server paths before reuse', () => {
+    expect(sanitizeServerPath('/tmp/ace-step/output.wav')).toBeNull();
+    expect(sanitizeServerPath('C:\\tmp\\output.wav')).toBeNull();
+    expect(sanitizeServerPath('\\\\server\\share\\output.wav')).toBeNull();
+  });
+
+  it('keeps persisted relative server paths before reuse', () => {
+    expect(sanitizeServerPath('outputs/stem.wav')).toBe('outputs/stem.wav');
   });
 });

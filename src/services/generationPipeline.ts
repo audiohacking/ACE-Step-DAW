@@ -22,7 +22,7 @@ import { POLL_INTERVAL_MS, MAX_POLL_DURATION_MS } from '../constants/defaults';
 import { extractContextAudioLazy } from './lazyContextAudioExtractor';
 import { computeEta } from '../utils/generationProgress';
 import { createDebugLogger } from '../utils/debugLogger';
-import { extractServerPath } from '../utils/serverPath';
+import { extractServerPath, sanitizeServerPath } from '../utils/serverPath';
 
 const logger = createDebugLogger('ace-step:generation');
 
@@ -1338,8 +1338,9 @@ export async function generateBatch(options: GenerateBatchOptions): Promise<void
           opts.srcAudioPath = contextAudioPath;
         } else if (!firstCall && prevClipId) {
           const prevClip = useProjectStore.getState().getClipById(prevClipId);
-          if (prevClip?.serverCumulativePath) {
-            opts.srcAudioPath = prevClip.serverCumulativePath;
+          const serverCumulativePath = sanitizeServerPath(prevClip?.serverCumulativePath);
+          if (serverCumulativePath) {
+            opts.srcAudioPath = serverCumulativePath;
           }
         }
         firstCall = false;
@@ -1742,8 +1743,9 @@ export async function generateFromMultiTrack(opts: MultiTrackGenerateOptions): P
         };
         if (prevClipId) {
           const prevClip = useProjectStore.getState().getClipById(prevClipId);
-          if (prevClip?.serverCumulativePath) {
-            clipOpts.srcAudioPath = prevClip.serverCumulativePath;
+          const serverCumulativePath = sanitizeServerPath(prevClip?.serverCumulativePath);
+          if (serverCumulativePath) {
+            clipOpts.srcAudioPath = serverCumulativePath;
           }
         }
         prevClipId = clipId;

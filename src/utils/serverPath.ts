@@ -18,11 +18,16 @@ function isAbsoluteServerPath(p: string): boolean {
   );
 }
 
+export function sanitizeServerPath(serverPath: string | null | undefined): string | null {
+  if (!serverPath || isAbsoluteServerPath(serverPath)) return null;
+  return serverPath;
+}
+
 export function extractServerPath(audioPath: string): string | null {
   try {
     const url = new URL(audioPath, 'http://localhost');
     const p = url.searchParams.get('path');
-    if (p && !isAbsoluteServerPath(p)) return p;
+    return sanitizeServerPath(p);
   } catch {
     // not a valid URL — fall through
   }
