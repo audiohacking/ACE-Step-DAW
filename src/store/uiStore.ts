@@ -78,6 +78,8 @@ export interface UIState {
   commandPaletteQuery: string;
   recentCommandIds: string[];
   showUndoHistoryPanel: boolean;
+  showTrackPresetManager: boolean;
+  grooveStrength: number;
   historyFocusScope: HistoryScope;
   historyFocusTrackId: string | null;
   historyFocusClipId: string | null;
@@ -317,6 +319,8 @@ export interface UIState {
   searchCommandPalette: (query?: string) => CommandPaletteSearchResult[];
   executeCommandPaletteCommand: (commandId: string) => Promise<boolean>;
   setShowUndoHistoryPanel: (v: boolean) => void;
+  setShowTrackPresetManager: (v: boolean) => void;
+  setGrooveStrength: (v: number) => void;
   setHistoryFocusScope: (scope: HistoryScope, target?: HistoryTarget) => void;
   setShowMixer: (v: boolean) => void;
   setShowClipInspector: (v: boolean) => void;
@@ -656,6 +660,8 @@ export const useUIStore = create<UIState>()(
   commandPaletteQuery: '',
   recentCommandIds: [],
   showUndoHistoryPanel: false,
+  showTrackPresetManager: false,
+  grooveStrength: 100,
   historyFocusScope: 'arrangement',
   historyFocusTrackId: null,
   historyFocusClipId: null,
@@ -987,6 +993,10 @@ export const useUIStore = create<UIState>()(
     return true;
   },
   setShowUndoHistoryPanel: (v) => set({ showUndoHistoryPanel: v }),
+  setShowTrackPresetManager: (v) => set({ showTrackPresetManager: v }),
+  setGrooveStrength: (v) => set((state) => ({
+    grooveStrength: Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : state.grooveStrength,
+  })),
   setHistoryFocusScope: (scope, target) => set((state) => {
     const resolvedTrackId =
       target?.trackId
@@ -1488,6 +1498,8 @@ export const useUIStore = create<UIState>()(
         userInstrumentPresets: state.userInstrumentPresets,
         // Video recording settings
         videoRecordingSettings: state.videoRecordingSettings,
+        // Groove pool
+        grooveStrength: state.grooveStrength,
       }),
     },
   ),
@@ -1514,6 +1526,7 @@ function buildCommandPaletteContext(state: UIState) {
     showTempoLane: state.showTempoLane,
     loopEnabled: transportStore.loopEnabled,
     metronomeEnabled: transportStore.metronomeEnabled,
+    punchEnabled: transportStore.punchEnabled,
     expandedTrackId: state.expandedTrackId,
     openPianoRollTrackId: state.openPianoRollTrackId,
     openSequencerTrackId: state.openSequencerTrackId,
@@ -1524,6 +1537,7 @@ function buildCommandPaletteContext(state: UIState) {
       stop: runtime?.stop ?? transportStore.stop,
       toggleLoop: transportStore.toggleLoop,
       toggleMetronome: transportStore.toggleMetronome,
+      togglePunch: transportStore.togglePunch,
       setShowNewProjectDialog: state.setShowNewProjectDialog,
       setShowProjectListDialog: state.setShowProjectListDialog,
       openGenerationSettings: () => state.openGenerationPanelView('settings'),
