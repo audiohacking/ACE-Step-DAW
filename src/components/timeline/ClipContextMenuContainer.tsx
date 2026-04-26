@@ -1,11 +1,12 @@
 import React from 'react';
-import type { Clip, MidiNote, Track } from '../../types/project';
+import type { Clip, MidiNote, Project, Track } from '../../types/project';
 import { useUIStore } from '../../store/uiStore';
 import { useProjectStore } from '../../store/projectStore';
 import { useTransportStore } from '../../store/transportStore';
 import { toastError } from '../../hooks/useToast';
 import { ClipContextMenu } from './ClipContextMenu';
 import { GRID_BEATS_MAP } from '../pianoroll/PianoRollConstants';
+import { getBarAtBeat, getTimeSignatureAtBar, getTimeSignatureBarLength, timeToBeat } from '../../utils/tempoMap';
 
 /** Default grid size for groove extraction (16th note = 0.25 beats). */
 const DEFAULT_GROOVE_GRID_BEATS = 0.25;
@@ -27,11 +28,31 @@ export function getGrooveLengthBeatsFromMidiNotes(
   const maxQuantizedOnset = notes?.reduce((maxOnset, note) => {
     const start = Number.isFinite(note.startBeat) ? note.startBeat : 0;
     const quantizedStart = Math.round(Math.max(0, start) / validGrid) * validGrid;
-    return Math.max(maxOnset, quantizedStart);
+    const isExactBoundary = quantizedStart > 0
+      && Math.abs(start - quantizedStart) < 1e-9
+      && Math.abs(quantizedStart % validOneBar) < 1e-9;
+    const effectiveOnset = isExactBoundary ? quantizedStart + validGrid : quantizedStart;
+    return Math.max(maxOnset, effectiveOnset);
   }, 0) ?? 0;
 
   if (maxQuantizedOnset <= 0) return validOneBar;
   return Math.max(validOneBar, Math.ceil(maxQuantizedOnset / validOneBar) * validOneBar);
+}
+
+export function getGrooveBarLengthBeatsAtTime(project: Project | null | undefined, seconds: number): number {
+  if (!project) return FALLBACK_GROOVE_LENGTH_BEATS;
+
+  const fallbackNumerator = project.timeSignature ?? 4;
+  const fallbackDenominator = project.timeSignatureDenominator ?? 4;
+  const beat = timeToBeat(seconds, project.tempoMap, project.bpm ?? 120);
+  const bar = getBarAtBeat(beat, project.timeSignatureMap, fallbackNumerator, fallbackDenominator);
+  const { numerator, denominator } = getTimeSignatureAtBar(
+    project.timeSignatureMap,
+    bar,
+    fallbackNumerator,
+    fallbackDenominator,
+  );
+  return getTimeSignatureBarLength(numerator, denominator);
 }
 
 interface ClipContextMenuContainerProps {
@@ -159,9 +180,7 @@ export function ClipContextMenuContainer({
           ? (GRID_BEATS_MAP[clip.midiData.grid] ?? DEFAULT_GROOVE_GRID_BEATS)
           : DEFAULT_GROOVE_GRID_BEATS;
         const project = useProjectStore.getState().project;
-        const timeSigNumerator = project?.timeSignature ?? 4;
-        const timeSigDenominator = project?.timeSignatureDenominator ?? 4;
-        const oneBar = timeSigNumerator * (4 / timeSigDenominator); // quarter-note beats per bar (e.g. 3 for 6/8, 4 for 4/4)
+        const oneBar = getGrooveBarLengthBeatsAtTime(project, clip.startTime);
         const lengthBeats = getGrooveLengthBeatsFromMidiNotes(clip.midiData?.notes, oneBar, gridBeats);
         extractGrooveFromClip(clip.id, name, { gridBeats, lengthBeats });
       } : undefined}

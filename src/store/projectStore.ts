@@ -3149,6 +3149,7 @@ export const useProjectStore = create<ProjectState>()(
 
   saveTrackPreset: (trackId, presetName) => {
     const state = get();
+    if (_isViewerMode()) throw new Error('Cannot save track presets in viewer mode');
     if (!state.project) throw new Error('No project');
     const track = state.project.tracks.find((candidate) => candidate.id === trackId);
     if (!track) throw new Error(`Track '${trackId}' not found`);
@@ -3170,6 +3171,7 @@ export const useProjectStore = create<ProjectState>()(
 
   applyTrackPreset: (presetId) => {
     const state = get();
+    if (_isViewerMode()) return undefined;
     if (!state.project) return undefined;
     const preset = (state.project.trackPresets ?? []).find((candidate) => candidate.id === presetId);
     if (!preset) return undefined;
@@ -3384,6 +3386,7 @@ export const useProjectStore = create<ProjectState>()(
 
   deleteTrackPreset: (presetId) => {
     const state = get();
+    if (_isViewerMode()) return;
     if (!state.project) return;
     _pushHistory(state.project);
     set({

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ClipContextMenu } from '../ClipContextMenu';
-import { getGrooveLengthBeatsFromMidiNotes } from '../ClipContextMenuContainer';
-import type { MidiNote } from '../../../types/project';
+import { getGrooveBarLengthBeatsAtTime, getGrooveLengthBeatsFromMidiNotes } from '../ClipContextMenuContainer';
+import type { MidiNote, Project } from '../../../types/project';
 
 const noop = () => {};
 
@@ -85,6 +85,15 @@ describe('ClipContextMenu — Extract Groove', () => {
     expect(getGrooveLengthBeatsFromMidiNotes(notes, 4, 0.25)).toBe(4);
   });
 
+  it('counts exact bar-boundary note onsets as part of the next bar', () => {
+    const notes: MidiNote[] = [
+      { id: 'n1', pitch: 60, startBeat: 0, durationBeats: 0.25, velocity: 90 },
+      { id: 'n2', pitch: 67, startBeat: 4, durationBeats: 0.25, velocity: 88 },
+    ];
+
+    expect(getGrooveLengthBeatsFromMidiNotes(notes, 4, 0.25)).toBe(8);
+  });
+
   it('rounds longer groove patterns up to the next bar boundary', () => {
     const notes: MidiNote[] = [
       { id: 'n1', pitch: 60, startBeat: 0, durationBeats: 0.25, velocity: 90 },
@@ -92,5 +101,17 @@ describe('ClipContextMenu — Extract Groove', () => {
     ];
 
     expect(getGrooveLengthBeatsFromMidiNotes(notes, 4, 0.25)).toBe(8);
+  });
+
+  it('uses the time signature active at the clip start time', () => {
+    const project = {
+      bpm: 120,
+      timeSignature: 4,
+      timeSignatureDenominator: 4,
+      tempoMap: [],
+      timeSignatureMap: [{ bar: 3, numerator: 6, denominator: 8 }],
+    } as unknown as Project;
+
+    expect(getGrooveBarLengthBeatsAtTime(project, 4.1)).toBe(3);
   });
 });
