@@ -240,6 +240,10 @@ select:focus-visible,
   .daw-drag-lift[data-dragging="true"] {
     transform: none;
   }
+  .clip-mount-animation,
+  .recording-lane-pulse {
+    animation: none !important;
+  }
 }
 
 .arrangement-scrollbar-hidden {

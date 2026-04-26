@@ -417,7 +417,7 @@ function TrackLaneInner({ track }: TrackLaneProps) {
           <div
             aria-hidden="true"
             data-testid={`recording-lane-pulse-${track.id}`}
-            className="absolute inset-0 pointer-events-none z-10"
+            className="absolute inset-0 pointer-events-none z-10 recording-lane-pulse"
             style={{ animation: 'recording-lane-pulse 1.5s ease-in-out infinite' }}
           />
         )}

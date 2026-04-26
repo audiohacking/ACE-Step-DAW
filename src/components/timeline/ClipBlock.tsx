@@ -278,7 +278,7 @@ function ClipBlockInner({ clip, track }: ClipBlockProps) {
     <>
       {/* Mount animation wrapper — CSS-only, no timers, doesn't conflict with animate-pulse */}
       <div
-        className="absolute top-1 bottom-1"
+        className="absolute top-1 bottom-1 clip-mount-animation"
         style={{
           left,
           width: Math.max(width, 4),
