@@ -1,8 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ClipContextMenu } from '../ClipContextMenu';
-import { getGrooveLengthBeatsFromMidiNotes } from '../ClipContextMenuContainer';
-import type { MidiNote } from '../../../types/project';
+import {
+  getGrooveBarLengthBeatsForClip,
+  getGrooveLengthBeatsFromMidiNotes,
+} from '../ClipContextMenuContainer';
+import type { MidiNote, Project } from '../../../types/project';
 
 const noop = () => {};
 
@@ -101,6 +104,18 @@ describe('ClipContextMenu — Extract Groove', () => {
     ];
 
     expect(getGrooveLengthBeatsFromMidiNotes(notes, 4, 0.25)).toBe(8);
+  });
+
+  it('uses the active time signature at the clip start for bar length', () => {
+    const project = {
+      bpm: 120,
+      timeSignature: 4,
+      timeSignatureDenominator: 4,
+      tempoMap: [],
+      timeSignatureMap: [{ bar: 3, numerator: 3, denominator: 4 }],
+    } as Project;
+
+    expect(getGrooveBarLengthBeatsForClip(project, 4)).toBe(3);
   });
 
 });

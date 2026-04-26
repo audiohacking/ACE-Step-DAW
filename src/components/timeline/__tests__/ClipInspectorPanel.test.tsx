@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ClipInspectorPanel } from '../ClipInspectorPanel';
 import { useUIStore } from '../../../store/uiStore';
 import { useProjectStore } from '../../../store/projectStore';
@@ -210,6 +210,25 @@ describe('ClipInspectorPanel', () => {
     fireEvent.change(input, { target: { value: 'chorus' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(input.value).toBe('');
+  });
+
+  it('clears a draft tag when switching selected clips', async () => {
+    const clips = [
+      makeClip({ id: 'clip-1', tags: [] }),
+      makeClip({ id: 'clip-2', tags: [] }),
+    ];
+    setupStores(clips);
+
+    render(<ClipInspectorPanel />);
+    const input = screen.getByPlaceholderText(/add tag/i) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'draft' } });
+    expect(input.value).toBe('draft');
+
+    useUIStore.setState({ selectedClipIds: new Set(['clip-2']) });
+
+    await waitFor(() => {
+      expect((screen.getByPlaceholderText(/add tag/i) as HTMLInputElement).value).toBe('');
+    });
   });
 
   it('does not call addClipTag for empty input', () => {

@@ -139,4 +139,16 @@ describe('TrackPresetManager', () => {
     fireEvent.click(screen.getByRole('button', { name: /save preset/i }));
     expect(nameInput.value).toBe('');
   });
+
+  it('keeps the name input when saving is blocked', () => {
+    setupProject([]);
+    useProjectStore.setState({ saveTrackPreset: vi.fn(() => undefined as unknown as TrackPreset) });
+
+    render(<TrackPresetManager />);
+    const nameInput = screen.getByPlaceholderText(/preset name/i) as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: 'Readonly Preset' } });
+    fireEvent.click(screen.getByRole('button', { name: /save preset/i }));
+    expect(nameInput.value).toBe('Readonly Preset');
+    expect(screen.getByRole('alert').textContent).toContain('Preset was not saved.');
+  });
 });

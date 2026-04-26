@@ -76,8 +76,12 @@ function SavePresetForm() {
     if (!trimmed || !effectiveTrackId) return;
     setSaveError('');
     try {
-      saveTrackPreset(effectiveTrackId, trimmed);
-      setName('');
+      const preset = saveTrackPreset(effectiveTrackId, trimmed);
+      if (preset) {
+        setName('');
+      } else {
+        setSaveError('Preset was not saved.');
+      }
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Failed to save preset.');
     }

@@ -91,6 +91,11 @@ function TagInput({ clipId, existingTags }: { clipId: string; existingTags: stri
   const allTags = useAllProjectTags();
   const inputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    setValue('');
+    setShowSuggestions(false);
+  }, [clipId]);
+
   const suggestions = useMemo(() => {
     if (!value.trim()) return [];
     const lower = value.toLowerCase();
