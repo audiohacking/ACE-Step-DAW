@@ -120,6 +120,7 @@ function createMockStore(project: MockProject | null = null): ProjectStore {
     resizeMidiNote: vi.fn(),
     saveTrackPreset: vi.fn(() => makeTrackPreset()),
     applyTrackPreset: vi.fn(() => makeTrack()),
+    isViewerMode: vi.fn(() => false),
     consolidateClips: vi.fn(async () => makeClip({ id: 'consolidated-1' })),
     separateStems: vi.fn(async () => [makeTrack({ id: 'stem-1' }), makeTrack({ id: 'stem-2' })]),
     bounceInPlace: vi.fn(async () => makeClip({ id: 'bounced-1' })),
@@ -392,6 +393,16 @@ describe('createProjectActionApi', () => {
       const result = api.saveTrackPreset({ trackId: 'track-1', presetName: 'My Preset' });
       expect(result.ok).toBe(true);
     });
+
+    it('returns ACTION_FAILED in viewer mode', () => {
+      (store.getState() as Record<string, unknown>).isViewerMode = vi.fn(() => true);
+      const result = api.saveTrackPreset({ trackId: 'track-1', presetName: 'My Preset' });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('ACTION_FAILED');
+        expect(result.error.message).toMatch(/viewer mode/i);
+      }
+    });
   });
 
   // ── applyTrackPreset ───────────────────────────────────────────
@@ -418,6 +429,18 @@ describe('createProjectActionApi', () => {
       api = createProjectActionApi(store);
       const result = api.applyTrackPreset({ presetId: 'preset-1' });
       expect(result.ok).toBe(true);
+    });
+
+    it('returns ACTION_FAILED in viewer mode', () => {
+      store = createMockStore(makeProject({ trackPresets: [makeTrackPreset()] }));
+      (store.getState() as Record<string, unknown>).isViewerMode = vi.fn(() => true);
+      api = createProjectActionApi(store);
+      const result = api.applyTrackPreset({ presetId: 'preset-1' });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe('ACTION_FAILED');
+        expect(result.error.message).toMatch(/viewer mode/i);
+      }
     });
 
     it('returns ACTION_FAILED when applyTrackPreset returns null', () => {

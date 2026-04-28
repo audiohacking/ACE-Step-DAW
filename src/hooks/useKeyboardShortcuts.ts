@@ -562,6 +562,7 @@ export function useKeyboardShortcuts() {
         if (project.project) seek(project.project.totalDuration);
         return;
       }
+      if (matches('transport.punchToggle')) { event.preventDefault(); transport.togglePunch(); return; }
       if (matches('transport.punchIn')) { event.preventDefault(); transport.setPunchIn(transport.currentTime); return; }
       if (matches('transport.punchOut')) { event.preventDefault(); transport.setPunchOut(transport.currentTime); return; }
       if (matches('transport.captureMidi')) {
@@ -728,6 +729,42 @@ export function useKeyboardShortcuts() {
         if (selected.length === 1) {
           event.preventDefault();
           project.splitClipAtZeroCrossing(selected[0], transport.currentTime);
+        }
+        return;
+      }
+
+      if (matches('clips.splitAll')) {
+        event.preventDefault();
+        project.splitAllAtPlayhead(transport.currentTime);
+        return;
+      }
+
+      if (matches('clips.insertTime')) {
+        event.preventDefault();
+        const sw = ui.selectWindow;
+        if (sw) {
+          project.insertTime(sw.startTime, sw.endTime - sw.startTime);
+          ui.setSelectWindow(null);
+        }
+        return;
+      }
+
+      if (matches('clips.deleteTime')) {
+        event.preventDefault();
+        const sw = ui.selectWindow;
+        if (sw) {
+          project.deleteTimeRange(sw.startTime, sw.endTime);
+          ui.setSelectWindow(null);
+        }
+        return;
+      }
+
+      if (matches('clips.duplicateSection')) {
+        event.preventDefault();
+        const sw = ui.selectWindow;
+        if (sw) {
+          project.duplicateTimeRange(sw.startTime, sw.endTime);
+          ui.setSelectWindow(null);
         }
         return;
       }

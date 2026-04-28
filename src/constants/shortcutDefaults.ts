@@ -10,6 +10,7 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: 'transport.end',         category: 'transport', label: 'Jump to End',                 defaultCombo: { code: 'End' }, contexts: ['global'] },
   { id: 'transport.nudgeLeft',   category: 'transport', label: 'Nudge Playhead Left',         defaultCombo: { code: 'ArrowLeft' }, contexts: ['timeline'] },
   { id: 'transport.nudgeRight',  category: 'transport', label: 'Nudge Playhead Right',        defaultCombo: { code: 'ArrowRight' }, contexts: ['timeline'] },
+  { id: 'transport.punchToggle', category: 'transport', label: 'Toggle Punch In/Out',         defaultCombo: { code: 'KeyP', shift: true }, contexts: ['global'] },
   { id: 'transport.punchIn',     category: 'transport', label: 'Set Punch-In Point',          defaultCombo: { code: 'KeyI' }, contexts: ['global'] },
   { id: 'transport.punchOut',    category: 'transport', label: 'Set Punch-Out Point',         defaultCombo: { code: 'KeyO', shift: true }, contexts: ['global'] },
   { id: 'transport.captureMidi', category: 'transport', label: 'Capture MIDI',                defaultCombo: { code: 'KeyF' }, contexts: ['global'] },
@@ -26,6 +27,10 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: 'clips.copy',            category: 'clips',     label: 'Copy',                        defaultCombo: { code: 'KeyC', mod: true }, contexts: ['timeline', 'pianoRoll'] },
   { id: 'clips.cut',             category: 'clips',     label: 'Cut',                         defaultCombo: { code: 'KeyX', mod: true }, contexts: ['timeline', 'pianoRoll'] },
   { id: 'clips.paste',           category: 'clips',     label: 'Paste',                       defaultCombo: { code: 'KeyV', mod: true }, contexts: ['timeline', 'pianoRoll'] },
+  { id: 'clips.splitAll',        category: 'clips',     label: 'Split All at Playhead',       defaultCombo: { code: 'KeyS', mod: true, shift: true }, contexts: ['timeline'] },
+  { id: 'clips.insertTime',      category: 'clips',     label: 'Insert Time at Selection',    defaultCombo: { code: 'KeyI', mod: true }, contexts: ['timeline'] },
+  { id: 'clips.deleteTime',      category: 'clips',     label: 'Delete Time (Ripple Delete)', defaultCombo: { code: 'Backspace', mod: true, shift: true }, contexts: ['timeline'] },
+  { id: 'clips.duplicateSection', category: 'clips',    label: 'Duplicate Section',           defaultCombo: { code: 'KeyD', mod: true, shift: true }, contexts: ['timeline'] },
 
   { id: 'tracks.mute',           category: 'tracks',    label: 'Toggle Focused Track Mute',   defaultCombo: { code: 'KeyM' }, contexts: ['timeline', 'mixer', 'pianoRoll'] },
   { id: 'tracks.solo',           category: 'tracks',    label: 'Toggle Focused Track Solo',   defaultCombo: { code: 'KeyS', shift: true }, contexts: ['timeline', 'mixer', 'pianoRoll'] },

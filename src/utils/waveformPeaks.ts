@@ -20,9 +20,8 @@ export function computeWaveformPeaks(
     : leftData;
 
   const regionEnd = endSample ?? leftData.length;
-  const regionLength = regionEnd - startSample;
-  const samplesPerPeak = Math.floor(regionLength / numPeaks);
-  if (samplesPerPeak <= 0) return new Array(numPeaks * 4).fill(0);
+  const regionLength = Math.max(0, regionEnd - startSample);
+  if (numPeaks <= 0 || regionLength <= 0) return new Array(Math.max(0, numPeaks * 4)).fill(0);
 
   const peaks: number[] = new Array(numPeaks * 4);
 
@@ -31,8 +30,11 @@ export function computeWaveformPeaks(
     let lMin = 0;
     let rMax = 0;
     let rMin = 0;
-    const start = startSample + i * samplesPerPeak;
-    const end = Math.min(start + samplesPerPeak, regionEnd);
+    const start = startSample + Math.floor((i * regionLength) / numPeaks);
+    const end = Math.min(
+      regionEnd,
+      Math.max(start + 1, startSample + Math.ceil(((i + 1) * regionLength) / numPeaks)),
+    );
     for (let j = start; j < end; j++) {
       const lSample = leftData[j];
       if (lSample > lMax) lMax = lSample;

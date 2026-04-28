@@ -4,6 +4,8 @@ import { Toolbar } from './Toolbar';
 import { NewProjectDialog } from '../dialogs/NewProjectDialog';
 import { ToastContainer } from '../ui/Toast';
 import { UndoHistoryPanel } from './UndoHistoryPanel';
+import { MidiControllerPanel } from './MidiControllerPanel';
+import { TrackPresetManagerPanel } from './TrackPresetManagerPanel';
 import { StatusBar } from './StatusBar';
 import { SkipLinks } from '../ui/SkipLinks';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
@@ -15,6 +17,7 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useEffectsSync } from '../../hooks/useEffectsSync';
 import { useVST3Connection } from '../../hooks/useVST3Connection';
 import { useVST3Sync } from '../../hooks/useVST3Sync';
+import { useMidiController } from '../../hooks/useMidiController';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { WelcomeOverlay } from '../dialogs/WelcomeOverlay';
 import { useOnboardingTracking } from '../../hooks/useOnboardingTracking';
@@ -54,6 +57,7 @@ const AudioAnalysisPanel = lazy(() => import('../generation/AudioAnalysisPanel')
 const StemSeparationModal = lazy(() => import('../generation/StemSeparationModal').then(m => ({ default: m.StemSeparationModal })));
 const AudioToMidiModal = lazy(() => import('../generation/AudioToMidiModal').then(m => ({ default: m.AudioToMidiModal })));
 const HumToSongModal = lazy(() => import('../generation/HumToSongModal').then(m => ({ default: m.HumToSongModal })));
+const VoiceVerificationModal = lazy(() => import('../voice/VoiceVerificationModal').then(m => ({ default: m.VoiceVerificationModal })));
 const VocalReplacementModal = lazy(() => import('../generation/VocalReplacementModal').then(m => ({ default: m.VocalReplacementModal })));
 
 // Lazy-loaded heavy panels (code-split, loaded on first use)
@@ -140,6 +144,7 @@ export function EditorShell() {
   useEffectsSync();
   useVST3Connection();
   useVST3Sync();
+  useMidiController();
 
   return (
     <div
@@ -204,6 +209,8 @@ export function EditorShell() {
       {project && <Suspense fallback={null}><AddLayerPanel /></Suspense>}
       <ToastContainer />
       <UndoHistoryPanel />
+      <MidiControllerPanel />
+      <TrackPresetManagerPanel />
       <WelcomeOverlay />
 
       {/* Modals — lazy-loaded, code-split */}
@@ -223,6 +230,7 @@ export function EditorShell() {
         <StemSeparationModal />
         <AudioToMidiModal />
         <HumToSongModal />
+        <VoiceVerificationModal />
         <VocalReplacementModal />
         <ShareDialog />
         <VideoExportDialog />

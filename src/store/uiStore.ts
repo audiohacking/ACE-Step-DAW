@@ -78,6 +78,9 @@ export interface UIState {
   commandPaletteQuery: string;
   recentCommandIds: string[];
   showUndoHistoryPanel: boolean;
+  showMidiControllerPanel: boolean;
+  showTrackPresetManager: boolean;
+  grooveStrength: number;
   historyFocusScope: HistoryScope;
   historyFocusTrackId: string | null;
   historyFocusClipId: string | null;
@@ -134,6 +137,9 @@ export interface UIState {
   virtualKeyboardPressedPitches: number[];
   showSmartControls: boolean;
   showLibrary: boolean;
+
+  // Status bar
+  statusBarAutoHide: boolean;
   /** Which bottom editor is visible: null = none, 'smart' = smart controls, 'editor' = region editor */
   activeBottomPanel: 'smart' | 'editor' | 'pianoRoll' | 'effects' | 'drumMachine' | 'strudel' | null;
 
@@ -180,6 +186,9 @@ export interface UIState {
 
   // Hum-to-Song modal
   showHumToSongModal: boolean;
+
+  // Voice Identity Verification modal
+  showVoiceVerificationModal: boolean;
 
   // Spectrum analyzer & loudness metering
   showSpectrumAnalyzer: boolean;
@@ -317,6 +326,9 @@ export interface UIState {
   searchCommandPalette: (query?: string) => CommandPaletteSearchResult[];
   executeCommandPaletteCommand: (commandId: string) => Promise<boolean>;
   setShowUndoHistoryPanel: (v: boolean) => void;
+  setShowMidiControllerPanel: (v: boolean) => void;
+  setShowTrackPresetManager: (v: boolean) => void;
+  setGrooveStrength: (v: number) => void;
   setHistoryFocusScope: (scope: HistoryScope, target?: HistoryTarget) => void;
   setShowMixer: (v: boolean) => void;
   setShowClipInspector: (v: boolean) => void;
@@ -365,6 +377,7 @@ export interface UIState {
   releaseVirtualKeyboardPitch: (pitch: number) => void;
   clearVirtualKeyboardPressedPitches: () => void;
   setShowSmartControls: (v: boolean) => void;
+  setStatusBarAutoHide: (v: boolean) => void;
   setShowLibrary: (v: boolean) => void;
   setActiveBottomPanel: (v: 'smart' | 'editor' | 'pianoRoll' | 'effects' | 'drumMachine' | null) => void;
 
@@ -412,6 +425,7 @@ export interface UIState {
 
   // Hum-to-Song modal
   setShowHumToSongModal: (show: boolean) => void;
+  setShowVoiceVerificationModal: (show: boolean) => void;
 
   // Spectrum analyzer & loudness metering
   setShowSpectrumAnalyzer: (v: boolean) => void;
@@ -656,6 +670,9 @@ export const useUIStore = create<UIState>()(
   commandPaletteQuery: '',
   recentCommandIds: [],
   showUndoHistoryPanel: false,
+  showMidiControllerPanel: false,
+  showTrackPresetManager: false,
+  grooveStrength: 100,
   historyFocusScope: 'arrangement',
   historyFocusTrackId: null,
   historyFocusClipId: null,
@@ -694,6 +711,7 @@ export const useUIStore = create<UIState>()(
   virtualKeyboardPressedPitches: [],
   showSmartControls: false,
   showLibrary: false,
+  statusBarAutoHide: false,
   activeBottomPanel: null,
 
   showTempoLane: false,
@@ -722,6 +740,7 @@ export const useUIStore = create<UIState>()(
   vocalReplacementClipId: null,
 
   showHumToSongModal: false,
+  showVoiceVerificationModal: false,
 
   showSpectrumAnalyzer: false,
 
@@ -987,6 +1006,11 @@ export const useUIStore = create<UIState>()(
     return true;
   },
   setShowUndoHistoryPanel: (v) => set({ showUndoHistoryPanel: v }),
+  setShowMidiControllerPanel: (v) => set({ showMidiControllerPanel: v }),
+  setShowTrackPresetManager: (v) => set({ showTrackPresetManager: v }),
+  setGrooveStrength: (v) => set((state) => ({
+    grooveStrength: Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : state.grooveStrength,
+  })),
   setHistoryFocusScope: (scope, target) => set((state) => {
     const resolvedTrackId =
       target?.trackId
@@ -1156,6 +1180,7 @@ export const useUIStore = create<UIState>()(
   })),
   clearVirtualKeyboardPressedPitches: () => set({ virtualKeyboardPressedPitches: [] }),
   setShowSmartControls: (v) => set({ showSmartControls: v }),
+  setStatusBarAutoHide: (v) => set({ statusBarAutoHide: v }),
   setShowLibrary: (v) => set({ showLibrary: v }),
   setActiveBottomPanel: (v) => set({ activeBottomPanel: v }),
 
@@ -1271,6 +1296,7 @@ export const useUIStore = create<UIState>()(
   setVocalReplacementModal: (clipId) => set({ vocalReplacementClipId: clipId }),
 
   setShowHumToSongModal: (show) => set({ showHumToSongModal: show }),
+  setShowVoiceVerificationModal: (show) => set({ showVoiceVerificationModal: show }),
 
   setShowSpectrumAnalyzer: (v) => set({ showSpectrumAnalyzer: v }),
   toggleSpectrumAnalyzer: () => set((s) => ({ showSpectrumAnalyzer: !s.showSpectrumAnalyzer })),
@@ -1428,7 +1454,9 @@ export const useUIStore = create<UIState>()(
         showLibrary: state.showLibrary,
         loopBrowserOpen: state.loopBrowserOpen,
         showVirtualKeyboard: state.showVirtualKeyboard,
+        showMidiControllerPanel: state.showMidiControllerPanel,
         showSmartControls: state.showSmartControls,
+        statusBarAutoHide: state.statusBarAutoHide,
         keyboardContext: state.keyboardContext,
         activePianoRollTool: state.activePianoRollTool,
         showGhostNotes: state.showGhostNotes,
@@ -1488,6 +1516,8 @@ export const useUIStore = create<UIState>()(
         userInstrumentPresets: state.userInstrumentPresets,
         // Video recording settings
         videoRecordingSettings: state.videoRecordingSettings,
+        // Groove pool
+        grooveStrength: state.grooveStrength,
       }),
     },
   ),
@@ -1514,6 +1544,7 @@ function buildCommandPaletteContext(state: UIState) {
     showTempoLane: state.showTempoLane,
     loopEnabled: transportStore.loopEnabled,
     metronomeEnabled: transportStore.metronomeEnabled,
+    punchEnabled: transportStore.punchEnabled,
     expandedTrackId: state.expandedTrackId,
     openPianoRollTrackId: state.openPianoRollTrackId,
     openSequencerTrackId: state.openSequencerTrackId,
@@ -1524,6 +1555,7 @@ function buildCommandPaletteContext(state: UIState) {
       stop: runtime?.stop ?? transportStore.stop,
       toggleLoop: transportStore.toggleLoop,
       toggleMetronome: transportStore.toggleMetronome,
+      togglePunch: transportStore.togglePunch,
       setShowNewProjectDialog: state.setShowNewProjectDialog,
       setShowProjectListDialog: state.setShowProjectListDialog,
       openGenerationSettings: () => state.openGenerationPanelView('settings'),
@@ -1550,6 +1582,9 @@ function buildCommandPaletteContext(state: UIState) {
       splitClip: projectStore.splitClip,
       splitClipAtZeroCrossing: projectStore.splitClipAtZeroCrossing,
       removeClip: projectStore.removeClip,
+      reverseClip: projectStore.reverseClip,
+      normalizeClip: projectStore.normalizeClip,
+      adjustClipGain: projectStore.adjustClipGain,
       setEditingClip: state.setEditingClip,
       deselectAll: state.deselectAll,
       openEnhancer: state.openEnhancer,

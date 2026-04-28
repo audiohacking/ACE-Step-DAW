@@ -6,10 +6,12 @@ describe('downloadBlob', () => {
   let revokeObjectURLSpy: ReturnType<typeof vi.spyOn>;
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
   beforeEach(() => {
+    vi.useFakeTimers();
     clickSpy = vi.fn();
     vi.spyOn(document, 'createElement').mockReturnValue({
       href: '',
@@ -40,6 +42,8 @@ describe('downloadBlob', () => {
     const blob = new Blob(['data']);
     downloadBlob(blob, 'output.wav');
     expect(URL.createObjectURL).toHaveBeenCalledWith(blob);
+    expect(revokeObjectURLSpy).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
     expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:mock-url');
   });
 
@@ -52,6 +56,7 @@ describe('downloadBlob', () => {
 
     const blob = new Blob(['data']);
     expect(() => downloadBlob(blob, 'fail.wav')).toThrow('click failed');
+    expect(revokeObjectURLSpy).toHaveBeenCalledOnce();
     expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:mock-url');
   });
 });

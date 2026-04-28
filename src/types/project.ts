@@ -990,8 +990,11 @@ export interface ClipGenerationParams {
   useProjectMeta?: boolean;
   inferenceSteps?: number;
   guidanceScale?: number;
+  temperature?: number;
   shift?: number;
   negativePrompt?: string;
+  /** Style tags persisted for edit/regenerate — prepended to prompt at generation time */
+  styleTags?: string[];
   // lego params
   globalCaption?: string;
   sampleMode?: boolean;
@@ -1008,6 +1011,12 @@ export interface ClipGenerationParams {
   } | null;
   /** Chunk mask mode persisted for regeneration. */
   chunkMaskMode?: 'explicit' | 'auto';
+  /** Voice profile ID used for voice-conditioned generation. */
+  voiceProfileId?: string;
+  /** Audio Influence (0–100) — how much reference voice is preserved. */
+  audioInfluence?: number;
+  /** Style Influence (0–100) — how much AI's trained style is applied. */
+  styleInfluence?: number;
 }
 
 export interface Clip {
@@ -1355,6 +1364,8 @@ export interface Track {
   strudelVersions?: StrudelCodeVersion[];
   /** WAP plugin instances on this track (effect & instrument plugins). */
   plugins?: import('./plugin').PluginInstance[];
+  /** ID of the voice profile assigned to this track for voice cloning. */
+  voiceProfileId?: string;
   /** Video track display/preview settings (only for video tracks). */
   videoSettings?: VideoTrackSettings;
 }
