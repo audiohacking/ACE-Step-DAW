@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useProjectStore } from '../projectStore';
-import { useTransportStore } from '../transportStore';
 
 vi.mock('../../services/projectStorage', () => ({
   saveProject: vi.fn(),
@@ -85,7 +84,6 @@ describe('splitAllAtPlayhead', () => {
 
   it('no-ops when no clips overlap the split point', () => {
     addClipToTrack(trackId1, 0, 2);
-    const before = useProjectStore.getState().project!.updatedAt;
     useProjectStore.getState().splitAllAtPlayhead(5);
     // Should not push history for no-op
     expect(useProjectStore.getState().project!.tracks[0].clips).toHaveLength(1);
