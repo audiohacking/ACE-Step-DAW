@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
+import type { AddVoiceInput } from '../../store/voiceStore';
 import { useVoiceStore } from '../../store/voiceStore';
+import { useVoiceVerificationStore } from '../../store/voiceVerificationStore';
+import { useUIStore } from '../../store/uiStore';
 import { VoiceCard } from './VoiceCard';
 import { VoiceEditDialog } from './VoiceEditDialog';
 import { Button } from '../ui/Button';
@@ -10,7 +13,7 @@ import {
   processVoiceAudioFile,
   isVoiceUploadError,
 } from '../../services/voiceUploadService';
-import { toastError, toastSuccess } from '../../hooks/useToast';
+import { toastError, toastInfo, toastSuccess } from '../../hooks/useToast';
 
 export function VoiceLibraryPanel() {
   const voices = useVoiceStore((s) => s.voices);
@@ -21,11 +24,12 @@ export function VoiceLibraryPanel() {
   const selectedVoiceId = useVoiceStore((s) => s.selectedVoiceId);
   const selectVoice = useVoiceStore((s) => s.selectVoice);
   const deselectVoice = useVoiceStore((s) => s.deselectVoice);
-  const addVoice = useVoiceStore((s) => s.addVoice);
   const deleteVoice = useVoiceStore((s) => s.deleteVoice);
   const getFilteredVoices = useVoiceStore((s) => s.getFilteredVoices);
   const getAllTags = useVoiceStore((s) => s.getAllTags);
   const loadAudioBlob = useVoiceStore((s) => s.loadAudioBlob);
+  const beginVerification = useVoiceVerificationStore((s) => s.beginVerification);
+  const setShowVoiceVerificationModal = useUIStore((s) => s.setShowVoiceVerificationModal);
 
   const [editingVoiceId, setEditingVoiceId] = useState<string | null>(null);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
@@ -57,6 +61,15 @@ export function VoiceLibraryPanel() {
     fileInputRef.current?.click();
   }, []);
 
+  const beginVoiceCreationVerification = useCallback(
+    (input: AddVoiceInput, audioBlob: Blob) => {
+      beginVerification(input, audioBlob);
+      setShowVoiceVerificationModal(true);
+      toastInfo('Verify voice identity to add this voice to the library');
+    },
+    [beginVerification, setShowVoiceVerificationModal],
+  );
+
   const handleFileSelect = useCallback(
     async (e: ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -73,7 +86,7 @@ export function VoiceLibraryPanel() {
           return;
         }
 
-        addVoice(
+        beginVoiceCreationVerification(
           {
             name: result.name,
             durationSeconds: result.durationSeconds,
@@ -84,7 +97,6 @@ export function VoiceLibraryPanel() {
           },
           result.blob,
         );
-        toastSuccess(`Voice "${result.name}" added to library`);
       } catch {
         toastError('Failed to process voice file');
       } finally {
@@ -94,7 +106,7 @@ export function VoiceLibraryPanel() {
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     },
-    [addVoice],
+    [beginVoiceCreationVerification],
   );
 
   // ─── Preview playback ────────────────────────────────────
@@ -212,7 +224,7 @@ export function VoiceLibraryPanel() {
           Voice Library
         </span>
         <span className="text-[9px] text-zinc-600 mr-2">{voices.length}</span>
-        <VoiceRecordButton />
+        <VoiceRecordButton onCapturedVoice={beginVoiceCreationVerification} />
         <Button
           variant="ghost"
           size="sm"

@@ -130,6 +130,16 @@ export function VoiceCard({
             <span className={`text-[8px] px-1 py-px rounded ${SKILL_COLORS[voice.skillLevel] ?? 'bg-zinc-700 text-zinc-400'}`}>
               {voice.skillLevel}
             </span>
+            <span
+              className={`text-[8px] px-1 py-px rounded ${
+                voice.verificationStatus === 'verified'
+                  ? 'bg-emerald-900/50 text-emerald-300'
+                  : 'bg-zinc-800 text-zinc-500'
+              }`}
+              title={voice.verificationStatus === 'verified' ? 'Voice identity verified' : 'Voice identity unverified'}
+            >
+              {voice.verificationStatus === 'verified' ? 'verified' : 'unverified'}
+            </span>
           </div>
         </div>
 

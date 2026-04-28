@@ -187,6 +187,9 @@ export interface UIState {
   // Hum-to-Song modal
   showHumToSongModal: boolean;
 
+  // Voice Identity Verification modal
+  showVoiceVerificationModal: boolean;
+
   // Spectrum analyzer & loudness metering
   showSpectrumAnalyzer: boolean;
 
@@ -422,6 +425,7 @@ export interface UIState {
 
   // Hum-to-Song modal
   setShowHumToSongModal: (show: boolean) => void;
+  setShowVoiceVerificationModal: (show: boolean) => void;
 
   // Spectrum analyzer & loudness metering
   setShowSpectrumAnalyzer: (v: boolean) => void;
@@ -736,6 +740,7 @@ export const useUIStore = create<UIState>()(
   vocalReplacementClipId: null,
 
   showHumToSongModal: false,
+  showVoiceVerificationModal: false,
 
   showSpectrumAnalyzer: false,
 
@@ -1291,6 +1296,7 @@ export const useUIStore = create<UIState>()(
   setVocalReplacementModal: (clipId) => set({ vocalReplacementClipId: clipId }),
 
   setShowHumToSongModal: (show) => set({ showHumToSongModal: show }),
+  setShowVoiceVerificationModal: (show) => set({ showVoiceVerificationModal: show }),
 
   setShowSpectrumAnalyzer: (v) => set({ showSpectrumAnalyzer: v }),
   toggleSpectrumAnalyzer: () => set((s) => ({ showSpectrumAnalyzer: !s.showSpectrumAnalyzer })),

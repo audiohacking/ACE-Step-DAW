@@ -7,6 +7,7 @@ import {
   type VoiceProfile,
   type VoiceSkillLevel,
   type VoiceSource,
+  type VoiceVerificationStatus,
 } from '../types/voice';
 
 export interface AddVoiceInput {
@@ -17,6 +18,9 @@ export interface AddVoiceInput {
   tags: string[];
   language?: string;
   waveformPeaks?: number[];
+  verificationStatus?: VoiceVerificationStatus;
+  verifiedAt?: number | null;
+  verificationConfidence?: number | null;
 }
 
 interface VoiceState {
@@ -69,6 +73,9 @@ export const useVoiceStore = create<VoiceState>()(
           defaultStyleInfluence: DEFAULT_STYLE_INFLUENCE,
           source: input.source,
           waveformPeaks: input.waveformPeaks,
+          verificationStatus: input.verificationStatus ?? 'unverified',
+          verifiedAt: input.verifiedAt ?? null,
+          verificationConfidence: input.verificationConfidence ?? null,
         };
 
         set((state) => ({ voices: [...state.voices, profile] }));

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { recordingEngine } from '../../engine/RecordingEngine';
 import { audioBufferToWavBlob } from '../../utils/wav';
+import type { AddVoiceInput } from '../../store/voiceStore';
 import { useVoiceStore } from '../../store/voiceStore';
 import { computeSimplePeaks } from '../../services/voiceUploadService';
 import { toastError, toastSuccess, toastInfo } from '../../hooks/useToast';
@@ -8,7 +9,11 @@ import { VOICE_MIN_DURATION_SECONDS } from '../../services/voiceUploadService';
 
 const VOICE_RECORD_TRACK_ID = '__voice-recording__';
 
-export function VoiceRecordButton() {
+interface VoiceRecordButtonProps {
+  onCapturedVoice?: (input: AddVoiceInput, audioBlob: Blob) => void;
+}
+
+export function VoiceRecordButton({ onCapturedVoice }: VoiceRecordButtonProps) {
   const addVoice = useVoiceStore((s) => s.addVoice);
   const [isRecording, setIsRecording] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
@@ -71,20 +76,21 @@ export function VoiceRecordButton() {
       const blob = audioBufferToWavBlob(result.audioBuffer);
       const peaks = computeSimplePeaks(result.audioBuffer, 64);
       const name = `Recording ${new Date().toLocaleTimeString()}`;
+      const input: AddVoiceInput = {
+        name,
+        durationSeconds: result.duration,
+        skillLevel: 'intermediate',
+        source: 'recording',
+        tags: [],
+        waveformPeaks: peaks,
+      };
 
-      addVoice(
-        {
-          name,
-          durationSeconds: result.duration,
-          skillLevel: 'intermediate',
-          source: 'recording',
-          tags: [],
-          waveformPeaks: peaks,
-        },
-        blob,
-      );
-
-      toastSuccess(`Voice recording "${name}" added (${Math.round(result.duration)}s)`);
+      if (onCapturedVoice) {
+        onCapturedVoice(input, blob);
+      } else {
+        addVoice(input, blob);
+        toastSuccess(`Voice recording "${name}" added (${Math.round(result.duration)}s)`);
+      }
       setRecordingDuration(0);
     } catch {
       clearRecordingTimer();
@@ -94,7 +100,7 @@ export function VoiceRecordButton() {
     } finally {
       setIsStopping(false);
     }
-  }, [addVoice, clearRecordingTimer]);
+  }, [addVoice, clearRecordingTimer, onCapturedVoice]);
 
   return (
     <button

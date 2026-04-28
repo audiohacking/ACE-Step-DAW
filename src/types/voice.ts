@@ -4,6 +4,9 @@ export type VoiceSkillLevel = 'beginner' | 'intermediate' | 'advanced' | 'profes
 /** Source of the voice profile audio. */
 export type VoiceSource = 'upload' | 'recording' | 'clip';
 
+/** Consent/identity verification status for a voice profile. */
+export type VoiceVerificationStatus = 'unverified' | 'pending' | 'verified' | 'failed';
+
 /** A voice profile for AI-conditioned generation. */
 export interface VoiceProfile {
   id: string;
@@ -30,6 +33,12 @@ export interface VoiceProfile {
   source: VoiceSource;
   /** Precomputed single-channel waveform peaks for thumbnail display. */
   waveformPeaks?: number[];
+  /** Whether the user has verified ownership of this voice sample. */
+  verificationStatus?: VoiceVerificationStatus;
+  /** When verification was completed. */
+  verifiedAt?: number | null;
+  /** Backend comparison confidence (0-1). */
+  verificationConfidence?: number | null;
 }
 
 /** Named preset for Audio/Style Influence slider combinations. */
