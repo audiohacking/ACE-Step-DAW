@@ -3,6 +3,7 @@ import { useMidiControllerStore } from '../midiControllerStore';
 import type { MidiDevice, MidiMapping } from '../../types/midiController';
 
 function resetStore() {
+  localStorage.removeItem('ace-step-daw-midi-controller');
   useMidiControllerStore.setState(useMidiControllerStore.getInitialState());
 }
 

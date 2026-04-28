@@ -146,7 +146,7 @@ export function MidiControllerPanel() {
     a.href = url;
     a.download = 'midi-mappings.json';
     a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }, [exportMappings]);
 
   const handleImport = useCallback(() => {

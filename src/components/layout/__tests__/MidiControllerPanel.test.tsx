@@ -158,7 +158,7 @@ describe('MidiControllerPanel', () => {
     expect(createObjectURL).toHaveBeenCalled();
     expect(revokeObjectURL).not.toHaveBeenCalled();
 
-    vi.runAllTimers();
+    vi.advanceTimersByTime(1000);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:midi-mappings');
   });
 
