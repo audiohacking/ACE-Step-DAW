@@ -28,6 +28,8 @@ export interface MidiControllerState {
   learnMode: MidiLearnState;
   /** Last received MIDI message (for activity indicator). */
   lastActivity: MidiMessage | null;
+  /** Last Web MIDI connection error, shown in the controller panel. */
+  connectionError: string | null;
 
   // ── Device Actions ──────────────────────────────────────
   setDevices: (devices: MidiDevice[]) => void;
@@ -59,6 +61,7 @@ export interface MidiControllerState {
   // ── State ───────────────────────────────────────────────
   setEnabled: (enabled: boolean) => void;
   setLastActivity: (msg: MidiMessage) => void;
+  setConnectionError: (error: string | null) => void;
 
   // ── Import/Export ───────────────────────────────────────
   exportMappings: (name: string) => MidiMappingPreset;
@@ -120,6 +123,7 @@ export const useMidiControllerStore = create<MidiControllerState>()(
       mappings: [],
       learnMode: { ...INITIAL_LEARN_STATE },
       lastActivity: null,
+      connectionError: null,
 
       // ── Device Actions ────────────────────────────────────
 
@@ -207,6 +211,8 @@ export const useMidiControllerStore = create<MidiControllerState>()(
       setEnabled: (enabled) => set({ enabled }),
 
       setLastActivity: (msg) => set({ lastActivity: msg }),
+
+      setConnectionError: (error) => set({ connectionError: error }),
 
       // ── Import/Export ─────────────────────────────────────
 

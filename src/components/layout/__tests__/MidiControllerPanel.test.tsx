@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MidiControllerPanel } from '../MidiControllerPanel';
 import { useUIStore } from '../../../store/uiStore';
 import { useMidiControllerStore } from '../../../store/midiControllerStore';
+import { WebMidiService } from '../../../services/webMidiService';
 import type { MidiDevice, MidiMapping } from '../../../types/midiController';
 
 // Mock WebMidiService to avoid real MIDI access
@@ -93,7 +94,15 @@ describe('MidiControllerPanel', () => {
   it('shows empty state for devices tab', () => {
     useUIStore.setState({ showMidiControllerPanel: true });
     render(<MidiControllerPanel />);
-    expect(screen.getByText(/No MIDI devices detected/)).toBeTruthy();
+    expect(screen.getByText(/Connect a controller and toggle MIDI ON/)).toBeTruthy();
+  });
+
+  it('shows MIDI connection errors from the controller store', () => {
+    vi.mocked(WebMidiService.isSupported).mockReturnValueOnce(true);
+    useMidiControllerStore.setState({ connectionError: 'Permission denied' });
+    useUIStore.setState({ showMidiControllerPanel: true });
+    render(<MidiControllerPanel />);
+    expect(screen.getByText('Permission denied')).toBeTruthy();
   });
 
   it('displays connected devices', () => {

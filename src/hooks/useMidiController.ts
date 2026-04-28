@@ -90,6 +90,7 @@ export function useMidiController(): void {
 
     const service = getWebMidiService();
     const engine = getMidiMappingEngine();
+    let cancelled = false;
     toggleGateState.clear();
 
     // Register scope handlers
@@ -98,12 +99,19 @@ export function useMidiController(): void {
     engine.registerHandler('transport', handleTransportParam);
 
     // Connect (idempotent) and refresh device list
+    useMidiControllerStore.getState().setConnectionError(null);
     service.connect()
       .then((devices) => {
+        if (cancelled) {
+          service.destroy();
+          return;
+        }
         useMidiControllerStore.getState().setDevices(devices);
       })
-      .catch(() => {
-        // Silently fail — panel will show error if user opens it
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : 'Failed to connect MIDI input';
+        useMidiControllerStore.getState().setConnectionError(message);
       });
 
     // Subscribe to device changes
@@ -146,6 +154,7 @@ export function useMidiController(): void {
     });
 
     return () => {
+      cancelled = true;
       unsubDevices();
       unsubMessages();
       service.destroy();

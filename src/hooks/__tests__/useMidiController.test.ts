@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { useMidiController } from '../useMidiController';
 import { useMidiControllerStore } from '../../store/midiControllerStore';
 import { useProjectStore } from '../../store/projectStore';
@@ -69,6 +69,16 @@ describe('useMidiController', () => {
 
     expect(mockOnDeviceChange).toHaveBeenCalled();
     expect(mockOnMessage).toHaveBeenCalled();
+  });
+
+  it('stores MIDI connection errors for the panel', async () => {
+    mockConnect.mockRejectedValueOnce(new Error('Permission denied'));
+    useMidiControllerStore.setState({ enabled: true });
+
+    renderHook(() => useMidiController());
+    await waitFor(() => {
+      expect(useMidiControllerStore.getState().connectionError).toBe('Permission denied');
+    });
   });
 
   it('unsubscribes on cleanup', () => {

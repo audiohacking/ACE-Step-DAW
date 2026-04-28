@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useMidiControllerStore } from '../../store/midiControllerStore';
 import { WebMidiService } from '../../services/webMidiService';
+import { downloadBlob } from '../../services/browserDownload';
 import { Z } from '../../utils/zIndex';
 import type { MidiMapping } from '../../types/midiController';
 
@@ -113,6 +114,7 @@ export function MidiControllerPanel() {
   const clearAllMappings = useMidiControllerStore((s) => s.clearAllMappings);
   const lastActivity = useMidiControllerStore((s) => s.lastActivity);
   const learnMode = useMidiControllerStore((s) => s.learnMode);
+  const connectionError = useMidiControllerStore((s) => s.connectionError);
   const exportMappings = useMidiControllerStore((s) => s.exportMappings);
   const importMappings = useMidiControllerStore((s) => s.importMappings);
 
@@ -141,12 +143,7 @@ export function MidiControllerPanel() {
   const handleExport = useCallback(() => {
     const preset = exportMappings('MIDI Mappings');
     const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'midi-mappings.json';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadBlob(blob, 'midi-mappings.json');
   }, [exportMappings]);
 
   const handleImport = useCallback(() => {
@@ -168,6 +165,7 @@ export function MidiControllerPanel() {
   }, [importMappings]);
 
   if (!show) return null;
+  const displayedError = error ?? connectionError;
 
   return (
     <div
@@ -235,9 +233,9 @@ export function MidiControllerPanel() {
       </div>
 
       {/* Error */}
-      {error && (
+      {displayedError && (
         <div className="mx-2 mt-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-[11px] text-red-300">
-          {error}
+          {displayedError}
         </div>
       )}
 
@@ -247,7 +245,7 @@ export function MidiControllerPanel() {
           <div className="flex flex-col gap-1">
             {devices.length === 0 && (
               <div className="rounded-lg border border-dashed border-white/10 px-3 py-4 text-center text-[11px] text-zinc-400">
-                No MIDI devices detected. Connect a controller and refresh.
+                No MIDI devices detected. Connect a controller and toggle MIDI ON.
               </div>
             )}
             {devices.map((device) => (
