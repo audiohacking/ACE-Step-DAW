@@ -84,11 +84,17 @@ interface VoiceInfluenceTaskParams {
   guidance_scale: number;
 }
 
-function applyVoiceInfluenceParams(params: VoiceInfluenceTaskParams, voiceProfile: VoiceProfile) {
-  params.audio_cover_strength = clampInfluence(voiceProfile.defaultAudioInfluence) / 100;
+function applyVoiceInfluenceParams(
+  params: VoiceInfluenceTaskParams,
+  voiceProfile: VoiceProfile,
+  overrides: { audioInfluence?: number; styleInfluence?: number } = {},
+) {
+  const audioInfluence = overrides.audioInfluence ?? voiceProfile.defaultAudioInfluence;
+  const styleInfluence = overrides.styleInfluence ?? voiceProfile.defaultStyleInfluence;
 
-  const styleInfluence = clampInfluence(voiceProfile.defaultStyleInfluence);
-  const styleFactor = styleInfluence / DEFAULT_STYLE_INFLUENCE;
+  params.audio_cover_strength = clampInfluence(audioInfluence) / 100;
+
+  const styleFactor = clampInfluence(styleInfluence) / DEFAULT_STYLE_INFLUENCE;
   if (Number.isFinite(params.guidance_scale) && Number.isFinite(styleFactor)) {
     params.guidance_scale = Math.max(0, Math.min(20, Number((params.guidance_scale * styleFactor).toFixed(1))));
   }
@@ -333,14 +339,16 @@ async function regenerateText2MusicClip(clipId: string): Promise<void> {
 
     // Voice cloning: load voice blob from IDB and upload it as ACE-Step reference audio.
     let referenceAudioBlob: Blob | undefined;
-    const selectedVoiceId = useVoiceStore.getState().selectedVoiceId ?? params.voiceProfileId;
-    if (selectedVoiceId) {
-      const voiceProfile = useVoiceStore.getState().getVoiceById(selectedVoiceId);
+    if (params.voiceProfileId) {
+      const voiceProfile = useVoiceStore.getState().getVoiceById(params.voiceProfileId);
       if (voiceProfile) {
         const blob = await loadAudioBlobByKey(voiceProfile.audioKey);
         if (blob) {
           referenceAudioBlob = blob;
-          applyVoiceInfluenceParams(taskParams, voiceProfile);
+          applyVoiceInfluenceParams(taskParams, voiceProfile, {
+            audioInfluence: params.audioInfluence,
+            styleInfluence: params.styleInfluence,
+          });
         }
       }
     }
