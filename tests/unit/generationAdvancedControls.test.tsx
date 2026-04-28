@@ -6,6 +6,7 @@ import { useGenerationStore } from '../../src/store/generationStore';
 import { useProjectStore } from '../../src/store/projectStore';
 import { useModelStore } from '../../src/store/modelStore';
 import { useUIStore } from '../../src/store/uiStore';
+import { useVoiceStore } from '../../src/store/voiceStore';
 
 vi.mock('../../src/services/projectStorage', () => ({
   saveProject: vi.fn(),
@@ -39,6 +40,7 @@ describe('Generation Advanced Controls — Style Tags', () => {
     useGenerationStore.setState(useGenerationStore.getInitialState(), true);
     useProjectStore.setState(useProjectStore.getInitialState(), true);
     useModelStore.setState(useModelStore.getInitialState(), true);
+    useVoiceStore.setState(useVoiceStore.getInitialState(), true);
 
     useProjectStore.getState().createProject({ name: 'Test Project', bpm: 120, keyScale: 'C major' });
     useProjectStore.getState().addTrack('drums');
@@ -157,6 +159,59 @@ describe('Generation Advanced Controls — Style Tags', () => {
       expect(useGenerationStore.getState().generationForm.styleTags).toEqual([]);
     });
     expect(useGenerationStore.getState().generationForm.temperature).toBe(0.7);
+  });
+
+  it('preserves saved voice params when regenerating an edited clip', async () => {
+    useVoiceStore.setState({
+      voices: [{
+        id: 'saved-voice',
+        name: 'Saved Voice',
+        createdAt: 1,
+        updatedAt: 1,
+        audioKey: 'voice-audio:saved',
+        durationSeconds: 12,
+        skillLevel: 'professional',
+        tags: [],
+        defaultAudioInfluence: 20,
+        defaultStyleInfluence: 80,
+        source: 'upload',
+      }],
+      selectedVoiceId: null,
+      searchQuery: '',
+      filterTag: null,
+    });
+    const track = useProjectStore.getState().project!.tracks[0];
+    const clip = useProjectStore.getState().addClip(track.id, {
+      startTime: 0,
+      duration: 30,
+      prompt: 'voice prompt',
+      lyrics: 'voice lyrics',
+      source: 'generated',
+    });
+    useProjectStore.getState().updateClip(clip.id, {
+      generationParams: {
+        type: 'text2music',
+        prompt: 'voice prompt',
+        lyrics: 'voice lyrics',
+        durationSeconds: 30,
+        voiceProfileId: 'saved-voice',
+        audioInfluence: 70,
+        styleInfluence: 30,
+      },
+    });
+    useUIStore.getState().setEditingText2MusicClipId(clip.id);
+
+    renderForm();
+
+    await waitFor(() => {
+      expect(useVoiceStore.getState().selectedVoiceId).toBe('saved-voice');
+    });
+    mockOnFooterChange.mock.calls.at(-1)?.[0].action();
+
+    const updatedClip = useProjectStore.getState().project!.tracks[0].clips.find((item) => item.id === clip.id);
+    expect(updatedClip?.generationParams?.voiceProfileId).toBe('saved-voice');
+    expect(updatedClip?.generationParams?.audioInfluence).toBe(70);
+    expect(updatedClip?.generationParams?.styleInfluence).toBe(30);
   });
 });
 

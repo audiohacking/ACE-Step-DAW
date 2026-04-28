@@ -15,6 +15,7 @@ import { VoiceInfluenceControls } from './VoiceInfluenceControls';
 import { VoiceLibraryPanel } from '../voice/VoiceLibraryPanel';
 import { TimbrePresetPicker } from './TimbrePresetPicker';
 import { NegativePromptSection } from './NegativePromptSection';
+import { clampInfluence } from '../../types/voice';
 
 /** Magic pen icon for AI enhance buttons */
 function MagicPenIcon({ size = 16 }: { size?: number }) {
@@ -241,6 +242,23 @@ export function FullSongForm({ initialData, onFooterChange }: FullSongFormProps)
       }
       // Hydrate style tags from clip to avoid double-prepend
       useGenerationStore.getState().setGenerationStyleTags(p.styleTags ?? []);
+      if (p.voiceProfileId) {
+        const voiceStore = useVoiceStore.getState();
+        const savedVoice = voiceStore.getVoiceById(p.voiceProfileId);
+        if (savedVoice) {
+          const influenceUpdates: Parameters<typeof voiceStore.updateVoice>[1] = {};
+          if (p.audioInfluence !== undefined) {
+            influenceUpdates.defaultAudioInfluence = clampInfluence(p.audioInfluence);
+          }
+          if (p.styleInfluence !== undefined) {
+            influenceUpdates.defaultStyleInfluence = clampInfluence(p.styleInfluence);
+          }
+          if (Object.keys(influenceUpdates).length > 0) {
+            voiceStore.updateVoice(savedVoice.id, influenceUpdates);
+          }
+          voiceStore.selectVoice(savedVoice.id);
+        }
+      }
     } else {
       // Backward compatibility: hydrate from basic clip fields
       setPrompt(editingClip.prompt || '');
@@ -285,10 +303,20 @@ export function FullSongForm({ initialData, onFooterChange }: FullSongFormProps)
     // Edit mode: update stored params on existing clip, then regenerate
     if (editingClipId) {
       const store = useProjectStore.getState();
+      const previousParams = editingClip?.generationParams?.type === 'text2music'
+        ? editingClip.generationParams
+        : undefined;
       const selectedVoiceId = useVoiceStore.getState().selectedVoiceId;
       const selectedVoiceProfile = selectedVoiceId
         ? useVoiceStore.getState().getVoiceById(selectedVoiceId)
         : undefined;
+      const voiceProfileId = selectedVoiceProfile?.id ?? previousParams?.voiceProfileId;
+      const audioInfluence = selectedVoiceProfile
+        ? selectedVoiceProfile.defaultAudioInfluence
+        : previousParams?.audioInfluence;
+      const styleInfluence = selectedVoiceProfile
+        ? selectedVoiceProfile.defaultStyleInfluence
+        : previousParams?.styleInfluence;
       store.updateClip(editingClipId, {
         generationParams: {
           type: 'text2music',
@@ -308,9 +336,9 @@ export function FullSongForm({ initialData, onFooterChange }: FullSongFormProps)
           temperature: legacyGuidanceScale === null ? temperature : undefined,
           shift: project?.generationDefaults?.shift,
           styleTags: styleTags.length > 0 ? [...styleTags] : undefined,
-          voiceProfileId: selectedVoiceProfile?.id,
-          audioInfluence: selectedVoiceProfile?.defaultAudioInfluence,
-          styleInfluence: selectedVoiceProfile?.defaultStyleInfluence,
+          voiceProfileId,
+          audioInfluence,
+          styleInfluence,
         },
       });
       useUIStore.getState().setEditingText2MusicClipId(null);

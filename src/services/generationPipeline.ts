@@ -339,8 +339,10 @@ async function regenerateText2MusicClip(clipId: string): Promise<void> {
 
     // Voice cloning: load voice blob from IDB and upload it as ACE-Step reference audio.
     let referenceAudioBlob: Blob | undefined;
-    if (params.voiceProfileId) {
-      const voiceProfile = useVoiceStore.getState().getVoiceById(params.voiceProfileId);
+    const voiceStore = useVoiceStore.getState();
+    const voiceProfileId = params.voiceProfileId ?? voiceStore.selectedVoiceId;
+    if (voiceProfileId) {
+      const voiceProfile = voiceStore.getVoiceById(voiceProfileId);
       if (voiceProfile) {
         const blob = await loadAudioBlobByKey(voiceProfile.audioKey);
         if (blob) {
