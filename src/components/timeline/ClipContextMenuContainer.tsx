@@ -12,6 +12,7 @@ import {
   getTimeSignatureBarLength,
   timeToBeat,
 } from '../../utils/tempoMap';
+import { canDestructivelyProcessClipAudio } from '../../utils/clipAudio';
 
 /** Default grid size for groove extraction (16th note = 0.25 beats). */
 const DEFAULT_GROOVE_GRID_BEATS = 0.25;
@@ -130,6 +131,10 @@ export function ClipContextMenuContainer({
   const removeClip = useProjectStore((s) => s.removeClip);
   const duplicateClip = useProjectStore((s) => s.duplicateClip);
   const consolidateClips = useProjectStore((s) => s.consolidateClips);
+  const reverseClip = useProjectStore((s) => s.reverseClip);
+  const normalizeClip = useProjectStore((s) => s.normalizeClip);
+  const adjustClipGainAction = useProjectStore((s) => s.adjustClipGain);
+  const setClipSpeedPreset = useProjectStore((s) => s.setClipSpeedPreset);
   const createQuickSamplerFromClip = useProjectStore((s) => s.createQuickSamplerFromClip);
   const applyAudioQuantize = useProjectStore((s) => s.applyAudioQuantize);
   const clearAudioQuantize = useProjectStore((s) => s.clearAudioQuantize);
@@ -144,6 +149,13 @@ export function ClipContextMenuContainer({
 
   const hasAudio = !!(clip.isolatedAudioKey || clip.cumulativeMixKey);
   const isReady = clip.generationStatus === 'ready';
+  const canProcessAudio = !isMidiClip && hasAudio && isReady && canDestructivelyProcessClipAudio(clip);
+  const canResetSpeed = !isMidiClip && hasAudio && isReady
+    && (
+      (clip.timeStretchRate !== undefined && clip.timeStretchRate !== 1)
+      || !!(clip.warpMarkers && clip.warpMarkers.length > 0)
+      || (!!clip.stretchMode && clip.stretchMode !== 'repitch')
+    );
   const isVocalTrack = track.trackName === 'vocals' || track.trackName === 'backing_vocals';
   const hasWarpMarkers = !!(clip.warpMarkers && clip.warpMarkers.length > 0);
 
@@ -248,6 +260,13 @@ export function ClipContextMenuContainer({
         }
       }}
       onConsolidate={() => { void handleConsolidate(); }}
+      onReverse={canProcessAudio ? () => { onClose(); void reverseClip(clip.id); } : undefined}
+      onNormalize={canProcessAudio ? () => { onClose(); void normalizeClip(clip.id); } : undefined}
+      onGainUp={canProcessAudio ? () => { onClose(); void adjustClipGainAction(clip.id, 3); } : undefined}
+      onGainDown={canProcessAudio ? () => { onClose(); void adjustClipGainAction(clip.id, -3); } : undefined}
+      onHalfSpeed={canProcessAudio ? () => { onClose(); setClipSpeedPreset(clip.id, 0.5); } : undefined}
+      onDoubleSpeed={canProcessAudio ? () => { onClose(); setClipSpeedPreset(clip.id, 2.0); } : undefined}
+      onResetSpeed={canResetSpeed ? () => { onClose(); setClipSpeedPreset(clip.id, 1.0); } : undefined}
       onDelete={() => { onClose(); removeClip(clip.id); }}
       onSelectAll={() => {
         onClose();

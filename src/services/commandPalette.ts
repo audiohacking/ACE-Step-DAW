@@ -1,5 +1,6 @@
 import type { Project, ReverbParams, Track, TrackEffect, TrackEffectType, TrackName, TrackType } from '../types/project';
 import { useUIStore } from '../store/uiStore';
+import { canDestructivelyProcessClipAudio } from '../utils/clipAudio';
 
 export type CommandPaletteCommandKind = 'action' | 'setting' | 'parameter';
 
@@ -82,6 +83,9 @@ export interface CommandPaletteContext {
     splitClip: (clipId: string, splitTime: number) => void;
     splitClipAtZeroCrossing: (clipId: string, splitTime: number) => Promise<void>;
     removeClip: (clipId: string) => void;
+    reverseClip: (clipId: string) => Promise<void>;
+    normalizeClip: (clipId: string) => Promise<void>;
+    adjustClipGain: (clipId: string, gainDb: number) => Promise<void>;
     setEditingClip: (clipId: string | null) => void;
     deselectAll: () => void;
     openEnhancer: (clipId: string, trackId: string, range?: { start: number; end: number } | null) => void;
@@ -770,6 +774,57 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
           'Selected clip action',
         ),
       );
+
+      const hasAudio = !!(selectedClip.clip.isolatedAudioKey || selectedClip.clip.cumulativeMixKey);
+      const isMidi = !!selectedClip.clip.midiData;
+      if (hasAudio && !isMidi && canDestructivelyProcessClipAudio(selectedClip.clip)) {
+        commands.push(
+          createTrackCommand(
+            'clip:reverse-selected',
+            'Reverse Selected Clip Audio',
+            'Clips',
+            'action',
+            ['clip', 'reverse', 'audio', 'backwards'],
+            ['reverse clip', 'flip audio'],
+            () => context.actions.reverseClip(selectedClipId),
+            undefined,
+            'Audio processing',
+          ),
+          createTrackCommand(
+            'clip:normalize-selected',
+            'Normalize Selected Clip Audio',
+            'Clips',
+            'action',
+            ['clip', 'normalize', 'audio', 'level', 'peak'],
+            ['normalize clip', 'normalize audio level'],
+            () => context.actions.normalizeClip(selectedClipId),
+            undefined,
+            'Audio processing',
+          ),
+          createTrackCommand(
+            'clip:gain-up-selected',
+            'Gain +3 dB Selected Clip',
+            'Clips',
+            'action',
+            ['clip', 'gain', 'louder', 'volume', 'boost'],
+            ['increase clip volume', 'boost clip gain'],
+            () => context.actions.adjustClipGain(selectedClipId, 3),
+            undefined,
+            'Audio processing',
+          ),
+          createTrackCommand(
+            'clip:gain-down-selected',
+            'Gain −3 dB Selected Clip',
+            'Clips',
+            'action',
+            ['clip', 'gain', 'quieter', 'volume', 'reduce'],
+            ['decrease clip volume', 'reduce clip gain'],
+            () => context.actions.adjustClipGain(selectedClipId, -3),
+            undefined,
+            'Audio processing',
+          ),
+        );
+      }
     }
   }
 
