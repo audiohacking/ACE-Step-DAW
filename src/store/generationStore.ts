@@ -623,8 +623,8 @@ export const useGenerationStore = create<GenerationState>()(
         const job = s.jobs.find((j) => j.id === jobId);
         if (!job || job.status === 'done' || job.status === 'error' || job.status === 'cancelled') return;
 
-        // Abort in-flight API request if any
-        abortPipelineJob(jobId);
+        // Only mark cancelled when an underlying controller was actually aborted.
+        if (!abortPipelineJob(jobId)) return;
 
         set((state) => {
           const updatedJobs = state.jobs.map((j) =>
@@ -647,21 +647,31 @@ export const useGenerationStore = create<GenerationState>()(
 
       cancelAllJobs: () => {
         const s = get();
-        // Abort all in-flight API requests
+        // Abort all in-flight API requests that have registered controllers.
+        const abortedJobIds = new Set<string>();
         for (const job of s.jobs) {
           if (job.status === 'queued' || job.status === 'generating' || job.status === 'processing') {
-            abortPipelineJob(job.id);
+            if (abortPipelineJob(job.id)) abortedJobIds.add(job.id);
           }
         }
 
-        set((state) => ({
-          jobs: state.jobs.map((j) =>
-            j.status === 'queued' || j.status === 'generating' || j.status === 'processing'
+        if (abortedJobIds.size === 0) return;
+
+        set((state) => {
+          const updatedJobs = state.jobs.map((j) =>
+            abortedJobIds.has(j.id)
               ? { ...j, status: 'cancelled' as const, progress: 'Cancelled', stage: 'Cancelled', lastUpdatedAt: Date.now() }
               : j,
-          ),
-          isGenerating: false,
-        }));
+          );
+          const hasActiveJobs = updatedJobs.some(
+            (j) => j.status === 'queued' || j.status === 'generating' || j.status === 'processing',
+          );
+
+          return {
+            jobs: updatedJobs,
+            isGenerating: hasActiveJobs ? state.isGenerating : false,
+          };
+        });
       },
 
       setIsGenerating: (v) => set({ isGenerating: v }),

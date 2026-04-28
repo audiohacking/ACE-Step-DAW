@@ -1417,6 +1417,12 @@ function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+function throwIfAborted(signal: AbortSignal): void {
+  if (signal.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // generateFromAddLayer — entry point for the unified "Add Layer" modal
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3124,15 +3130,19 @@ export async function generateText2Music(request: Text2MusicRequest): Promise<Te
     store.updateClipStatus(clipId, 'processing');
 
     const audioBlob = await api.downloadAudio(resultAudioPath, { signal: abortController.signal });
+    throwIfAborted(abortController.signal);
     logger.debug(`Text2Music: downloaded audio, size=${audioBlob.size}`);
 
     // Store audio
     const audioKey = await saveAudioBlob(project.id, clipId, 'isolated', audioBlob);
+    throwIfAborted(abortController.signal);
 
     // Compute waveform
     const engine = getAudioEngine();
     const audioBuffer = await engine.decodeAudioData(audioBlob);
+    throwIfAborted(abortController.signal);
     const peaks = await computeWaveformWithMipmap(audioKey, audioBuffer);
+    throwIfAborted(abortController.signal);
 
     // Build inferred metadata
     const inferredMetas: InferredMetas | undefined = firstResult
@@ -3231,7 +3241,11 @@ export async function generateText2Music(request: Text2MusicRequest): Promise<Te
         toastSuccess(`Split into ${stems.length} stems`);
       } catch (splitError) {
         const msg = splitError instanceof Error ? splitError.message : 'Stem separation failed';
-        toastError(`Stem separation failed: ${msg}`);
+        if (splitError instanceof DOMException && splitError.name === 'AbortError') {
+          toastInfo('Stem separation cancelled');
+        } else {
+          toastError(`Stem separation failed: ${msg}`);
+        }
         // Don't fail the whole operation — the mix is still available
       }
     }

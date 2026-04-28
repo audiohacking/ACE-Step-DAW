@@ -10,6 +10,7 @@ import { TRACK_CATALOG } from '../constants/tracks';
 import type { StemCount, StemSeparationEngine } from '../types/api';
 import type { TrackName } from '../types/project';
 import * as api from './aceStepApi';
+import { registerJobAbortController, unregisterJobAbortController } from './generationAbortRegistry';
 
 export interface PreparedSeparatedStem {
   key: string;
@@ -144,6 +145,27 @@ function prepareStemLabel(stemKey: string) {
   };
 }
 
+function throwIfAborted(signal: AbortSignal): void {
+  if (signal.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
+}
+
+function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 export async function separateClipAudioToStems(options: {
   clipId: string;
   sourceBlob: Blob;
@@ -158,6 +180,7 @@ export async function separateClipAudioToStems(options: {
   }
 
   const jobId = uuidv4();
+  const abortController = registerJobAbortController(jobId);
   toastInfo('Stem separation started');
   genStore.addJob({
     id: jobId,
@@ -174,14 +197,14 @@ export async function separateClipAudioToStems(options: {
       stem_count: stemCount,
       audio_format: 'wav',
       ...(separationEngine && separationEngine !== 'auto' ? { engine: separationEngine } : {}),
-    });
+    }, { signal: abortController.signal });
 
     const startedAt = Date.now();
     let rawResults: RawStemResult[] | null = null;
 
     while (Date.now() - startedAt < MAX_POLL_DURATION_MS) {
-      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-      const entries = await api.queryResult([releaseResp.task_id]);
+      await abortableSleep(POLL_INTERVAL_MS, abortController.signal);
+      const entries = await api.queryResult([releaseResp.task_id], { signal: abortController.signal });
       const entry = entries[0];
       if (!entry) continue;
 
@@ -209,8 +232,10 @@ export async function separateClipAudioToStems(options: {
     const engine = getAudioEngine();
     const prepared = await Promise.all(
       rawResults.map(async ({ key, file }) => {
-        const blob = await api.downloadAudio(file);
+        const blob = await api.downloadAudio(file, { signal: abortController.signal });
+        throwIfAborted(abortController.signal);
         const buffer = await engine.decodeAudioData(blob);
+        throwIfAborted(abortController.signal);
         const label = prepareStemLabel(key);
         return {
           key,
@@ -228,11 +253,16 @@ export async function separateClipAudioToStems(options: {
     toastSuccess('Stem separation completed');
     return prepared;
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      genStore.updateJob(jobId, { status: 'cancelled', progress: 'Cancelled', stage: 'Cancelled' });
+      throw error;
+    }
     const message = error instanceof Error ? error.message : 'Stem separation failed';
     genStore.updateJob(jobId, { status: 'error', progress: message, error: message });
     toastError(message);
     throw error;
   } finally {
+    unregisterJobAbortController(jobId);
     useGenerationStore.getState().setIsGenerating(false);
   }
 }

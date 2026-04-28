@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { deriveGenerationJobProgress, useGenerationStore, type GenerationJob } from '../generationStore';
+import { clearAllControllers, registerJobAbortController } from '../../services/generationAbortRegistry';
 
 function createTestJob(overrides: Partial<GenerationJob> = {}): GenerationJob {
   return {
@@ -20,11 +21,13 @@ function createTestJob(overrides: Partial<GenerationJob> = {}): GenerationJob {
 
 describe('cancelJob', () => {
   beforeEach(() => {
+    clearAllControllers();
     useGenerationStore.setState({ jobs: [], isGenerating: false });
   });
 
   it('sets job status to cancelled', () => {
     const job = createTestJob({ id: 'job-1', status: 'generating' });
+    registerJobAbortController(job.id);
     useGenerationStore.getState().addJob(job);
     useGenerationStore.getState().cancelJob('job-1');
 
@@ -34,6 +37,7 @@ describe('cancelJob', () => {
 
   it('sets job status to cancelled for queued jobs', () => {
     const job = createTestJob({ id: 'job-q', status: 'queued' });
+    registerJobAbortController(job.id);
     useGenerationStore.getState().addJob(job);
     useGenerationStore.getState().cancelJob('job-q');
 
@@ -72,6 +76,7 @@ describe('cancelJob', () => {
   it('releases the generation lock when cancelling the last active job', () => {
     useGenerationStore.setState({ isGenerating: true });
     const job = createTestJob({ id: 'job-1', status: 'generating' });
+    registerJobAbortController(job.id);
     useGenerationStore.getState().addJob(job);
     useGenerationStore.getState().cancelJob('job-1');
 
@@ -82,16 +87,29 @@ describe('cancelJob', () => {
     useGenerationStore.setState({ isGenerating: true });
     const job1 = createTestJob({ id: 'job-1', status: 'generating' });
     const job2 = createTestJob({ id: 'job-2', status: 'generating' });
+    registerJobAbortController(job1.id);
     useGenerationStore.getState().addJob(job1);
     useGenerationStore.getState().addJob(job2);
     useGenerationStore.getState().cancelJob('job-1');
 
     expect(useGenerationStore.getState().isGenerating).toBe(true);
   });
+
+  it('does not mark jobs as cancelled without an abort controller', () => {
+    useGenerationStore.setState({ isGenerating: true });
+    const job = createTestJob({ id: 'job-no-controller', status: 'generating' });
+    useGenerationStore.getState().addJob(job);
+    useGenerationStore.getState().cancelJob('job-no-controller');
+
+    const updated = useGenerationStore.getState().jobs.find((j) => j.id === 'job-no-controller');
+    expect(updated?.status).toBe('generating');
+    expect(useGenerationStore.getState().isGenerating).toBe(true);
+  });
 });
 
 describe('cancelAllJobs', () => {
   beforeEach(() => {
+    clearAllControllers();
     useGenerationStore.setState({ jobs: [], isGenerating: false });
   });
 
@@ -103,6 +121,8 @@ describe('cancelAllJobs', () => {
       createTestJob({ id: 'j3', status: 'done' }),
       createTestJob({ id: 'j4', status: 'error' }),
     ];
+    registerJobAbortController('j1');
+    registerJobAbortController('j2');
     for (const j of jobs) useGenerationStore.getState().addJob(j);
     useGenerationStore.getState().cancelAllJobs();
 
@@ -116,6 +136,7 @@ describe('cancelAllJobs', () => {
   it('releases the generation lock', () => {
     useGenerationStore.setState({ isGenerating: true });
     const job = createTestJob({ id: 'j1', status: 'generating' });
+    registerJobAbortController(job.id);
     useGenerationStore.getState().addJob(job);
     useGenerationStore.getState().cancelAllJobs();
 
