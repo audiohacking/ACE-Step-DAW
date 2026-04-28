@@ -136,6 +136,9 @@ export interface UIState {
   virtualKeyboardPressedPitches: number[];
   showSmartControls: boolean;
   showLibrary: boolean;
+
+  // Status bar
+  statusBarAutoHide: boolean;
   /** Which bottom editor is visible: null = none, 'smart' = smart controls, 'editor' = region editor */
   activeBottomPanel: 'smart' | 'editor' | 'pianoRoll' | 'effects' | 'drumMachine' | 'strudel' | null;
 
@@ -369,6 +372,7 @@ export interface UIState {
   releaseVirtualKeyboardPitch: (pitch: number) => void;
   clearVirtualKeyboardPressedPitches: () => void;
   setShowSmartControls: (v: boolean) => void;
+  setStatusBarAutoHide: (v: boolean) => void;
   setShowLibrary: (v: boolean) => void;
   setActiveBottomPanel: (v: 'smart' | 'editor' | 'pianoRoll' | 'effects' | 'drumMachine' | null) => void;
 
@@ -700,6 +704,7 @@ export const useUIStore = create<UIState>()(
   virtualKeyboardPressedPitches: [],
   showSmartControls: false,
   showLibrary: false,
+  statusBarAutoHide: false,
   activeBottomPanel: null,
 
   showTempoLane: false,
@@ -1166,6 +1171,7 @@ export const useUIStore = create<UIState>()(
   })),
   clearVirtualKeyboardPressedPitches: () => set({ virtualKeyboardPressedPitches: [] }),
   setShowSmartControls: (v) => set({ showSmartControls: v }),
+  setStatusBarAutoHide: (v) => set({ statusBarAutoHide: v }),
   setShowLibrary: (v) => set({ showLibrary: v }),
   setActiveBottomPanel: (v) => set({ activeBottomPanel: v }),
 
@@ -1439,6 +1445,7 @@ export const useUIStore = create<UIState>()(
         loopBrowserOpen: state.loopBrowserOpen,
         showVirtualKeyboard: state.showVirtualKeyboard,
         showSmartControls: state.showSmartControls,
+        statusBarAutoHide: state.statusBarAutoHide,
         keyboardContext: state.keyboardContext,
         activePianoRollTool: state.activePianoRollTool,
         showGhostNotes: state.showGhostNotes,
