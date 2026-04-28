@@ -121,6 +121,20 @@ describe('GenerationPanel', () => {
     expect(screen.getByText('Cancelled')).toBeDefined();
   });
 
+  it('does not show stale ETA for cancelled jobs', () => {
+    const job = createJob({
+      id: 'gen-cancelled',
+      trackName: 'Pad',
+      status: 'cancelled' as GenerationJob['status'],
+      etaSeconds: 30,
+    });
+    useGenerationStore.getState().addJob(job);
+
+    render(<GenerationPanel />);
+
+    expect(screen.queryByText(/ETA/)).toBeNull();
+  });
+
   it('shows Cancel All button when 2+ active jobs', () => {
     useGenerationStore.getState().addJob(createJob({ id: 'j1', status: 'generating' }));
     useGenerationStore.getState().addJob(createJob({ id: 'j2', status: 'queued' }));

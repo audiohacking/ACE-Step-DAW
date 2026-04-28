@@ -32,9 +32,9 @@ export function GenerationPanel() {
           <>
             <div className="flex-1 flex items-center gap-2 overflow-x-auto text-xs">
               {visibleJobs.map((job) => {
-                const eta = formatEtaDisplay(job.etaSeconds ?? null);
-                const progressPercent = Math.round(job.progressPercent ?? 0);
                 const isActive = job.status === 'queued' || job.status === 'generating' || job.status === 'processing';
+                const eta = isActive ? formatEtaDisplay(job.etaSeconds ?? null) : '';
+                const progressPercent = Math.round(job.progressPercent ?? 0);
                 const isRetryable = (job.status === 'error' || job.status === 'cancelled') && !!job.retryParams;
 
                 // Queue position from stable precomputed map
