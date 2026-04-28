@@ -29,7 +29,7 @@ vi.mock('../../../utils/wav', () => ({
 function setupVisible() {
   useUIStore.setState({ showVoiceVerificationModal: true });
   useVoiceVerificationStore.setState({
-    profiles: [],
+    pendingVoice: null,
     currentPhrase: null,
     verificationStatus: 'idle',
     verificationError: null,

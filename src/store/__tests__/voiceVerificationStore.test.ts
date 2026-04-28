@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useVoiceVerificationStore } from '../voiceVerificationStore';
+import { useVoiceStore } from '../voiceStore';
+import type { AddVoiceInput } from '../voiceStore';
+
+vi.mock('idb-keyval', () => ({
+  get: vi.fn(),
+  set: vi.fn().mockResolvedValue(undefined),
+  del: vi.fn(),
+  keys: vi.fn().mockResolvedValue([]),
+}));
 
 vi.mock('../../services/aceStepApi', () => ({
   getVerificationPhrase: vi.fn(),
@@ -11,9 +20,18 @@ import {
   verifyVoiceIdentity,
 } from '../../services/aceStepApi';
 
-function resetStore() {
+const voiceInput: AddVoiceInput = {
+  name: 'My Voice',
+  durationSeconds: 12,
+  skillLevel: 'intermediate',
+  source: 'upload',
+  tags: [],
+  waveformPeaks: [0.1, 0.5, 0.2],
+};
+
+function resetStores() {
   useVoiceVerificationStore.setState({
-    profiles: [],
+    pendingVoice: null,
     currentPhrase: null,
     verificationStatus: 'idle',
     verificationError: null,
@@ -21,17 +39,23 @@ function resetStore() {
     referenceAudio: null,
     selfHostedSkipEnabled: false,
   });
+  useVoiceStore.setState({
+    voices: [],
+    selectedVoiceId: null,
+    searchQuery: '',
+    filterTag: null,
+  });
 }
 
 describe('voiceVerificationStore', () => {
   beforeEach(() => {
-    resetStore();
+    resetStores();
     vi.clearAllMocks();
   });
 
   describe('initial state', () => {
-    it('has no profiles', () => {
-      expect(useVoiceVerificationStore.getState().profiles).toEqual([]);
+    it('has no pending voice', () => {
+      expect(useVoiceVerificationStore.getState().pendingVoice).toBeNull();
     });
 
     it('has idle verification status', () => {
@@ -40,6 +64,19 @@ describe('voiceVerificationStore', () => {
 
     it('has no current phrase', () => {
       expect(useVoiceVerificationStore.getState().currentPhrase).toBeNull();
+    });
+  });
+
+  describe('beginVerification', () => {
+    it('stores the pending voice and reference audio', () => {
+      const blob = new Blob(['ref'], { type: 'audio/wav' });
+
+      useVoiceVerificationStore.getState().beginVerification(voiceInput, blob);
+
+      const state = useVoiceVerificationStore.getState();
+      expect(state.pendingVoice?.input.name).toBe('My Voice');
+      expect(state.pendingVoice?.audioBlob).toBe(blob);
+      expect(state.referenceAudio).toBe(blob);
     });
   });
 
@@ -68,15 +105,6 @@ describe('voiceVerificationStore', () => {
     });
   });
 
-  describe('setReferenceAudio', () => {
-    it('stores a reference audio blob', () => {
-      const blob = new Blob(['audio data'], { type: 'audio/wav' });
-      useVoiceVerificationStore.getState().setReferenceAudio(blob);
-
-      expect(useVoiceVerificationStore.getState().referenceAudio).toBe(blob);
-    });
-  });
-
   describe('setRecordedPhrase', () => {
     it('stores the recorded phrase blob', () => {
       const blob = new Blob(['phrase data'], { type: 'audio/wav' });
@@ -87,12 +115,12 @@ describe('voiceVerificationStore', () => {
   });
 
   describe('submitVerification', () => {
-    it('submits both audio samples and creates verified profile', async () => {
+    it('submits both audio samples and creates a verified voice profile', async () => {
       const refBlob = new Blob(['ref'], { type: 'audio/wav' });
       const phraseBlob = new Blob(['phrase'], { type: 'audio/wav' });
 
+      useVoiceVerificationStore.getState().beginVerification(voiceInput, refBlob);
       useVoiceVerificationStore.setState({
-        referenceAudio: refBlob,
         recordedPhrase: phraseBlob,
         currentPhrase: { phraseId: 'phrase-1', text: 'test phrase', language: 'en' },
       });
@@ -103,24 +131,24 @@ describe('voiceVerificationStore', () => {
         phrase_id: 'phrase-1',
       });
 
-      await useVoiceVerificationStore.getState().submitVerification('My Voice');
+      await useVoiceVerificationStore.getState().submitVerification();
 
       expect(verifyVoiceIdentity).toHaveBeenCalledWith(refBlob, phraseBlob, 'phrase-1');
       expect(useVoiceVerificationStore.getState().verificationStatus).toBe('verified');
 
-      const profiles = useVoiceVerificationStore.getState().profiles;
-      expect(profiles).toHaveLength(1);
-      expect(profiles[0].name).toBe('My Voice');
-      expect(profiles[0].verificationStatus).toBe('verified');
-      expect(profiles[0].verificationConfidence).toBe(0.95);
+      const voices = useVoiceStore.getState().voices;
+      expect(voices).toHaveLength(1);
+      expect(voices[0].name).toBe('My Voice');
+      expect(voices[0].verificationStatus).toBe('verified');
+      expect(voices[0].verificationConfidence).toBe(0.95);
     });
 
     it('sets failed status when match is false', async () => {
       const refBlob = new Blob(['ref'], { type: 'audio/wav' });
       const phraseBlob = new Blob(['phrase'], { type: 'audio/wav' });
 
+      useVoiceVerificationStore.getState().beginVerification(voiceInput, refBlob);
       useVoiceVerificationStore.setState({
-        referenceAudio: refBlob,
         recordedPhrase: phraseBlob,
         currentPhrase: { phraseId: 'phrase-1', text: 'test phrase', language: 'en' },
       });
@@ -131,14 +159,15 @@ describe('voiceVerificationStore', () => {
         phrase_id: 'phrase-1',
       });
 
-      await useVoiceVerificationStore.getState().submitVerification('My Voice');
+      await useVoiceVerificationStore.getState().submitVerification();
 
       expect(useVoiceVerificationStore.getState().verificationStatus).toBe('failed');
       expect(useVoiceVerificationStore.getState().verificationError).toContain('not match');
+      expect(useVoiceStore.getState().voices).toHaveLength(0);
     });
 
-    it('requires reference audio and recorded phrase', async () => {
-      await useVoiceVerificationStore.getState().submitVerification('My Voice');
+    it('requires pending voice, reference audio, and recorded phrase', async () => {
+      await useVoiceVerificationStore.getState().submitVerification();
 
       expect(verifyVoiceIdentity).not.toHaveBeenCalled();
       expect(useVoiceVerificationStore.getState().verificationError).toBeTruthy();
@@ -148,79 +177,55 @@ describe('voiceVerificationStore', () => {
       const refBlob = new Blob(['ref'], { type: 'audio/wav' });
       const phraseBlob = new Blob(['phrase'], { type: 'audio/wav' });
 
+      useVoiceVerificationStore.getState().beginVerification(voiceInput, refBlob);
       useVoiceVerificationStore.setState({
-        referenceAudio: refBlob,
         recordedPhrase: phraseBlob,
         currentPhrase: { phraseId: 'phrase-1', text: 'test phrase', language: 'en' },
       });
 
       vi.mocked(verifyVoiceIdentity).mockRejectedValue(new Error('Server error'));
 
-      await useVoiceVerificationStore.getState().submitVerification('My Voice');
+      await useVoiceVerificationStore.getState().submitVerification();
 
       expect(useVoiceVerificationStore.getState().verificationStatus).toBe('error');
       expect(useVoiceVerificationStore.getState().verificationError).toBe('Server error');
     });
   });
 
-  describe('skipVerification (self-hosted)', () => {
-    it('creates unverified profile when skip is enabled', () => {
+  describe('skipVerification', () => {
+    it('creates an unverified voice profile when skip is enabled', () => {
+      const refBlob = new Blob(['ref'], { type: 'audio/wav' });
+      useVoiceVerificationStore.getState().beginVerification(voiceInput, refBlob);
       useVoiceVerificationStore.setState({ selfHostedSkipEnabled: true });
 
-      useVoiceVerificationStore.getState().skipVerification('My Voice');
+      useVoiceVerificationStore.getState().skipVerification();
 
-      const profiles = useVoiceVerificationStore.getState().profiles;
-      expect(profiles).toHaveLength(1);
-      expect(profiles[0].name).toBe('My Voice');
-      expect(profiles[0].verificationStatus).toBe('unverified');
+      const voices = useVoiceStore.getState().voices;
+      expect(voices).toHaveLength(1);
+      expect(voices[0].name).toBe('My Voice');
+      expect(voices[0].verificationStatus).toBe('unverified');
     });
 
     it('does nothing when skip is disabled', () => {
+      const refBlob = new Blob(['ref'], { type: 'audio/wav' });
+      useVoiceVerificationStore.getState().beginVerification(voiceInput, refBlob);
       useVoiceVerificationStore.setState({ selfHostedSkipEnabled: false });
 
-      useVoiceVerificationStore.getState().skipVerification('My Voice');
+      useVoiceVerificationStore.getState().skipVerification();
 
-      expect(useVoiceVerificationStore.getState().profiles).toHaveLength(0);
-    });
-  });
-
-  describe('deleteProfile', () => {
-    it('removes a profile by id', () => {
-      useVoiceVerificationStore.setState({
-        profiles: [{
-          id: 'profile-1',
-          name: 'My Voice',
-          createdAt: Date.now(),
-          referenceAudioKey: null,
-          verificationStatus: 'verified',
-          verifiedAt: Date.now(),
-          verificationConfidence: 0.95,
-        }],
-      });
-
-      useVoiceVerificationStore.getState().deleteProfile('profile-1');
-
-      expect(useVoiceVerificationStore.getState().profiles).toHaveLength(0);
+      expect(useVoiceStore.getState().voices).toHaveLength(0);
     });
   });
 
   describe('resetVerification', () => {
-    it('clears verification state without affecting profiles', () => {
+    it('clears phrase state while keeping the pending voice', () => {
+      const refBlob = new Blob(['ref'], { type: 'audio/wav' });
+      useVoiceVerificationStore.getState().beginVerification(voiceInput, refBlob);
       useVoiceVerificationStore.setState({
-        verificationStatus: 'verified',
+        verificationStatus: 'failed',
         currentPhrase: { phraseId: 'p-1', text: 'test', language: 'en' },
         recordedPhrase: new Blob(['data']),
-        referenceAudio: new Blob(['data']),
         verificationError: 'some error',
-        profiles: [{
-          id: 'profile-1',
-          name: 'Test',
-          createdAt: 1,
-          referenceAudioKey: null,
-          verificationStatus: 'verified',
-          verifiedAt: 1,
-          verificationConfidence: 0.9,
-        }],
       });
 
       useVoiceVerificationStore.getState().resetVerification();
@@ -229,10 +234,24 @@ describe('voiceVerificationStore', () => {
       expect(state.verificationStatus).toBe('idle');
       expect(state.currentPhrase).toBeNull();
       expect(state.recordedPhrase).toBeNull();
-      expect(state.referenceAudio).toBeNull();
+      expect(state.referenceAudio).toBe(refBlob);
+      expect(state.pendingVoice).not.toBeNull();
       expect(state.verificationError).toBeNull();
-      // Profiles should still be there
-      expect(state.profiles).toHaveLength(1);
+    });
+  });
+
+  describe('cancelVerification', () => {
+    it('clears pending voice and transient audio', () => {
+      const refBlob = new Blob(['ref'], { type: 'audio/wav' });
+      useVoiceVerificationStore.getState().beginVerification(voiceInput, refBlob);
+      useVoiceVerificationStore.setState({ recordedPhrase: new Blob(['phrase']) });
+
+      useVoiceVerificationStore.getState().cancelVerification();
+
+      const state = useVoiceVerificationStore.getState();
+      expect(state.pendingVoice).toBeNull();
+      expect(state.referenceAudio).toBeNull();
+      expect(state.recordedPhrase).toBeNull();
     });
   });
 });

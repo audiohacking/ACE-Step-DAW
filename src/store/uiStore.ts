@@ -78,10 +78,14 @@ export interface UIState {
   commandPaletteQuery: string;
   recentCommandIds: string[];
   showUndoHistoryPanel: boolean;
+  showMidiControllerPanel: boolean;
+  showTrackPresetManager: boolean;
+  grooveStrength: number;
   historyFocusScope: HistoryScope;
   historyFocusTrackId: string | null;
   historyFocusClipId: string | null;
   showMixer: boolean;
+  showClipInspector: boolean;
   mixerHeight: number;
   showAssetsPanel: boolean;
   assetsPanelWidth: number;
@@ -133,6 +137,9 @@ export interface UIState {
   virtualKeyboardPressedPitches: number[];
   showSmartControls: boolean;
   showLibrary: boolean;
+
+  // Status bar
+  statusBarAutoHide: boolean;
   /** Which bottom editor is visible: null = none, 'smart' = smart controls, 'editor' = region editor */
   activeBottomPanel: 'smart' | 'editor' | 'pianoRoll' | 'effects' | 'drumMachine' | 'strudel' | null;
 
@@ -319,8 +326,13 @@ export interface UIState {
   searchCommandPalette: (query?: string) => CommandPaletteSearchResult[];
   executeCommandPaletteCommand: (commandId: string) => Promise<boolean>;
   setShowUndoHistoryPanel: (v: boolean) => void;
+  setShowMidiControllerPanel: (v: boolean) => void;
+  setShowTrackPresetManager: (v: boolean) => void;
+  setGrooveStrength: (v: number) => void;
   setHistoryFocusScope: (scope: HistoryScope, target?: HistoryTarget) => void;
   setShowMixer: (v: boolean) => void;
+  setShowClipInspector: (v: boolean) => void;
+  toggleClipInspector: () => void;
   setMixerHeight: (v: number) => void;
   setShowAssetsPanel: (v: boolean) => void;
   setAssetsPanelWidth: (v: number) => void;
@@ -365,6 +377,7 @@ export interface UIState {
   releaseVirtualKeyboardPitch: (pitch: number) => void;
   clearVirtualKeyboardPressedPitches: () => void;
   setShowSmartControls: (v: boolean) => void;
+  setStatusBarAutoHide: (v: boolean) => void;
   setShowLibrary: (v: boolean) => void;
   setActiveBottomPanel: (v: 'smart' | 'editor' | 'pianoRoll' | 'effects' | 'drumMachine' | null) => void;
 
@@ -526,6 +539,7 @@ function getComplexityDefaults(tier: 'simple' | 'standard' | 'advanced') {
       return {
         workspaceComplexity: tier,
         showMixer: false,
+        showClipInspector: false,
         showLibrary: false,
         loopBrowserOpen: false,
         showSmartControls: true,
@@ -539,6 +553,7 @@ function getComplexityDefaults(tier: 'simple' | 'standard' | 'advanced') {
       return {
         workspaceComplexity: tier,
         showMixer: true,
+        showClipInspector: false,
         showLibrary: true,
         loopBrowserOpen: true,
         showSmartControls: false,
@@ -553,6 +568,7 @@ function getComplexityDefaults(tier: 'simple' | 'standard' | 'advanced') {
       return {
         workspaceComplexity: tier,
         showMixer: false,
+        showClipInspector: false,
         showLibrary: false,
         loopBrowserOpen: false,
         showSmartControls: false,
@@ -654,10 +670,14 @@ export const useUIStore = create<UIState>()(
   commandPaletteQuery: '',
   recentCommandIds: [],
   showUndoHistoryPanel: false,
+  showMidiControllerPanel: false,
+  showTrackPresetManager: false,
+  grooveStrength: 100,
   historyFocusScope: 'arrangement',
   historyFocusTrackId: null,
   historyFocusClipId: null,
   showMixer: false,
+  showClipInspector: false,
   mixerHeight: 420,
   showAssetsPanel: false,
   assetsPanelWidth: 240,
@@ -691,6 +711,7 @@ export const useUIStore = create<UIState>()(
   virtualKeyboardPressedPitches: [],
   showSmartControls: false,
   showLibrary: false,
+  statusBarAutoHide: false,
   activeBottomPanel: null,
 
   showTempoLane: false,
@@ -985,6 +1006,11 @@ export const useUIStore = create<UIState>()(
     return true;
   },
   setShowUndoHistoryPanel: (v) => set({ showUndoHistoryPanel: v }),
+  setShowMidiControllerPanel: (v) => set({ showMidiControllerPanel: v }),
+  setShowTrackPresetManager: (v) => set({ showTrackPresetManager: v }),
+  setGrooveStrength: (v) => set((state) => ({
+    grooveStrength: Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : state.grooveStrength,
+  })),
   setHistoryFocusScope: (scope, target) => set((state) => {
     const resolvedTrackId =
       target?.trackId
@@ -1002,6 +1028,8 @@ export const useUIStore = create<UIState>()(
     };
   }),
   setShowMixer: (v) => set(v ? { ...ALL_RIGHT_PANELS_CLOSED, showMixer: true } : { showMixer: false }),
+  setShowClipInspector: (v) => set({ showClipInspector: v }),
+  toggleClipInspector: () => set((s) => ({ showClipInspector: !s.showClipInspector })),
   setMixerHeight: (v) => set({ mixerHeight: Math.min(500, Math.max(160, v)) }),
   setShowAssetsPanel: (v) => set({ showAssetsPanel: v }),
   setAssetsPanelWidth: (v) => set({ assetsPanelWidth: Math.min(500, Math.max(160, v)) }),
@@ -1152,6 +1180,7 @@ export const useUIStore = create<UIState>()(
   })),
   clearVirtualKeyboardPressedPitches: () => set({ virtualKeyboardPressedPitches: [] }),
   setShowSmartControls: (v) => set({ showSmartControls: v }),
+  setStatusBarAutoHide: (v) => set({ statusBarAutoHide: v }),
   setShowLibrary: (v) => set({ showLibrary: v }),
   setActiveBottomPanel: (v) => set({ activeBottomPanel: v }),
 
@@ -1421,10 +1450,13 @@ export const useUIStore = create<UIState>()(
       partialize: (state) => ({
         // Panel open/close states
         showMixer: state.showMixer,
+        showClipInspector: state.showClipInspector,
         showLibrary: state.showLibrary,
         loopBrowserOpen: state.loopBrowserOpen,
         showVirtualKeyboard: state.showVirtualKeyboard,
+        showMidiControllerPanel: state.showMidiControllerPanel,
         showSmartControls: state.showSmartControls,
+        statusBarAutoHide: state.statusBarAutoHide,
         keyboardContext: state.keyboardContext,
         activePianoRollTool: state.activePianoRollTool,
         showGhostNotes: state.showGhostNotes,
@@ -1484,6 +1516,8 @@ export const useUIStore = create<UIState>()(
         userInstrumentPresets: state.userInstrumentPresets,
         // Video recording settings
         videoRecordingSettings: state.videoRecordingSettings,
+        // Groove pool
+        grooveStrength: state.grooveStrength,
       }),
     },
   ),
@@ -1510,6 +1544,7 @@ function buildCommandPaletteContext(state: UIState) {
     showTempoLane: state.showTempoLane,
     loopEnabled: transportStore.loopEnabled,
     metronomeEnabled: transportStore.metronomeEnabled,
+    punchEnabled: transportStore.punchEnabled,
     expandedTrackId: state.expandedTrackId,
     openPianoRollTrackId: state.openPianoRollTrackId,
     openSequencerTrackId: state.openSequencerTrackId,
@@ -1520,6 +1555,7 @@ function buildCommandPaletteContext(state: UIState) {
       stop: runtime?.stop ?? transportStore.stop,
       toggleLoop: transportStore.toggleLoop,
       toggleMetronome: transportStore.toggleMetronome,
+      togglePunch: transportStore.togglePunch,
       setShowNewProjectDialog: state.setShowNewProjectDialog,
       setShowProjectListDialog: state.setShowProjectListDialog,
       openGenerationSettings: () => state.openGenerationPanelView('settings'),
@@ -1546,6 +1582,9 @@ function buildCommandPaletteContext(state: UIState) {
       splitClip: projectStore.splitClip,
       splitClipAtZeroCrossing: projectStore.splitClipAtZeroCrossing,
       removeClip: projectStore.removeClip,
+      reverseClip: projectStore.reverseClip,
+      normalizeClip: projectStore.normalizeClip,
+      adjustClipGain: projectStore.adjustClipGain,
       setEditingClip: state.setEditingClip,
       deselectAll: state.deselectAll,
       openEnhancer: state.openEnhancer,
@@ -1568,6 +1607,9 @@ export function getBottomPanelHeight(state: UIState): number {
   if (state.showMixer) {
     // Mixer renders at Math.max(mixerHeight, 360) — use the same floor
     height += Math.max(state.mixerHeight, 360);
+  }
+  if (state.showClipInspector) {
+    height += 280; // matches ClipInspectorPanel maxHeight
   }
   return height;
 }

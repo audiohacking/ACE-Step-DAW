@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { VoiceProfile } from '../types/api';
+import type { AddVoiceInput } from './voiceStore';
+import { useVoiceStore } from './voiceStore';
 import {
   getVerificationPhrase,
   verifyVoiceIdentity,
@@ -14,8 +15,13 @@ export interface CurrentPhrase {
   language: string;
 }
 
+export interface PendingVoiceVerification {
+  input: AddVoiceInput;
+  audioBlob: Blob;
+}
+
 export interface VoiceVerificationStore {
-  profiles: VoiceProfile[];
+  pendingVoice: PendingVoiceVerification | null;
   currentPhrase: CurrentPhrase | null;
   verificationStatus: VerificationFlowStatus;
   verificationError: string | null;
@@ -23,37 +29,54 @@ export interface VoiceVerificationStore {
   referenceAudio: Blob | null;
   selfHostedSkipEnabled: boolean;
 
-  // Phrase management
+  beginVerification: (input: AddVoiceInput, audioBlob: Blob) => void;
+  updatePendingVoiceName: (name: string) => void;
+
   fetchVerificationPhrase: (language?: string) => Promise<void>;
 
-  // Audio capture
   setReferenceAudio: (blob: Blob) => void;
   setRecordedPhrase: (blob: Blob) => void;
 
-  // Verification
-  submitVerification: (profileName: string) => Promise<void>;
-  skipVerification: (profileName: string) => void;
+  submitVerification: () => Promise<void>;
+  skipVerification: () => void;
   resetVerification: () => void;
+  cancelVerification: () => void;
 
-  // Profile management
-  deleteProfile: (profileId: string) => void;
   setSelfHostedSkipEnabled: (enabled: boolean) => void;
-}
-
-function generateProfileId(): string {
-  return `voice-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export const useVoiceVerificationStore = create<VoiceVerificationStore>()(
   persist(
     (set, get) => ({
-      profiles: [],
+      pendingVoice: null,
       currentPhrase: null,
       verificationStatus: 'idle',
       verificationError: null,
       recordedPhrase: null,
       referenceAudio: null,
       selfHostedSkipEnabled: false,
+
+      beginVerification: (input, audioBlob) => {
+        set({
+          pendingVoice: { input, audioBlob },
+          referenceAudio: audioBlob,
+          recordedPhrase: null,
+          currentPhrase: null,
+          verificationStatus: 'idle',
+          verificationError: null,
+        });
+      },
+
+      updatePendingVoiceName: (name) => {
+        set((state) => state.pendingVoice
+          ? {
+              pendingVoice: {
+                ...state.pendingVoice,
+                input: { ...state.pendingVoice.input, name },
+              },
+            }
+          : {});
+      },
 
       fetchVerificationPhrase: async (language = 'en') => {
         set({ verificationStatus: 'fetching_phrase', verificationError: null });
@@ -75,18 +98,23 @@ export const useVoiceVerificationStore = create<VoiceVerificationStore>()(
         }
       },
 
-      setReferenceAudio: (blob: Blob) => {
-        set({ referenceAudio: blob });
+      setReferenceAudio: (blob) => {
+        set((state) => ({
+          referenceAudio: blob,
+          pendingVoice: state.pendingVoice
+            ? { ...state.pendingVoice, audioBlob: blob }
+            : state.pendingVoice,
+        }));
       },
 
-      setRecordedPhrase: (blob: Blob) => {
+      setRecordedPhrase: (blob) => {
         set({ recordedPhrase: blob });
       },
 
-      submitVerification: async (profileName: string) => {
-        const { referenceAudio, recordedPhrase, currentPhrase } = get();
+      submitVerification: async () => {
+        const { pendingVoice, referenceAudio, recordedPhrase, currentPhrase } = get();
 
-        if (!referenceAudio || !recordedPhrase || !currentPhrase) {
+        if (!pendingVoice || !referenceAudio || !recordedPhrase || !currentPhrase) {
           set({
             verificationStatus: 'error',
             verificationError: 'Reference audio and recorded phrase are required.',
@@ -104,21 +132,23 @@ export const useVoiceVerificationStore = create<VoiceVerificationStore>()(
           );
 
           if (result.match) {
-            const profile: VoiceProfile = {
-              id: generateProfileId(),
-              name: profileName,
-              createdAt: Date.now(),
-              referenceAudioKey: null,
-              verificationStatus: 'verified',
-              verifiedAt: Date.now(),
-              verificationConfidence: result.confidence,
-            };
+            useVoiceStore.getState().addVoice(
+              {
+                ...pendingVoice.input,
+                verificationStatus: 'verified',
+                verifiedAt: Date.now(),
+                verificationConfidence: result.confidence,
+              },
+              pendingVoice.audioBlob,
+            );
 
-            set((s) => ({
-              profiles: [...s.profiles, profile],
+            set({
+              pendingVoice: null,
+              referenceAudio: null,
+              recordedPhrase: null,
               verificationStatus: 'verified',
               verificationError: null,
-            }));
+            });
           } else {
             set({
               verificationStatus: 'failed',
@@ -133,27 +163,22 @@ export const useVoiceVerificationStore = create<VoiceVerificationStore>()(
         }
       },
 
-      skipVerification: (profileName: string) => {
-        if (!get().selfHostedSkipEnabled) return;
+      skipVerification: () => {
+        const { pendingVoice, selfHostedSkipEnabled } = get();
+        if (!selfHostedSkipEnabled || !pendingVoice) return;
 
-        const profile: VoiceProfile = {
-          id: generateProfileId(),
-          name: profileName,
-          createdAt: Date.now(),
-          referenceAudioKey: null,
-          verificationStatus: 'unverified',
-          verifiedAt: null,
-          verificationConfidence: null,
-        };
+        useVoiceStore.getState().addVoice(
+          {
+            ...pendingVoice.input,
+            verificationStatus: 'unverified',
+            verifiedAt: null,
+            verificationConfidence: null,
+          },
+          pendingVoice.audioBlob,
+        );
 
-        set((s) => ({
-          profiles: [...s.profiles, profile],
-          verificationStatus: 'idle',
-        }));
-      },
-
-      resetVerification: () => {
         set({
+          pendingVoice: null,
           currentPhrase: null,
           verificationStatus: 'idle',
           verificationError: null,
@@ -162,23 +187,34 @@ export const useVoiceVerificationStore = create<VoiceVerificationStore>()(
         });
       },
 
-      deleteProfile: (profileId: string) => {
-        set((s) => ({
-          profiles: s.profiles.filter((p) => p.id !== profileId),
-        }));
+      resetVerification: () => {
+        set({
+          currentPhrase: null,
+          verificationStatus: 'idle',
+          verificationError: null,
+          recordedPhrase: null,
+        });
       },
 
-      setSelfHostedSkipEnabled: (enabled: boolean) => {
+      cancelVerification: () => {
+        set({
+          pendingVoice: null,
+          currentPhrase: null,
+          verificationStatus: 'idle',
+          verificationError: null,
+          recordedPhrase: null,
+          referenceAudio: null,
+        });
+      },
+
+      setSelfHostedSkipEnabled: (enabled) => {
         set({ selfHostedSkipEnabled: enabled });
       },
     }),
     {
       name: 'ace-step-voice-verification',
       storage: createJSONStorage(() => localStorage),
-      // Only persist profiles and settings — verification flow state is transient.
-      // Blobs (referenceAudio, recordedPhrase) cannot be serialized to localStorage.
       partialize: (state) => ({
-        profiles: state.profiles,
         selfHostedSkipEnabled: state.selfHostedSkipEnabled,
       }),
     },

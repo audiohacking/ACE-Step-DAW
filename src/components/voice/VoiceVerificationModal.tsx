@@ -12,14 +12,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { useVoiceVerificationStore } from '../../store/voiceVerificationStore';
+import type { AddVoiceInput } from '../../store/voiceStore';
 import { recordingEngine } from '../../engine/RecordingEngine';
 import { audioBufferToWavBlob } from '../../utils/wav';
+import {
+  computeSimplePeaks,
+  isVoiceUploadError,
+  processVoiceAudioFile,
+  VOICE_MIN_DURATION_SECONDS,
+} from '../../services/voiceUploadService';
 import { Z } from '../../utils/zIndex';
 
 type Step = 'reference' | 'phrase' | 'verify' | 'result';
 
+interface CapturedRecording {
+  blob: Blob;
+  durationSeconds: number;
+  audioBuffer: AudioBuffer;
+}
+
+const REFERENCE_TRACK_ID = 'voice-ref';
+const PHRASE_TRACK_ID = 'voice-phrase';
 const MAX_RECORDING_SECONDS = 30;
-const MIN_RECORDING_SECONDS = 3;
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -32,15 +46,18 @@ export function VoiceVerificationModal() {
   const setShow = useUIStore((s) => s.setShowVoiceVerificationModal);
 
   const currentPhrase = useVoiceVerificationStore((s) => s.currentPhrase);
+  const pendingVoice = useVoiceVerificationStore((s) => s.pendingVoice);
   const verificationStatus = useVoiceVerificationStore((s) => s.verificationStatus);
   const verificationError = useVoiceVerificationStore((s) => s.verificationError);
   const selfHostedSkipEnabled = useVoiceVerificationStore((s) => s.selfHostedSkipEnabled);
+  const beginVerification = useVoiceVerificationStore((s) => s.beginVerification);
+  const updatePendingVoiceName = useVoiceVerificationStore((s) => s.updatePendingVoiceName);
   const fetchPhrase = useVoiceVerificationStore((s) => s.fetchVerificationPhrase);
-  const setReferenceAudio = useVoiceVerificationStore((s) => s.setReferenceAudio);
   const setRecordedPhrase = useVoiceVerificationStore((s) => s.setRecordedPhrase);
   const submitVerification = useVoiceVerificationStore((s) => s.submitVerification);
   const skipVerification = useVoiceVerificationStore((s) => s.skipVerification);
   const resetVerification = useVoiceVerificationStore((s) => s.resetVerification);
+  const cancelVerification = useVoiceVerificationStore((s) => s.cancelVerification);
 
   const [step, setStep] = useState<Step>('reference');
   const [profileName, setProfileName] = useState('');
@@ -55,6 +72,7 @@ export function VoiceVerificationModal() {
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const levelTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef(0);
+  const activeRecordingTrackRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioBufferRef = useRef<AudioBuffer | null>(null);
 
@@ -62,22 +80,55 @@ export function VoiceVerificationModal() {
   useEffect(() => {
     if (show) {
       setStep('reference');
-      setProfileName('');
+      setProfileName(pendingVoice?.input.name ?? '');
       setIsRecording(false);
       setRecordingDuration(0);
       setInputLevel(0);
       setHasPermission(recordingEngine.hasPermission);
       setPermissionError(false);
-      setHasReferenceAudio(false);
+      setHasReferenceAudio(Boolean(pendingVoice));
       setHasRecordedPhrase(false);
       audioBufferRef.current = null;
-      resetVerification();
     }
     return () => {
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       if (levelTimerRef.current) clearInterval(levelTimerRef.current);
     };
-  }, [show, resetVerification]);
+  }, [show]);
+
+  const cleanupRecordingResources = useCallback(() => {
+    if (isRecording) {
+      const activeTrackId = activeRecordingTrackRef.current;
+      if (activeTrackId) {
+        void recordingEngine.stopRecording(activeTrackId);
+      }
+      activeRecordingTrackRef.current = null;
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (levelTimerRef.current) {
+      clearInterval(levelTimerRef.current);
+      levelTimerRef.current = null;
+    }
+  }, [isRecording]);
+
+  const handleClose = useCallback(() => {
+    if (
+      pendingVoice &&
+      verificationStatus !== 'verified' &&
+      !window.confirm('Discard this pending voice verification? The captured reference audio will be lost.')
+    ) {
+      return;
+    }
+
+    cleanupRecordingResources();
+    // Clear blobs from memory for privacy — verification audio should not
+    // persist beyond the modal's lifecycle.
+    cancelVerification();
+    setShow(false);
+  }, [cancelVerification, cleanupRecordingResources, pendingVoice, setShow, verificationStatus]);
 
   // Escape key handler
   useEffect(() => {
@@ -87,17 +138,7 @@ export function VoiceVerificationModal() {
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  });
-
-  const handleClose = useCallback(() => {
-    if (isRecording) {
-      recordingEngine.stopRecording('voice-verify');
-    }
-    // Clear blobs from memory for privacy — verification audio should not
-    // persist beyond the modal's lifecycle.
-    resetVerification();
-    setShow(false);
-  }, [setShow, isRecording, resetVerification]);
+  }, [show, handleClose]);
 
   const requestMicPermission = useCallback(async () => {
     const granted = await recordingEngine.requestPermission();
@@ -105,6 +146,52 @@ export function VoiceVerificationModal() {
     setPermissionError(!granted);
     return granted;
   }, []);
+
+  const stopRecording = useCallback(async (trackId: string): Promise<CapturedRecording | null> => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (levelTimerRef.current) {
+      clearInterval(levelTimerRef.current);
+      levelTimerRef.current = null;
+    }
+
+    const result = await recordingEngine.stopRecording(trackId);
+    activeRecordingTrackRef.current = null;
+    setIsRecording(false);
+    setInputLevel(0);
+
+    if (!result || result.duration < VOICE_MIN_DURATION_SECONDS) return null;
+
+    audioBufferRef.current = result.audioBuffer;
+    return {
+      blob: audioBufferToWavBlob(result.audioBuffer),
+      durationSeconds: result.duration,
+      audioBuffer: result.audioBuffer,
+    };
+  }, []);
+
+  const completeRecording = useCallback((trackId: string, recording: CapturedRecording) => {
+    if (trackId === REFERENCE_TRACK_ID) {
+      const input: AddVoiceInput = {
+        name: profileName.trim() || `Recording ${new Date().toLocaleTimeString()}`,
+        durationSeconds: recording.durationSeconds,
+        skillLevel: 'intermediate',
+        source: 'recording',
+        tags: [],
+        waveformPeaks: computeSimplePeaks(recording.audioBuffer, 64),
+      };
+      beginVerification(input, recording.blob);
+      setHasReferenceAudio(true);
+      return;
+    }
+
+    if (trackId === PHRASE_TRACK_ID) {
+      setRecordedPhrase(recording.blob);
+      setHasRecordedPhrase(true);
+    }
+  }, [beginVerification, profileName, setRecordedPhrase]);
 
   const startRecording = useCallback(async (trackId: string) => {
     let permission = hasPermission;
@@ -116,6 +203,7 @@ export function VoiceVerificationModal() {
     const started = await recordingEngine.startRecording(trackId, 'voice-verify', 0);
     if (!started) return;
 
+    activeRecordingTrackRef.current = trackId;
     setIsRecording(true);
     startTimeRef.current = Date.now();
     setRecordingDuration(0);
@@ -124,88 +212,95 @@ export function VoiceVerificationModal() {
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
       setRecordingDuration(elapsed);
       if (elapsed >= MAX_RECORDING_SECONDS) {
-        void stopRecording(trackId);
+        void stopRecording(trackId).then((recording) => {
+          if (recording) completeRecording(trackId, recording);
+        });
       }
     }, 100);
 
     levelTimerRef.current = setInterval(() => {
       setInputLevel(recordingEngine.getInputLevelLinear());
     }, 50);
-  }, [hasPermission, requestMicPermission]);
-
-  const stopRecording = useCallback(async (trackId: string) => {
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
-    }
-    if (levelTimerRef.current) {
-      clearInterval(levelTimerRef.current);
-      levelTimerRef.current = null;
-    }
-
-    const result = await recordingEngine.stopRecording(trackId);
-    setIsRecording(false);
-    setInputLevel(0);
-
-    if (!result || result.duration < MIN_RECORDING_SECONDS) return null;
-
-    audioBufferRef.current = result.audioBuffer;
-    return audioBufferToWavBlob(result.audioBuffer);
-  }, []);
+  }, [completeRecording, hasPermission, requestMicPermission, stopRecording]);
 
   // Step 1: Record reference vocal
   const handleRecordReference = useCallback(async () => {
     if (isRecording) {
-      const blob = await stopRecording('voice-ref');
-      if (blob) {
-        setReferenceAudio(blob);
-        setHasReferenceAudio(true);
-      }
+      const recording = await stopRecording(REFERENCE_TRACK_ID);
+      if (recording) completeRecording(REFERENCE_TRACK_ID, recording);
     } else {
-      await startRecording('voice-ref');
+      await startRecording(REFERENCE_TRACK_ID);
     }
-  }, [isRecording, startRecording, stopRecording, setReferenceAudio]);
+  }, [completeRecording, isRecording, startRecording, stopRecording]);
 
   // Handle file upload for reference
-  const handleFileUpload = useCallback((files: FileList | null) => {
+  const handleFileUpload = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const file = files[0];
-    setReferenceAudio(file);
-    setHasReferenceAudio(true);
-  }, [setReferenceAudio]);
+    let ctx: AudioContext | null = null;
+    try {
+      ctx = new AudioContext();
+      const result = await processVoiceAudioFile(file, ctx);
+      if (isVoiceUploadError(result)) {
+        return;
+      }
+
+      const input: AddVoiceInput = {
+        name: profileName.trim() || result.name,
+        durationSeconds: result.durationSeconds,
+        skillLevel: 'intermediate',
+        source: result.source,
+        tags: [],
+        waveformPeaks: result.waveformPeaks,
+      };
+
+      if (pendingVoice) {
+        beginVerification(input, result.blob);
+      } else {
+        beginVerification(input, result.blob);
+      }
+      setHasReferenceAudio(true);
+    } finally {
+      ctx?.close();
+    }
+  }, [beginVerification, pendingVoice, profileName]);
 
   // Move to phrase step
   const handleNextToPhrase = useCallback(async () => {
-    if (!profileName.trim()) return;
+    if (!profileName.trim() || !pendingVoice) return;
+    updatePendingVoiceName(profileName.trim());
     await fetchPhrase('en');
-    setStep('phrase');
-  }, [profileName, fetchPhrase]);
+    const state = useVoiceVerificationStore.getState();
+    if (state.currentPhrase && state.verificationStatus !== 'error') {
+      setStep('phrase');
+    }
+  }, [fetchPhrase, pendingVoice, profileName, updatePendingVoiceName]);
 
   // Step 2: Record spoken phrase
   const handleRecordPhrase = useCallback(async () => {
     if (isRecording) {
-      const blob = await stopRecording('voice-phrase');
-      if (blob) {
-        setRecordedPhrase(blob);
-        setHasRecordedPhrase(true);
-      }
+      const recording = await stopRecording(PHRASE_TRACK_ID);
+      if (recording) completeRecording(PHRASE_TRACK_ID, recording);
     } else {
-      await startRecording('voice-phrase');
+      await startRecording(PHRASE_TRACK_ID);
     }
-  }, [isRecording, startRecording, stopRecording, setRecordedPhrase]);
+  }, [completeRecording, isRecording, startRecording, stopRecording]);
 
   // Step 3: Submit verification
   const handleVerify = useCallback(async () => {
     setStep('verify');
-    await submitVerification(profileName.trim());
+    updatePendingVoiceName(profileName.trim());
+    await submitVerification();
     setStep('result');
-  }, [profileName, submitVerification]);
+  }, [profileName, submitVerification, updatePendingVoiceName]);
 
   // Skip (self-hosted)
   const handleSkip = useCallback(() => {
-    skipVerification(profileName.trim());
-    handleClose();
-  }, [profileName, skipVerification, handleClose]);
+    updatePendingVoiceName(profileName.trim());
+    skipVerification();
+    cleanupRecordingResources();
+    setShow(false);
+  }, [cleanupRecordingResources, profileName, setShow, skipVerification, updatePendingVoiceName]);
 
   if (!show) return null;
 
@@ -357,6 +452,12 @@ export function VoiceVerificationModal() {
                     Microphone permission denied. Please allow access in browser settings.
                   </p>
                 )}
+
+                {verificationStatus === 'error' && verificationError && (
+                  <p className="text-[10px] text-red-400">
+                    {verificationError}
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -463,7 +564,12 @@ export function VoiceVerificationModal() {
                     {verificationError}
                   </p>
                   <button
-                    onClick={() => { resetVerification(); setStep('reference'); setHasReferenceAudio(false); setHasRecordedPhrase(false); }}
+                    onClick={() => {
+                      resetVerification();
+                      setStep('reference');
+                      setHasReferenceAudio(Boolean(useVoiceVerificationStore.getState().pendingVoice));
+                      setHasRecordedPhrase(false);
+                    }}
                     className="mt-2 px-4 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/50 transition-colors"
                   >
                     Try Again
