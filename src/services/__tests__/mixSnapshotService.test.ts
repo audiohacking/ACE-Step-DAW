@@ -310,7 +310,27 @@ describe('applyTrackMixState', () => {
     expect(state.effects![0].id).toBe('fx-1');
   });
 
-  it('clears effects and sends when the snapshot has none', () => {
+  it('clears effects and sends when the snapshot explicitly stores empty collections', () => {
+    const track = makeTrack({
+      effects: [{ id: 'fx-1', type: 'reverb', enabled: true, params: { decay: 3, mix: 0.4 } }],
+      sends: [{ returnTrackId: 'return-1', amount: 0.6, prePost: 'post' }],
+    });
+    const state: MixSnapshotTrackState = {
+      trackId: 'track-1',
+      volume: 0.75,
+      muted: false,
+      soloed: false,
+      effects: [],
+      sends: [],
+    };
+
+    const result = applyTrackMixState(track, state);
+
+    expect(result.effects).toEqual([]);
+    expect(result.sends).toEqual([]);
+  });
+
+  it('preserves effects and sends when an older snapshot omits those fields', () => {
     const track = makeTrack({
       effects: [{ id: 'fx-1', type: 'reverb', enabled: true, params: { decay: 3, mix: 0.4 } }],
       sends: [{ returnTrackId: 'return-1', amount: 0.6, prePost: 'post' }],
@@ -324,8 +344,25 @@ describe('applyTrackMixState', () => {
 
     const result = applyTrackMixState(track, state);
 
-    expect(result.effects).toEqual([]);
-    expect(result.sends).toEqual([]);
+    expect(result.effects).toBe(track.effects);
+    expect(result.sends).toBe(track.sends);
+  });
+
+  it('can reuse snapshot collection references when cloning is disabled', () => {
+    const track = makeTrack();
+    const state: MixSnapshotTrackState = {
+      trackId: 'track-1',
+      volume: 0.75,
+      muted: false,
+      soloed: false,
+      effects: [{ id: 'fx-1', type: 'reverb', enabled: true, params: { decay: 3, mix: 0.4 } }],
+      sends: [{ returnTrackId: 'return-1', amount: 0.6, prePost: 'post' }],
+    };
+
+    const result = applyTrackMixState(track, state, { cloneCollections: false });
+
+    expect(result.effects).toBe(state.effects);
+    expect(result.sends).toBe(state.sends);
   });
 });
 

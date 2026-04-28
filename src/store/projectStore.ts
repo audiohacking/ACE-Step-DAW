@@ -429,7 +429,7 @@ function _clearAbCompareState() {
   _abActiveSnapshotId = null;
 }
 
-function _applyMixStateToProject(project: Project, mixState: AbMixState): Project {
+function _applyMixStateToProject(project: Project, mixState: AbMixState, cloneCollections = true): Project {
   const trackMap = new Map(mixState.trackStates.map((s) => [s.trackId, s]));
   const returnMap = new Map(mixState.returnTrackStates.map((s) => [s.returnTrackId, s]));
   return {
@@ -437,18 +437,18 @@ function _applyMixStateToProject(project: Project, mixState: AbMixState): Projec
     masterVolume: mixState.masterVolume ?? project.masterVolume,
     tracks: project.tracks.map((track) => {
       const trackState = trackMap.get(track.id);
-      return trackState ? applyTrackMixState(track, trackState) : track;
+      return trackState ? applyTrackMixState(track, trackState, { cloneCollections }) : track;
     }),
     returnTracks: (project.returnTracks ?? []).map((rt) => {
       const rtState = returnMap.get(rt.id);
-      return rtState ? applyReturnTrackMixState(rt, rtState) : rt;
+      return rtState ? applyReturnTrackMixState(rt, rtState, { cloneCollections }) : rt;
     }),
   };
 }
 
 function _getProjectForPersist(project: Project): Project {
   if (!_abPreviousMixState) return project;
-  return _applyMixStateToProject(project, _abPreviousMixState);
+  return _applyMixStateToProject(project, _abPreviousMixState, false);
 }
 
 function _getHistoryBucketKey(scope: HistoryScope, target: HistoryTarget = {}) {

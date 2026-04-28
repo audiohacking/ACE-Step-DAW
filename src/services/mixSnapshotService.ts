@@ -7,6 +7,15 @@ import type {
   Project,
 } from '../types/project';
 
+interface ApplyMixStateOptions {
+  cloneCollections?: boolean;
+}
+
+function applyCollection<T>(value: T[] | undefined, fallback: T[] | undefined, cloneCollections: boolean) {
+  if (value === undefined) return fallback;
+  return cloneCollections ? structuredClone(value) : value;
+}
+
 /** Capture mixer-relevant state from a single track. */
 export function captureTrackMixState(track: Track): MixSnapshotTrackState {
   return {
@@ -65,7 +74,9 @@ export function captureMixState(
 export function applyTrackMixState(
   track: Track,
   state: MixSnapshotTrackState,
+  options: ApplyMixStateOptions = {},
 ): Track {
+  const cloneCollections = options.cloneCollections ?? true;
   return {
     ...track,
     volume: state.volume,
@@ -83,9 +94,9 @@ export function applyTrackMixState(
     compressorRatio: state.compressorRatio,
     reverbMix: state.reverbMix,
     reverbRoomSize: state.reverbRoomSize,
-    effects: structuredClone(state.effects ?? []),
+    effects: applyCollection(state.effects, track.effects, cloneCollections),
     effectsBypassed: state.effectsBypassed,
-    sends: structuredClone(state.sends ?? []),
+    sends: applyCollection(state.sends, track.sends, cloneCollections),
   };
 }
 
@@ -93,12 +104,14 @@ export function applyTrackMixState(
 export function applyReturnTrackMixState(
   rt: ReturnTrack,
   state: MixSnapshotReturnTrackState,
+  options: ApplyMixStateOptions = {},
 ): ReturnTrack {
+  const cloneCollections = options.cloneCollections ?? true;
   return {
     ...rt,
     volume: state.volume,
     pan: state.pan,
-    effects: structuredClone(state.effects),
+    effects: cloneCollections ? structuredClone(state.effects) : state.effects,
   };
 }
 
