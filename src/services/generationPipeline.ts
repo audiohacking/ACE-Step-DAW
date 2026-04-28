@@ -1431,11 +1431,19 @@ function throwIfAborted(signal: AbortSignal): void {
 
 function restoreClipAfterCancellation(clipId: string, fallbackClip?: Clip): void {
   const currentClip = useProjectStore.getState().getClipById(clipId);
-  const clip = currentClip ?? fallbackClip;
-  const status: ClipGenerationStatus = clip?.isolatedAudioKey || clip?.cumulativeMixKey ? 'ready' : 'empty';
+  const hasPlayableAudio = Boolean(
+    currentClip?.isolatedAudioKey
+    || currentClip?.cumulativeMixKey
+    || fallbackClip?.isolatedAudioKey
+    || fallbackClip?.cumulativeMixKey,
+  );
+  const previousStatus = fallbackClip?.generationStatus ?? currentClip?.generationStatus ?? 'empty';
+  const status: ClipGenerationStatus = hasPlayableAudio
+    ? 'ready'
+    : (previousStatus === 'queued' || previousStatus === 'generating' || previousStatus === 'processing' ? 'empty' : previousStatus);
   useProjectStore.getState().updateClipStatus(clipId, status, {
     generationJobId: undefined,
-    errorMessage: undefined,
+    errorMessage: status === 'error' ? fallbackClip?.errorMessage ?? currentClip?.errorMessage : undefined,
   });
 }
 
