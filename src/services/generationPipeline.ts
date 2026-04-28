@@ -2814,30 +2814,40 @@ export async function retryGenerationJob(jobId: string): Promise<void> {
     const project = store.project;
     if (!project) return;
 
-    // Remove the failed/cancelled source job so the retried pipeline owns the visible job state.
-    genStore.removeJob(jobId);
+    if (genStore.isGenerating) {
+      toastError('Generation already in progress');
+      return;
+    }
 
-    await generateText2Music({
-      prompt: (params.prompt as string) ?? '',
-      lyrics: (params.lyrics as string) ?? '',
-      durationSeconds: (params.durationSeconds as number) ?? 60,
-      bpm: (params.bpm as number | null | undefined) ?? project.bpm ?? null,
-      keyScale: (params.keyScale as string | undefined) ?? project.keyScale ?? '',
-      timeSignature: (params.timeSignature as string | undefined) ?? String(project.timeSignature ?? 4),
-      splitToStems: (params.splitToStems as boolean | undefined) ?? false,
-      stemCount: params.stemCount as 2 | 4 | 6 | undefined,
-      thinking: (params.thinking as boolean) ?? false,
-      seed: params.seed as number | undefined,
-      useRandomSeed: (params.useRandomSeed as boolean | undefined) ?? true,
-      vocalLanguage: (params.vocalLanguage as string) ?? '',
-      instrumental: (params.instrumental as boolean) ?? false,
-      inferenceSteps: params.inferenceSteps as number | undefined,
-      guidanceScale: params.guidanceScale as number | undefined,
-      temperature: params.temperature as number | undefined,
-      shift: params.shift as number | undefined,
-      negativePrompt: params.negativePrompt as string | undefined,
-      styleTags: params.styleTags as string[] | undefined,
-    });
+    try {
+      const result = await generateText2Music({
+        prompt: (params.prompt as string) ?? '',
+        lyrics: (params.lyrics as string) ?? '',
+        durationSeconds: (params.durationSeconds as number) ?? 60,
+        bpm: (params.bpm as number | null | undefined) ?? project.bpm ?? null,
+        keyScale: (params.keyScale as string | undefined) ?? project.keyScale ?? '',
+        timeSignature: (params.timeSignature as string | undefined) ?? String(project.timeSignature ?? 4),
+        splitToStems: (params.splitToStems as boolean | undefined) ?? false,
+        stemCount: params.stemCount as 2 | 4 | 6 | undefined,
+        thinking: (params.thinking as boolean) ?? false,
+        seed: params.seed as number | undefined,
+        useRandomSeed: (params.useRandomSeed as boolean | undefined) ?? true,
+        vocalLanguage: (params.vocalLanguage as string) ?? '',
+        instrumental: (params.instrumental as boolean) ?? false,
+        inferenceSteps: params.inferenceSteps as number | undefined,
+        guidanceScale: params.guidanceScale as number | undefined,
+        temperature: params.temperature as number | undefined,
+        shift: params.shift as number | undefined,
+        negativePrompt: params.negativePrompt as string | undefined,
+        styleTags: params.styleTags as string[] | undefined,
+      });
+      if (result.succeeded) {
+        genStore.removeJob(jobId);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Retry failed';
+      toastError(message);
+    }
   }
   // Future: handle 'cover', 'repaint', etc.
 }
@@ -2920,7 +2930,12 @@ export async function generateText2Music(request: Text2MusicRequest): Promise<Te
   }
 
   // Step 1: Ensure text2music model + LM are loaded
-  await modelStore.ensureModelForIntent('full-song');
+  try {
+    await modelStore.ensureModelForIntent('full-song');
+  } catch (error) {
+    genStore.setIsGenerating(false);
+    throw error;
+  }
 
   // Step 2: Create mix track and clip
   const mixTrack = store.addTrack('custom', 'mix', {
@@ -2928,6 +2943,7 @@ export async function generateText2Music(request: Text2MusicRequest): Promise<Te
     color: '#8b5cf6',
   });
   if (!mixTrack) {
+    genStore.setIsGenerating(false);
     throw new Error('Failed to create mix track');
   }
 
@@ -2942,6 +2958,7 @@ export async function generateText2Music(request: Text2MusicRequest): Promise<Te
     globalCaption: request.prompt, // For text2music, the prompt IS the global caption
   });
   if (!clip) {
+    genStore.setIsGenerating(false);
     throw new Error('Failed to create mix clip');
   }
   const clipId = clip.id;
