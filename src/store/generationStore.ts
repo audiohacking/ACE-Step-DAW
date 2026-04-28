@@ -276,6 +276,7 @@ const MAX_STYLE_TAGS = 6;
 
 export interface GenerationFormState {
   prompt: string;
+  negativePrompt: string;
   styleTags: string[];
   bpm: number;
   keyScale: string;
@@ -378,6 +379,7 @@ function normalizeVariationSessionParams(
 export function createDefaultGenerationFormState(): GenerationFormState {
   return {
     prompt: '',
+    negativePrompt: '',
     styleTags: [],
     bpm: DEFAULT_BPM,
     keyScale: DEFAULT_KEY_SCALE,
@@ -463,8 +465,6 @@ export interface GenerationState {
   cancelJob: (jobId: string) => void;
   /** Cancel all active and queued generation jobs. */
   cancelAllJobs: () => void;
-  /** Retry a failed or cancelled job. Returns new job ID, or null if not retryable. */
-  retryJob: (jobId: string) => string | null;
   setIsGenerating: (v: boolean) => void;
   /** Atomically acquire the generation lock. Returns true if acquired, false if already held. */
   tryAcquireGenerationLock: () => boolean;
@@ -478,6 +478,7 @@ export interface GenerationState {
   hydrateGenerationForm: (updates: Partial<GenerationFormState>) => void;
   resetGenerationForm: () => void;
   setGenerationPrompt: (prompt: string) => void;
+  setGenerationNegativePrompt: (negativePrompt: string) => void;
   setGenerationStyleTags: (tags: string[]) => void;
   toggleGenerationStyleTag: (tag: string) => void;
   setGenerationBpm: (bpm: number) => void;
@@ -661,35 +662,6 @@ export const useGenerationStore = create<GenerationState>()(
         }));
       },
 
-      retryJob: (jobId) => {
-        const state = get();
-        const job = state.jobs.find((j) => j.id === jobId);
-        if (!job) return null;
-        // Can only retry failed or cancelled jobs
-        if (job.status !== 'error' && job.status !== 'cancelled') return null;
-        // Must have retryParams
-        if (!job.retryParams) return null;
-
-        const newJobId = `job-retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const newJob: GenerationJob = {
-          id: newJobId,
-          clipId: job.clipId,
-          trackName: job.trackName,
-          status: 'queued',
-          progress: 'Queued (retry)',
-          stage: 'Queued',
-          progressPercent: null,
-          etaSeconds: null,
-          etaConfidence: 'none',
-          startedAt: Date.now(),
-          lastUpdatedAt: Date.now(),
-          retryParams: job.retryParams,
-        };
-
-        set((s) => ({ jobs: [...s.jobs, newJob] }));
-        return newJobId;
-      },
-
       setIsGenerating: (v) => set({ isGenerating: v }),
       tryAcquireGenerationLock: () => {
         const state = get();
@@ -843,6 +815,14 @@ export const useGenerationStore = create<GenerationState>()(
           ...s.generationForm,
           prompt,
           requestError: s.generationForm.requestError ? null : s.generationForm.requestError,
+        },
+      })),
+
+      setGenerationNegativePrompt: (negativePrompt) => set((s) => ({
+        generationForm: {
+          ...s.generationForm,
+          negativePrompt,
+          requestError: null,
         },
       })),
 
@@ -1163,6 +1143,7 @@ export const useGenerationStore = create<GenerationState>()(
 
         for (const variation of s.variationSession.variations) {
           if (!variation.clipId) continue;
+          if (!projState.getClipById(variation.clipId)) continue;
           const shouldMute = variation.index !== clamped;
           projState.updateClip(variation.clipId, { muted: shouldMute });
         }
