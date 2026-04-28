@@ -140,6 +140,7 @@ export function useMidiController(): void {
     return () => {
       unsubDevices();
       unsubMessages();
+      service.destroy();
       engine.removeHandler('track');
       engine.removeHandler('master');
       engine.removeHandler('transport');

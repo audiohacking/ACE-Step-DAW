@@ -9,6 +9,7 @@ import type { MidiMessage } from '../../types/midiController';
 const mockConnect = vi.fn().mockResolvedValue([]);
 const mockOnMessage = vi.fn(() => vi.fn());
 const mockOnDeviceChange = vi.fn(() => vi.fn());
+const mockDestroy = vi.fn();
 
 vi.mock('../../services/webMidiService', () => ({
   WebMidiService: {
@@ -18,7 +19,7 @@ vi.mock('../../services/webMidiService', () => ({
     connect: mockConnect,
     onMessage: mockOnMessage,
     onDeviceChange: mockOnDeviceChange,
-    destroy: vi.fn(),
+    destroy: mockDestroy,
   })),
 }));
 
@@ -75,6 +76,7 @@ describe('useMidiController', () => {
     const { unmount } = renderHook(() => useMidiController());
 
     unmount();
+    expect(mockDestroy).toHaveBeenCalled();
     expect(mockRemoveHandler).toHaveBeenCalledWith('track');
     expect(mockRemoveHandler).toHaveBeenCalledWith('master');
     expect(mockRemoveHandler).toHaveBeenCalledWith('transport');
