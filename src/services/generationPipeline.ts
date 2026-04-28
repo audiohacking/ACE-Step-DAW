@@ -987,10 +987,12 @@ async function generateClipInternal(
     });
 
     const cumulativeBlob = await api.downloadAudio(resultAudioPath, { signal: abortCtrl.signal });
+    throwIfAborted(abortCtrl.signal);
     logger.debug(`Downloaded cumulative audio: size=${cumulativeBlob.size}, type=${cumulativeBlob.type}, path=${resultAudioPath}`);
 
     // Store cumulative mix
     const cumulativeKey = await saveAudioBlob(project.id, clipId, 'cumulative', cumulativeBlob);
+    throwIfAborted(abortCtrl.signal);
 
     // The backend output contains the isolated track in the generation region
     // (repainting_start to repainting_end) and the original context mix outside
@@ -1001,6 +1003,7 @@ async function generateClipInternal(
     // and clip coordinates are relative to ctxStart. Trim using the same offset.
     const engine = getAudioEngine();
     const fullBuffer = await engine.decodeAudioData(cumulativeBlob);
+    throwIfAborted(abortCtrl.signal);
 
     const currentClip = useProjectStore.getState().getClipById(clipId);
     const clipStart = currentClip?.startTime ?? clip.startTime;
@@ -1027,10 +1030,13 @@ async function generateClipInternal(
     }
 
     const isolatedBlob = audioBufferToWavBlob(trimmedBuffer);
+    throwIfAborted(abortCtrl.signal);
     const isolatedKey = await saveAudioBlob(project.id, clipId, 'isolated', isolatedBlob);
+    throwIfAborted(abortCtrl.signal);
 
     // Compute waveform peaks from the trimmed buffer (full buffer = clip region)
     const peaks = await computeWaveformWithMipmap(isolatedKey, trimmedBuffer);
+    throwIfAborted(abortCtrl.signal);
 
     // Build inferred metadata from result
     const inferredMetas: InferredMetas | undefined = firstResult
@@ -3208,6 +3214,7 @@ export async function generateText2Music(request: Text2MusicRequest): Promise<Te
           sourceBlob: audioBlob,
           stemCount: request.stemCount ?? 4,
           sourceLabel: 'Full Mix',
+          skipGenerationLock: true,
         });
 
         stemTrackIds = [];

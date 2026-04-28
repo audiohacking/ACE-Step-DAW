@@ -137,15 +137,20 @@ export function deriveGenerationJobProgress(
     etaConfidence = 'none';
   }
 
+  if (input.status === 'cancelled') {
+    etaSeconds = null;
+    etaConfidence = 'none';
+  }
+
   return {
     progress: input.progress,
     stage,
-    progressPercent: input.status === 'done' ? 100 : monotonicPercent,
+    progressPercent: input.status === 'cancelled' ? null : (input.status === 'done' ? 100 : monotonicPercent),
     etaSeconds,
     etaConfidence,
     startedAt,
     lastUpdatedAt: now,
-    completedAt: input.status === 'done' ? now : previous?.completedAt,
+    completedAt: input.status === 'done' || input.status === 'cancelled' ? now : previous?.completedAt,
     ...buildClassifiedError(input.status, input.error),
     error: input.error,
   };
@@ -629,7 +634,7 @@ export const useGenerationStore = create<GenerationState>()(
         set((state) => {
           const updatedJobs = state.jobs.map((j) =>
             j.id === jobId
-              ? { ...j, status: 'cancelled' as const, progress: 'Cancelled', stage: 'Cancelled', lastUpdatedAt: Date.now() }
+              ? { ...j, status: 'cancelled' as const, progress: 'Cancelled', stage: 'Cancelled', progressPercent: null, etaSeconds: null, etaConfidence: 'none' as const, completedAt: Date.now(), lastUpdatedAt: Date.now() }
               : j,
           );
 
@@ -660,7 +665,7 @@ export const useGenerationStore = create<GenerationState>()(
         set((state) => {
           const updatedJobs = state.jobs.map((j) =>
             abortedJobIds.has(j.id)
-              ? { ...j, status: 'cancelled' as const, progress: 'Cancelled', stage: 'Cancelled', lastUpdatedAt: Date.now() }
+              ? { ...j, status: 'cancelled' as const, progress: 'Cancelled', stage: 'Cancelled', progressPercent: null, etaSeconds: null, etaConfidence: 'none' as const, completedAt: Date.now(), lastUpdatedAt: Date.now() }
               : j,
           );
           const hasActiveJobs = updatedJobs.some(

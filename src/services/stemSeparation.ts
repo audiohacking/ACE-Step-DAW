@@ -172,10 +172,12 @@ export async function separateClipAudioToStems(options: {
   stemCount: StemCount;
   sourceLabel: string;
   engine?: StemSeparationEngine;
+  skipGenerationLock?: boolean;
 }): Promise<PreparedSeparatedStem[]> {
-  const { clipId, sourceBlob, stemCount, sourceLabel, engine: separationEngine } = options;
+  const { clipId, sourceBlob, stemCount, sourceLabel, engine: separationEngine, skipGenerationLock = false } = options;
   const genStore = useGenerationStore.getState();
-  if (!genStore.tryAcquireGenerationLock()) {
+  const ownsGenerationLock = !skipGenerationLock;
+  if (ownsGenerationLock && !genStore.tryAcquireGenerationLock()) {
     throw new Error('Another generation job is already running');
   }
 
@@ -253,7 +255,7 @@ export async function separateClipAudioToStems(options: {
     toastSuccess('Stem separation completed');
     return prepared;
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
+    if (abortController.signal.aborted && error instanceof DOMException && error.name === 'AbortError') {
       genStore.updateJob(jobId, { status: 'cancelled', progress: 'Cancelled', stage: 'Cancelled' });
       throw error;
     }
@@ -263,6 +265,8 @@ export async function separateClipAudioToStems(options: {
     throw error;
   } finally {
     unregisterJobAbortController(jobId);
-    useGenerationStore.getState().setIsGenerating(false);
+    if (ownsGenerationLock) {
+      useGenerationStore.getState().setIsGenerating(false);
+    }
   }
 }

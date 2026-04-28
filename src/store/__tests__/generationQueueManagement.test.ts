@@ -170,9 +170,13 @@ describe('deriveGenerationJobProgress cancelled jobs', () => {
     const progress = deriveGenerationJobProgress(undefined, {
       status: 'cancelled',
       progress: '',
+      progressPercent: 70,
       now: 1_000,
     });
 
     expect(progress.stage).toBe('Cancelled');
+    expect(progress.progressPercent).toBeNull();
+    expect(progress.etaSeconds).toBeNull();
+    expect(progress.completedAt).toBe(1_000);
   });
 });
