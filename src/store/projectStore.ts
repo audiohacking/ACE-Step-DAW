@@ -145,10 +145,13 @@ import { buildConsolidatedMidiClipData, renderConsolidatedAudioClip, validateCli
 import type { MidiCaptureService } from '../services/midiCaptureService';
 import { snapTimeToZeroCrossing } from '../utils/zeroCrossing';
 import {
+  canDestructivelyProcessClipAudio,
   getClipAudibleEndTime,
   getClipAudibleStartTime,
+  getClipAudibleTimelineDuration,
   getClipContentOffset,
   getClipPlaybackRate,
+  getClipSourceSpan,
   isClipRepitchStretched,
 } from '../utils/clipAudio';
 import { computeWaveformWithMipmap } from '../utils/waveformPeaks';
@@ -750,6 +753,7 @@ export interface ProjectState extends MidiSliceActions {
   setActiveVersion: (clipId: string, idx: number) => void;
   setClipFade: (clipId: string, fade: Partial<Pick<Clip, 'fadeInDuration' | 'fadeOutDuration' | 'fadeInCurve' | 'fadeOutCurve' | 'fadeInCurvePoint' | 'fadeOutCurvePoint'>>) => void;
   setClipTimeStretch: (clipId: string, rate: number) => void;
+  setClipSpeedPreset: (clipId: string, rate: number) => void;
   setClipPitchShift: (clipId: string, semitones: number) => void;
   setClipStretchMode: (clipId: string, mode: StretchMode) => void;
   tempoMatchClip: (clipId: string, sourceBpm: number) => void;
@@ -789,6 +793,13 @@ export interface ProjectState extends MidiSliceActions {
   batchMoveClips: (clipIds: string[], timeOffset: number) => void;
   /** Paste pre-built clips into their target tracks. Returns IDs of newly created clips. */
   pasteClipsToTracks: (clips: { clip: Clip; targetTrackId: string }[]) => string[];
+
+  /** Destructive audio processing: reverse clip audio. */
+  reverseClip: (clipId: string) => Promise<void>;
+  /** Destructive audio processing: normalize clip audio to peak. */
+  normalizeClip: (clipId: string) => Promise<void>;
+  /** Destructive audio processing: apply gain adjustment in dB. */
+  adjustClipGain: (clipId: string, gainDb: number) => Promise<void>;
 
   // Session View / clip launcher
   createSessionScene: (name?: string) => SessionScene | undefined;
@@ -2074,6 +2085,36 @@ function restoreClipFromAsset(asset: AssetClip, trackId: string, startTime: numb
     source: snapshot.source ?? asset.source,
     starred: asset.starred,
   };
+}
+
+function syncAssetForClip(project: Project, clipId: string): Project {
+  if (!project.assets?.some((asset) => asset.clipId === clipId)) return project;
+
+  for (const track of project.tracks) {
+    const clip = track.clips.find((candidate) => candidate.id === clipId);
+    if (!clip) continue;
+    return {
+      ...project,
+      assets: project.assets.map((asset) => (
+        asset.clipId !== clipId
+          ? asset
+          : {
+              ...asset,
+              trackDisplayName: track.displayName,
+              prompt: clip.prompt,
+              source: clip.source ?? asset.source,
+              isolatedAudioKey: clip.isolatedAudioKey,
+              cumulativeMixKey: clip.cumulativeMixKey,
+              waveformPeaks: clip.waveformPeaks,
+              duration: clip.duration,
+              originTrackSnapshot: buildAssetTrackSnapshot(track),
+              originClipSnapshot: buildAssetClipSnapshot(clip, asset.starred),
+            }
+      )),
+    };
+  }
+
+  return project;
 }
 
 function hydrateAssetOriginSnapshots(project: Project): Project {
@@ -4686,6 +4727,23 @@ export const useProjectStore = create<ProjectState>()(
     get().updateClip(clipId, { timeStretchRate: rate });
   },
 
+  setClipSpeedPreset: (clipId, rate) => {
+    if (rate <= 0) return;
+    const clip = get().getClipById(clipId);
+    if (!clip) return;
+    const sourceSpan = getClipSourceSpan(clip);
+    if (sourceSpan <= 0) return;
+    const contentOffset = isClipRepitchStretched(clip) ? 0 : getClipContentOffset(clip);
+    get().updateClip(clipId, {
+      startTime: clip.startTime + contentOffset,
+      duration: Math.max(0.001, sourceSpan / rate),
+      timeStretchRate: rate,
+      stretchMode: 'repitch',
+      warpMarkers: undefined,
+      contentOffset: undefined,
+    });
+  },
+
   setClipPitchShift: (clipId, semitones) => {
     get().updateClip(clipId, { pitchShift: semitones });
   },
@@ -5622,6 +5680,96 @@ export const useProjectStore = create<ProjectState>()(
     });
 
     return newClipIds;
+  },
+
+  reverseClip: async (clipId) => {
+    const state = get();
+    if (_isViewerMode()) return;
+    const clip = state.getClipById(clipId);
+    if (!clip || !state.project) return;
+    const hasAudio = clip.isolatedAudioKey || clip.cumulativeMixKey;
+    if (!hasAudio || clip.generationStatus !== 'ready') return;
+    if (!canDestructivelyProcessClipAudio(clip)) return;
+    try {
+      const { reverseClipAudio } = await import('../services/clipAudioProcessing');
+      const result = await reverseClipAudio(state.project.id, clip);
+      get().updateClip(clipId, {
+        startTime: getClipAudibleStartTime(clip),
+        duration: Math.max(0.001, getClipAudibleTimelineDuration(clip)),
+        isolatedAudioKey: result.audioKey,
+        cumulativeMixKey: null,
+        serverCumulativePath: undefined,
+        generatedFromContext: false,
+        waveformPeaks: result.waveformPeaks,
+        audioDuration: result.audioDuration,
+        audioOffset: 0,
+        contentOffset: undefined,
+        warpMarkers: undefined,
+      });
+      set((current) => current.project ? { project: syncAssetForClip(current.project, clipId) } : current);
+    } catch (e) {
+      console.error('Failed to reverse clip:', e);
+    }
+  },
+
+  normalizeClip: async (clipId) => {
+    const state = get();
+    if (_isViewerMode()) return;
+    const clip = state.getClipById(clipId);
+    if (!clip || !state.project) return;
+    const hasAudio = clip.isolatedAudioKey || clip.cumulativeMixKey;
+    if (!hasAudio || clip.generationStatus !== 'ready') return;
+    if (!canDestructivelyProcessClipAudio(clip)) return;
+    try {
+      const { normalizeClipAudio } = await import('../services/clipAudioProcessing');
+      const result = await normalizeClipAudio(state.project.id, clip);
+      get().updateClip(clipId, {
+        startTime: getClipAudibleStartTime(clip),
+        duration: Math.max(0.001, getClipAudibleTimelineDuration(clip)),
+        isolatedAudioKey: result.audioKey,
+        cumulativeMixKey: null,
+        serverCumulativePath: undefined,
+        generatedFromContext: false,
+        waveformPeaks: result.waveformPeaks,
+        audioDuration: result.audioDuration,
+        audioOffset: 0,
+        contentOffset: undefined,
+        warpMarkers: undefined,
+      });
+      set((current) => current.project ? { project: syncAssetForClip(current.project, clipId) } : current);
+    } catch (e) {
+      console.error('Failed to normalize clip:', e);
+    }
+  },
+
+  adjustClipGain: async (clipId, gainDb) => {
+    const state = get();
+    if (_isViewerMode()) return;
+    const clip = state.getClipById(clipId);
+    if (!clip || !state.project) return;
+    const hasAudio = clip.isolatedAudioKey || clip.cumulativeMixKey;
+    if (!hasAudio || clip.generationStatus !== 'ready') return;
+    if (!canDestructivelyProcessClipAudio(clip)) return;
+    try {
+      const { adjustClipGain: adjustGain } = await import('../services/clipAudioProcessing');
+      const result = await adjustGain(state.project.id, clip, gainDb);
+      get().updateClip(clipId, {
+        startTime: getClipAudibleStartTime(clip),
+        duration: Math.max(0.001, getClipAudibleTimelineDuration(clip)),
+        isolatedAudioKey: result.audioKey,
+        cumulativeMixKey: null,
+        serverCumulativePath: undefined,
+        generatedFromContext: false,
+        waveformPeaks: result.waveformPeaks,
+        audioDuration: result.audioDuration,
+        audioOffset: 0,
+        contentOffset: undefined,
+        warpMarkers: undefined,
+      });
+      set((current) => current.project ? { project: syncAssetForClip(current.project, clipId) } : current);
+    } catch (e) {
+      console.error('Failed to adjust clip gain:', e);
+    }
   },
 
   createSessionScene: (name) => {
