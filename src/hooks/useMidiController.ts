@@ -77,6 +77,11 @@ function handleTransportParam(target: ResolvedTarget, value: number): void {
   }
 }
 
+function isToggleMappingTarget(targetParam: string): boolean {
+  const parts = targetParam.split(':');
+  return parts[0] === 'track' && (parts[2] === 'mute' || parts[2] === 'solo');
+}
+
 export function useMidiController(): void {
   const enabled = useMidiControllerStore((s) => s.enabled);
 
@@ -131,6 +136,9 @@ export function useMidiController(): void {
       if (msg.type === 'cc' || msg.type === 'noteOn' || msg.type === 'noteOff' || msg.type === 'pitchBend') {
         const controlType = msg.type === 'pitchBend' ? 'pitchBend' : msg.type === 'cc' ? 'cc' : 'note';
         const mapping = store.findMapping(msg.deviceId, msg.channel, controlType, msg.control);
+        if (msg.type === 'noteOff' && mapping && !isToggleMappingTarget(mapping.targetParam)) {
+          return;
+        }
         if (mapping) {
           engine.processMessage(msg, mapping);
         }

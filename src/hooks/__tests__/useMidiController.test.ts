@@ -189,6 +189,40 @@ describe('useMidiController', () => {
     expect(mockProcessMessage).toHaveBeenCalledWith(noteOff, mapping);
   });
 
+  it('ignores noteOff messages for continuous note mappings', () => {
+    const mapping = {
+      id: 'map-note-volume',
+      deviceId: 'dev-1',
+      deviceName: 'Controller',
+      channel: 0,
+      controlType: 'note' as const,
+      controlNumber: 60,
+      targetParam: 'master:volume',
+      targetLabel: 'Master Volume',
+      min: 0,
+      max: 1,
+    };
+
+    useMidiControllerStore.setState({
+      enabled: true,
+      mappings: [mapping],
+    });
+
+    renderHook(() => useMidiController());
+
+    const messageHandler = mockOnMessage.mock.calls[0][0] as (msg: MidiMessage) => void;
+    messageHandler({
+      deviceId: 'dev-1',
+      channel: 0,
+      type: 'noteOff',
+      control: 60,
+      value: 0,
+      timestamp: 2200,
+    });
+
+    expect(mockProcessMessage).not.toHaveBeenCalled();
+  });
+
   it('edge-detects track mute and solo mappings instead of repeatedly toggling above threshold', () => {
     useProjectStore.getState().createProject({ name: 'MIDI Test', bpm: 120 });
     const track = useProjectStore.getState().addTrack('synth');
