@@ -1085,6 +1085,61 @@ export function buildCommandPaletteCommands(context: CommandPaletteContext): Com
     }
   }
 
+  // MIDI Controller commands
+  commands.push(
+    createTrackCommand(
+      'midi:toggle-panel',
+      'Toggle MIDI Controller Panel',
+      'MIDI',
+      'action',
+      ['midi', 'controller', 'device', 'hardware', 'panel'],
+      ['show midi controllers', 'hide midi panel', 'midi devices'],
+      async () => {
+        const { useUIStore } = await import('../store/uiStore');
+        const ui = useUIStore.getState();
+        ui.setShowMidiControllerPanel(!ui.showMidiControllerPanel);
+      },
+      undefined,
+      'Show/hide MIDI controller panel',
+    ),
+    createTrackCommand(
+      'midi:learn',
+      'MIDI Learn Master Volume',
+      'MIDI',
+      'parameter',
+      ['midi', 'learn', 'map', 'assign', 'controller', 'master', 'volume'],
+      ['midi learn master volume', 'assign midi controller to master volume', 'map midi'],
+      async () => {
+        const { useMidiControllerStore } = await import('../store/midiControllerStore');
+        const { useUIStore } = await import('../store/uiStore');
+        const state = useMidiControllerStore.getState();
+        if (state.learnMode.active) {
+          state.cancelLearnMode();
+        } else {
+          useUIStore.getState().setShowMidiControllerPanel(true);
+          state.setEnabled(true);
+          state.startLearnMode('master:volume', 'Master Volume');
+        }
+      },
+      undefined,
+      'Arm MIDI learn for the master volume parameter',
+    ),
+    createTrackCommand(
+      'midi:clear-all',
+      'Clear All MIDI Mappings',
+      'MIDI',
+      'action',
+      ['midi', 'clear', 'reset', 'mappings', 'controller'],
+      ['remove all midi mappings', 'reset midi', 'clear controller assignments'],
+      async () => {
+        const { useMidiControllerStore } = await import('../store/midiControllerStore');
+        useMidiControllerStore.getState().clearAllMappings();
+      },
+      undefined,
+      'Remove all MIDI controller mappings',
+    ),
+  );
+
   // ── Track Preset Manager ──────────────────────────────────────────────
   commands.push(
     createTrackCommand(

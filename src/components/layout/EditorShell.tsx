@@ -4,6 +4,7 @@ import { Toolbar } from './Toolbar';
 import { NewProjectDialog } from '../dialogs/NewProjectDialog';
 import { ToastContainer } from '../ui/Toast';
 import { UndoHistoryPanel } from './UndoHistoryPanel';
+import { MidiControllerPanel } from './MidiControllerPanel';
 import { TrackPresetManagerPanel } from './TrackPresetManagerPanel';
 import { StatusBar } from './StatusBar';
 import { SkipLinks } from '../ui/SkipLinks';
@@ -16,6 +17,7 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useEffectsSync } from '../../hooks/useEffectsSync';
 import { useVST3Connection } from '../../hooks/useVST3Connection';
 import { useVST3Sync } from '../../hooks/useVST3Sync';
+import { useMidiController } from '../../hooks/useMidiController';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { WelcomeOverlay } from '../dialogs/WelcomeOverlay';
 import { useOnboardingTracking } from '../../hooks/useOnboardingTracking';
@@ -141,6 +143,7 @@ export function EditorShell() {
   useEffectsSync();
   useVST3Connection();
   useVST3Sync();
+  useMidiController();
 
   return (
     <div
@@ -205,6 +208,7 @@ export function EditorShell() {
       {project && <Suspense fallback={null}><AddLayerPanel /></Suspense>}
       <ToastContainer />
       <UndoHistoryPanel />
+      <MidiControllerPanel />
       <TrackPresetManagerPanel />
       <WelcomeOverlay />
 

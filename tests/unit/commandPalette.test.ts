@@ -8,6 +8,7 @@ import {
 } from '../../src/services/commandPalette';
 import { useProjectStore } from '../../src/store/projectStore';
 import { useTransportStore } from '../../src/store/transportStore';
+import { useMidiControllerStore } from '../../src/store/midiControllerStore';
 import { useUIStore } from '../../src/store/uiStore';
 
 function createContext(overrides: Partial<CommandPaletteContext> = {}): CommandPaletteContext {
@@ -74,6 +75,7 @@ describe('commandPalette', () => {
     localStorage.clear();
     useProjectStore.setState(useProjectStore.getInitialState(), true);
     useTransportStore.setState(useTransportStore.getInitialState(), true);
+    useMidiControllerStore.setState(useMidiControllerStore.getInitialState(), true);
     useUIStore.setState(useUIStore.getInitialState(), true);
     useProjectStore.getState().createProject({ name: 'Palette Test', bpm: 120 });
   });
@@ -204,6 +206,23 @@ describe('commandPalette', () => {
 
     await fitProject?.execute();
     expect(useUIStore.getState().timelineZoomRequest).toEqual({ id: 2, mode: 'project' });
+  });
+
+  // ── MIDI controller commands ──
+
+  it('arms MIDI Learn for a concrete master-volume target', async () => {
+    const commands = buildCommandPaletteCommands(createContext());
+    const midiLearn = commands.find((c) => c.id === 'midi:learn');
+
+    await midiLearn?.execute();
+
+    expect(useUIStore.getState().showMidiControllerPanel).toBe(true);
+    expect(useMidiControllerStore.getState().learnMode).toEqual({
+      active: true,
+      targetParam: 'master:volume',
+      targetLabel: 'Master Volume',
+    });
+    expect(useMidiControllerStore.getState().enabled).toBe(true);
   });
 
   // ── Search scoring ──

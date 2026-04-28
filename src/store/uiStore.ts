@@ -78,6 +78,7 @@ export interface UIState {
   commandPaletteQuery: string;
   recentCommandIds: string[];
   showUndoHistoryPanel: boolean;
+  showMidiControllerPanel: boolean;
   showTrackPresetManager: boolean;
   grooveStrength: number;
   historyFocusScope: HistoryScope;
@@ -322,6 +323,7 @@ export interface UIState {
   searchCommandPalette: (query?: string) => CommandPaletteSearchResult[];
   executeCommandPaletteCommand: (commandId: string) => Promise<boolean>;
   setShowUndoHistoryPanel: (v: boolean) => void;
+  setShowMidiControllerPanel: (v: boolean) => void;
   setShowTrackPresetManager: (v: boolean) => void;
   setGrooveStrength: (v: number) => void;
   setHistoryFocusScope: (scope: HistoryScope, target?: HistoryTarget) => void;
@@ -664,6 +666,7 @@ export const useUIStore = create<UIState>()(
   commandPaletteQuery: '',
   recentCommandIds: [],
   showUndoHistoryPanel: false,
+  showMidiControllerPanel: false,
   showTrackPresetManager: false,
   grooveStrength: 100,
   historyFocusScope: 'arrangement',
@@ -998,6 +1001,7 @@ export const useUIStore = create<UIState>()(
     return true;
   },
   setShowUndoHistoryPanel: (v) => set({ showUndoHistoryPanel: v }),
+  setShowMidiControllerPanel: (v) => set({ showMidiControllerPanel: v }),
   setShowTrackPresetManager: (v) => set({ showTrackPresetManager: v }),
   setGrooveStrength: (v) => set((state) => ({
     grooveStrength: Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : state.grooveStrength,
@@ -1444,6 +1448,7 @@ export const useUIStore = create<UIState>()(
         showLibrary: state.showLibrary,
         loopBrowserOpen: state.loopBrowserOpen,
         showVirtualKeyboard: state.showVirtualKeyboard,
+        showMidiControllerPanel: state.showMidiControllerPanel,
         showSmartControls: state.showSmartControls,
         statusBarAutoHide: state.statusBarAutoHide,
         keyboardContext: state.keyboardContext,
