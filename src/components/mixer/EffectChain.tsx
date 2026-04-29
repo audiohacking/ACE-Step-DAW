@@ -192,6 +192,26 @@ const EFFECT_PRESETS: Record<TrackEffectType, EffectPreset[]> = {
     { name: 'Medium', params: { amount: 0.5, threshold: -50, mode: 'smooth', hfEmphasis: 0.5, mix: 1 } as NoiseGateReductionParams },
     { name: 'Heavy', params: { amount: 0.8, threshold: -40, mode: 'fast', hfEmphasis: 0.7, mix: 1 } as NoiseGateReductionParams },
   ],
+  spectralFreeze: [
+    { name: 'Infinite Hold', params: { frozen: false, mix: 1, decay: 1, brightness: 0, fftSize: 2048 } },
+    { name: 'Slow Fade', params: { frozen: false, mix: 1, decay: 0.7, brightness: 0, fftSize: 2048 } },
+    { name: 'Bright Freeze', params: { frozen: false, mix: 1, decay: 1, brightness: 0.5, fftSize: 2048 } },
+  ],
+  spectralBlur: [
+    { name: 'Light Wash', params: { blurAmount: 0.3, frequencySpread: 0, mix: 0.4, brightness: 0, fftSize: 2048 } },
+    { name: 'Heavy Smear', params: { blurAmount: 0.9, frequencySpread: 0.5, mix: 0.6, brightness: 0, fftSize: 2048 } },
+    { name: 'Airy Pad', params: { blurAmount: 0.7, frequencySpread: 0.2, mix: 0.5, brightness: 0.4, fftSize: 4096 } },
+  ],
+  spectralFilter: [
+    { name: 'Flat', params: { points: [{ frequency: 20, gain: 0 }, { frequency: 20000, gain: 0 }], resolution: 0.5, mix: 1, fftSize: 2048 } },
+    { name: 'Low Pass', params: { points: [{ frequency: 20, gain: 0 }, { frequency: 2000, gain: 0 }, { frequency: 4000, gain: -48 }, { frequency: 20000, gain: -48 }], resolution: 0.3, mix: 1, fftSize: 2048 } },
+    { name: 'Band Focus', params: { points: [{ frequency: 20, gain: -24 }, { frequency: 500, gain: 0 }, { frequency: 4000, gain: 0 }, { frequency: 20000, gain: -24 }], resolution: 0.5, mix: 1, fftSize: 2048 } },
+  ],
+  spectralMorph: [
+    { name: 'Half Blend', params: { morphAmount: 0.5, frozen: false, mix: 0.5, fftSize: 2048 } },
+    { name: 'Mostly Source', params: { morphAmount: 0.2, frozen: false, mix: 0.7, fftSize: 2048 } },
+    { name: 'Mostly Target', params: { morphAmount: 0.8, frozen: false, mix: 0.7, fftSize: 2048 } },
+  ],
 };
 
 import {
@@ -214,6 +234,10 @@ import {
   StereoImagerCard,
   AlgorithmicReverbCard,
   NoiseReductionCard,
+  SpectralFreezeCard,
+  SpectralBlurCard,
+  SpectralFilterCard,
+  SpectralMorphCard,
   EFFECT_COLORS,
 } from './EffectCards';
 
@@ -239,6 +263,10 @@ const EFFECT_DISPLAY_NAMES: Record<TrackEffectType, string> = {
   stereoImager: 'Stereo Imager',
   algorithmicReverb: 'Algo Reverb',
   noiseReduction: 'Noise Reduce',
+  spectralFreeze: 'Spectral Freeze',
+  spectralBlur: 'Spectral Blur',
+  spectralFilter: 'Spectral Filter',
+  spectralMorph: 'Spectral Morph',
 };
 
 
@@ -271,6 +299,10 @@ const EFFECT_WIDTH_TIER: Record<TrackEffectType, WidthTier> = {
   stereoImager: 'standard',
   algorithmicReverb: 'wide',
   noiseReduction: 'compact',
+  spectralFreeze: 'standard',
+  spectralBlur: 'standard',
+  spectralFilter: 'wide',
+  spectralMorph: 'standard',
 };
 const WIDTH_TIER_CLASSES: Record<WidthTier, string> = {
   compact: 'min-w-[160px] max-w-[200px]',
@@ -419,6 +451,8 @@ function EffectDevice({
         {/* Preset selector */}
         <div className="relative" data-no-drag>
           <button
+            aria-haspopup="menu"
+            aria-expanded={showPresets}
             className="flex items-center gap-0.5 text-[9px] text-white/40 hover:text-white/60 transition-colors px-1 py-0.5 rounded hover:bg-white/[0.06]"
             onClick={(e) => { e.stopPropagation(); setShowPresets(!showPresets); }}
           >
@@ -427,12 +461,27 @@ function EffectDevice({
           </button>
           {showPresets && (
             <div
+              role="menu"
+              aria-label={`${EFFECT_DISPLAY_NAMES[effect.type] ?? effect.type} presets`}
+              tabIndex={-1}
+              ref={(node) => { if (node) requestAnimationFrame(() => node.focus()); }}
               className="absolute right-0 top-full mt-1 bg-daw-surface-2 border border-white/10 rounded shadow-xl z-50 py-1 min-w-[100px]"
               onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+                if (!items.length) { if (e.key === 'Escape') setShowPresets(false); return; }
+                const idx = items.findIndex((item) => item === document.activeElement);
+                if (e.key === 'ArrowDown') { e.preventDefault(); items[idx < 0 ? 0 : (idx + 1) % items.length].focus(); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); items[idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length].focus(); }
+                else if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
+                else if (e.key === 'End') { e.preventDefault(); items[items.length - 1].focus(); }
+                else if (e.key === 'Escape' || e.key === 'Tab') { setShowPresets(false); }
+              }}
             >
               {presets.map((preset, i) => (
                 <button
                   key={i}
+                  role="menuitem"
                   className="w-full text-left px-3 py-1 text-[10px] text-white/60 hover:bg-white/10 hover:text-white/80"
                   onClick={() => { applyPreset(i); setShowPresets(false); }}
                 >
@@ -447,6 +496,8 @@ function EffectDevice({
         {!fullWidth && (
           <button
             data-no-drag
+            aria-label={collapsed ? `Expand ${EFFECT_DISPLAY_NAMES[effect.type] ?? effect.type}` : `Collapse ${EFFECT_DISPLAY_NAMES[effect.type] ?? effect.type}`}
+            aria-expanded={!collapsed}
             className="h-4 w-4 flex items-center justify-center text-white/25 hover:text-white/50 transition-colors"
             onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
           >
@@ -461,11 +512,26 @@ function EffectDevice({
       {/* Right-click context menu (compact view) */}
       {ctxMenu && (
         <div
+          role="menu"
+          aria-label={`${EFFECT_DISPLAY_NAMES[effect.type] ?? effect.type} actions`}
+          tabIndex={-1}
+          ref={(node) => { if (node) requestAnimationFrame(() => node.focus()); }}
           className="fixed bg-[#1a1a36] border border-white/10 rounded-lg shadow-xl py-1 min-w-[130px]"
           style={{ left: Math.min(ctxMenu.x, window.innerWidth - 160), top: Math.min(ctxMenu.y, window.innerHeight - 200), zIndex: 9999 }}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])'));
+            if (!items.length) { if (e.key === 'Escape') setCtxMenu(null); return; }
+            const idx = items.findIndex((item) => item === document.activeElement);
+            if (e.key === 'ArrowDown') { e.preventDefault(); items[idx < 0 ? 0 : (idx + 1) % items.length].focus(); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); items[idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length].focus(); }
+            else if (e.key === 'Home') { e.preventDefault(); items[0].focus(); }
+            else if (e.key === 'End') { e.preventDefault(); items[items.length - 1].focus(); }
+            else if (e.key === 'Escape') { e.preventDefault(); setCtxMenu(null); }
+          }}
         >
           <button
+            role="menuitem"
             className="w-full text-left px-3 py-1.5 text-[10px] text-white/60 hover:bg-white/10"
             onClick={() => { addTrackEffect(track.id, effect.type); setCtxMenu(null); }}
           >
@@ -473,6 +539,7 @@ function EffectDevice({
           </button>
           {index > 0 && (
             <button
+              role="menuitem"
               className="w-full text-left px-3 py-1.5 text-[10px] text-white/60 hover:bg-white/10"
               onClick={() => { reorderTrackEffect(track.id, index, index - 1); setCtxMenu(null); }}
             >
@@ -481,14 +548,16 @@ function EffectDevice({
           )}
           {index < effects.length - 1 && (
             <button
+              role="menuitem"
               className="w-full text-left px-3 py-1.5 text-[10px] text-white/60 hover:bg-white/10"
               onClick={() => { reorderTrackEffect(track.id, index, index + 1); setCtxMenu(null); }}
             >
               Move Right
             </button>
           )}
-          <div className="border-t border-white/5 my-1" />
+          <div className="border-t border-white/5 my-1" role="separator" />
           <button
+            role="menuitem"
             className="w-full text-left px-3 py-1.5 text-[10px] text-red-400/70 hover:bg-white/10"
             onClick={() => { removeTrackEffect(track.id, effect.id); setCtxMenu(null); }}
           >
@@ -535,6 +604,10 @@ function EffectCardBody({ effect, trackId }: { effect: TrackEffect; trackId: str
     case 'stereoImager': return <StereoImagerCard effect={effect} trackId={trackId} />;
     case 'algorithmicReverb': return <AlgorithmicReverbCard effect={effect} trackId={trackId} />;
     case 'noiseReduction': return <NoiseReductionCard effect={effect} trackId={trackId} />;
+    case 'spectralFreeze': return <SpectralFreezeCard effect={effect} trackId={trackId} />;
+    case 'spectralBlur': return <SpectralBlurCard effect={effect} trackId={trackId} />;
+    case 'spectralFilter': return <SpectralFilterCard effect={effect} trackId={trackId} />;
+    case 'spectralMorph': return <SpectralMorphCard effect={effect} trackId={trackId} />;
     default: return null;
   }
 }
@@ -567,6 +640,10 @@ function AddEffectButton({ trackId }: { trackId: string }) {
     { type: 'stereoImager', label: 'Stereo Imager', icon: '🔊' },
     { type: 'algorithmicReverb', label: 'Algorithmic Reverb', icon: '🏔️' },
     { type: 'noiseReduction', label: 'Noise Reduction', icon: '🔇' },
+    { type: 'spectralFreeze', label: 'Spectral Freeze', icon: '❄' },
+    { type: 'spectralBlur', label: 'Spectral Blur', icon: '🌫' },
+    { type: 'spectralFilter', label: 'Spectral Filter', icon: '🔬' },
+    { type: 'spectralMorph', label: 'Spectral Morph', icon: '🧬' },
   ];
 
   const handleToggle = () => {

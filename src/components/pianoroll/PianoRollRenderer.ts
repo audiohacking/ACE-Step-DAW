@@ -2,6 +2,7 @@ import type { MidiNote } from '../../types/project';
 import type { GhostNote } from './PianoRollCanvas';
 import { drawPianoRollKeyboard } from './PianoRollKeyboard';
 import { drawVelocityLane } from './VelocityLane';
+import { drawExpressionLane, type ExpressionLaneType } from './ExpressionLane';
 import {
   getPianoRollNoteVisualStyle,
   getPianoRollToolShortcut,
@@ -45,6 +46,10 @@ export interface PianoRollDrawParams {
   aiSelectionEndBeat?: number | null;
   /** Preview notes from AI generation (rendered semi-transparently) */
   aiPreviewNotes?: MidiNote[];
+  /** Height of the MPE expression lane (0 = hidden). */
+  expressionLaneHeight?: number;
+  /** Which expression type to display. */
+  expressionType?: ExpressionLaneType;
 }
 
 /** Draw horizontal key rows (background shading + gridlines). */
@@ -186,9 +191,17 @@ function drawNote(
     ctx.globalAlpha = 1.0;
   }
 
-  // Note body
+  // Clamp confidence once for all confidence-dependent rendering
+  const confidence = note.confidence !== undefined
+    ? Math.max(0, Math.min(1, note.confidence))
+    : undefined;
+
+  // Note body — reduce opacity for low-confidence transcribed notes
   ctx.fillStyle = noteVisualStyle.fillStyle;
-  ctx.globalAlpha = noteVisualStyle.globalAlpha;
+  const confidenceAlpha = confidence !== undefined
+    ? 0.4 + confidence * 0.6  // 0.4–1.0 based on confidence
+    : 1.0;
+  ctx.globalAlpha = noteVisualStyle.globalAlpha * confidenceAlpha;
   ctx.beginPath();
   ctx.roundRect(noteX, noteY, Math.max(noteWidth, 3), noteHeight, 2);
   ctx.fill();
@@ -217,11 +230,26 @@ function drawNote(
     ctx.fillStyle = isSlide ? 'rgba(24,24,27,0.85)' : 'rgba(0,0,0,0.6)';
     ctx.font = `${Math.min(9, noteHeight * 0.7)}px "Geist Mono", monospace`;
     ctx.textBaseline = 'middle';
-    ctx.fillText(isSlide ? `${midiNoteToName(note.pitch)} SL` : midiNoteToName(note.pitch), noteX + 3, noteY + noteHeight / 2);
+    let label = isSlide ? `${midiNoteToName(note.pitch)} SL` : midiNoteToName(note.pitch);
+    // Show confidence percentage for transcribed notes
+    if (confidence !== undefined && noteWidth > 60) {
+      label += ` ${Math.round(confidence * 100)}%`;
+    }
+    ctx.fillText(label, noteX + 3, noteY + noteHeight / 2);
+  }
+
+  // Confidence indicator (for audio-to-MIDI transcribed notes)
+  if (confidence !== undefined && noteWidth > 6 && noteHeight > 6) {
+    const conf = confidence;
+    // Color: red (low) → yellow (mid) → green (high)
+    const r = conf < 0.5 ? 255 : Math.round(255 * (1 - conf) * 2);
+    const g = conf > 0.5 ? 255 : Math.round(255 * conf * 2);
+    ctx.fillStyle = `rgba(${r},${g},80,0.7)`;
+    ctx.fillRect(noteX + 1, noteY + noteHeight - 2, Math.max((noteWidth - 2) * conf, 2), 2);
   }
 
   // Velocity accent bar
-  if (!isSlide && noteWidth > 8 && noteHeight > 6) {
+  if (!isSlide && noteWidth > 8 && noteHeight > 6 && confidence === undefined) {
     ctx.fillStyle = `rgba(255,255,255,${noteVisualStyle.velocityAccentOpacity})`;
     ctx.fillRect(noteX + 2, noteY + noteHeight - 3, Math.max((noteWidth - 4) * velocityRatio, 2), 1.5);
   }
@@ -428,7 +456,8 @@ export function drawPianoRoll(params: PianoRollDrawParams): void {
     aiPreviewNotes,
   } = params;
 
-  const noteAreaHeight = height - velocityHeight;
+  const expressionLaneHeight = params.expressionLaneHeight ?? 0;
+  const noteAreaHeight = height - velocityHeight - expressionLaneHeight;
   const gridBeats = gridSizeToBeats(gridSize);
 
   // Background
@@ -516,6 +545,25 @@ export function drawPianoRoll(params: PianoRollDrawParams): void {
     beatToX,
     pixelsPerBeat,
   });
+
+  // Expression lane (MPE) — rendered below velocity lane
+  const exprType = params.expressionType ?? 'pitchBend';
+  if (expressionLaneHeight > 0) {
+    const exprDividerY = dividerY + velocityHeight;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(0, exprDividerY, width, 3);
+    drawExpressionLane({
+      ctx,
+      width,
+      dividerY: exprDividerY,
+      laneHeight: expressionLaneHeight,
+      notes,
+      selectedNoteIds,
+      beatToX,
+      pixelsPerBeat,
+      expressionType: exprType,
+    });
+  }
 
   // Tool badge
   drawToolBadge(ctx, activeTool, width);
