@@ -10,6 +10,7 @@ import {
 const mockCache = new Map<string, ArrayBuffer>();
 
 vi.mock('idb-keyval', () => ({
+  createStore: vi.fn(() => ({})),
   get: vi.fn((key: string) => Promise.resolve(mockCache.get(key))),
   set: vi.fn((key: string, value: ArrayBuffer) => {
     mockCache.set(key, value);

@@ -4,6 +4,7 @@ import { VoiceCard } from '../VoiceCard';
 import type { VoiceProfile } from '../../../types/voice';
 
 vi.mock('idb-keyval', () => ({
+  createStore: vi.fn(() => ({})),
   get: vi.fn(),
   set: vi.fn(),
   del: vi.fn(),

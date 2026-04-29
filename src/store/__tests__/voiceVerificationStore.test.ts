@@ -4,6 +4,7 @@ import { useVoiceStore } from '../voiceStore';
 import type { AddVoiceInput } from '../voiceStore';
 
 vi.mock('idb-keyval', () => ({
+  createStore: vi.fn(() => ({})),
   get: vi.fn(),
   set: vi.fn().mockResolvedValue(undefined),
   del: vi.fn(),

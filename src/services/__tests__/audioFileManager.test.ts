@@ -11,6 +11,7 @@ import {
 const mockStore = new Map<string, unknown>();
 
 vi.mock('idb-keyval', () => ({
+  createStore: vi.fn(() => ({})),
   get: vi.fn((key: string) => Promise.resolve(mockStore.get(key))),
   set: vi.fn((key: string, value: unknown) => {
     mockStore.set(key, value);
