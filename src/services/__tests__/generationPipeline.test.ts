@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock idb-keyval to prevent "indexedDB is not defined" from debounced auto-save
 vi.mock('idb-keyval', () => ({
+  createStore: vi.fn(() => ({})),
   get: vi.fn(),
   set: vi.fn(() => Promise.resolve()),
   del: vi.fn(() => Promise.resolve()),

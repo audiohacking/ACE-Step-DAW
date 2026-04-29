@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { VoiceRecordButton } from '../VoiceRecordButton';
 
 vi.mock('idb-keyval', () => ({
+  createStore: vi.fn(() => ({})),
   get: vi.fn(),
   set: vi.fn(),
   del: vi.fn(),
